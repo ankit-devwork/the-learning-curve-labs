@@ -143,6 +143,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+the-learning-curve-labs
+.the-learning-curve-labs
 
 # Spyder project settings
 .spyderproject
