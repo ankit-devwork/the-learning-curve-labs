@@ -21,3 +21,5 @@ pyvis
 geopy
 xgboost
 shap
+lightgbm
+catboost
