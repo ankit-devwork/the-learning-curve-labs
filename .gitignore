@@ -145,6 +145,8 @@ env.bak/
 venv.bak/
 the-learning-curve-labs
 .the-learning-curve-labs
+ensemble-learning/catboost_info/
+
 
 # Spyder project settings
 .spyderproject
@@ -207,3 +209,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+/multi-model-sentiments
+/multi-model-sentiments/
+/lang-chain
+/lang-chain/
+/Autoencoders
+/Autoencoders/
+/mcp
+/mcp/
+/nlp
+/nlp/
+/prompt-engineering/
+/prompt-engineering
+/transformers
+/transformers/
+/travel_agent
+/travel_agent/
