@@ -2,12 +2,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import asyncio
+import nest_asyncio
 
-from latency_radar import app  # <- updated backend
+from latency_radar import app
 
-st.set_page_config(page_title="Latency Radar v5.3", layout="wide")
+nest_asyncio.apply()
 
-st.title("⚡ AI Latency Radar Dashboard (v5.3)")
+st.set_page_config(page_title="Latency Radar v1.0", layout="wide")
+st.title("⚡ AI Latency Radar Dashboard (v1.0)")
 
 prompt = st.text_area("Benchmark Prompt", "Explain atomic resonance in one sentence.")
 
@@ -17,8 +19,11 @@ models = st.multiselect(
     default=["gpt-3.5-turbo", "groq/llama-3.3-70b-versatile"]
 )
 
+async def run_radar(state):
+    return await app.ainvoke(state)
+
 if st.button("Run Benchmark"):
-    with st.spinner("Running Latency Radar v5.3..."):
+    with st.spinner("Running Latency Radar v5.5..."):
         state = {
             "models": models,
             "prompt": prompt,
@@ -29,7 +34,8 @@ if st.button("Run Benchmark"):
             "scores": {},
         }
 
-        final = asyncio.run(app.ainvoke(state))
+        loop = asyncio.get_event_loop()
+        final = loop.run_until_complete(run_radar(state))
 
     results = final["results"]
     judge = final["judge"]
@@ -37,6 +43,14 @@ if st.button("Run Benchmark"):
     summary = final["summary"]
     scores = final["scores"]
 
+    # Error display
+    failed = [r for r in results.values() if r["status"] == "error"]
+    if failed:
+        st.error("Some models failed:")
+        for f in failed:
+            st.write(f)
+
+    # Build DataFrame
     rows = []
     for model, r in results.items():
         if r["status"] == "success":
