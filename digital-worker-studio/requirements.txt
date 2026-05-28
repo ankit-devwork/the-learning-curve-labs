@@ -1,0 +1,8 @@
+redis
+sqlalchemy
+asyncpg
+neo4j
+tenacity
+pgvector
+langgraph-checkpoint-postgres
+psycopg[binary,pool]
