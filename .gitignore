@@ -227,3 +227,22 @@ __marimo__/
 /travel_agent
 /travel_agent/
 /github-jira-agent/logs/agent_trace.log
+# Ignore all docs folders
+docs/
+
+# Ignore all logs folders
+logs/
+
+# Ignore any nested docs/logs folders anywhere
+**/docs/
+**/logs/
+
+# Ignore log files
+*.log
+
+storage/
+**/storage/
+
+# Ignore config.properties anywhere
+config.properties
+**/config.properties

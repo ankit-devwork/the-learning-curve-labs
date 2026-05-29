@@ -23,7 +23,7 @@ async def run_radar(state):
     return await app.ainvoke(state)
 
 if st.button("Run Benchmark"):
-    with st.spinner("Running Latency Radar v5.5..."):
+    with st.spinner("Running Latency Radar v1.0..."):
         state = {
             "models": models,
             "prompt": prompt,

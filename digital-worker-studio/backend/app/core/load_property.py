@@ -1,13 +1,12 @@
 import os
 
-from pydantic import config
 from app.observability.logger import logger
 from .config_reader import PropertyFileReader
 
 class Settings:
     """
     Centralized configuration management.
-    Loads settings from config.properties into accessible attributes.
+    Loads settings from config.properties into accessible attributes with structural environmental overrides.
     """
     _instance = None
 
@@ -21,48 +20,69 @@ class Settings:
     def _load(self):
         try:
             # Safely locate config.properties relative to this directory
-            # Adjust the file path hierarchy ("../../") depending on your precise layout
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.abspath(os.path.join(base_dir, "../../../config.properties"))
+            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.properties")
             
+            if not os.path.exists(config_path):
+                config_path = os.path.join(os.getcwd(), "config.properties")
             logger.info(f"Loading application properties from: {config_path}")
             config = PropertyFileReader(config_path)
 
-            # Assign properties to instance attributes so they persist
-            self.base_model = config.get("BASE_GENERATION_MODEL", default="gpt-4o-mini")
-            # NEW: Load Redis settings securely
-            self.redis_host = config.get("redis.host", default="localhost")
-            self.redis_port = config.get_int("redis.port", default=6379)
-            self.redis_db = config.get_int("redis.db", default=0)
+            # 🚀 BASE MODEL OVERRIDE & SANITIZATION LAYER
+            # 1. Fetch raw value from environment or properties file fallback
+            raw_model = os.getenv("BASE_MODEL", config.get("BASE_GENERATION_MODEL", default="gpt-4o-mini"))
+            
+            # 2. Force structural verification to ensure LiteLLM provider prefix is intact
+            if "/" not in raw_model:
+                # If it's a known llama or groq model name missing its prefix, prepend 'groq'
+                if "llama" in raw_model.lower() or "mixtral" in raw_model.lower():
+                    self.base_model = f"groq/{raw_model}"
+                elif "gpt" in raw_model.lower():
+                    self.base_model = f"openai/{raw_model}"
+                elif "claude" in raw_model.lower():
+                    self.base_model = f"anthropic/{raw_model}"
+                else:
+                    # Generic safe fallback to Groq since it's the primary system runtime engine
+                    self.base_model = f"groq/{raw_model}"
+            else:
+                self.base_model = raw_model
+            
+            # 🚀 REDIS ENVIRONMENT OVERRIDES
+            # Prioritizes REDIS_HOST/REDIS_PORT environment variables passed to Docker
+            self.redis_host = os.getenv("REDIS_HOST", config.get("redis.host", default="localhost"))
+            self.redis_port = int(os.getenv("REDIS_PORT", config.get_int("redis.port", default=6379)))
+            self.redis_db = int(os.getenv("REDIS_DB", config.get_int("redis.db", default=0)))
             self.redis_default_ttl = config.get_int("redis.default_ttl", default=3600)
             self.sliding_response_ttl = config.get_int("redis.sliding_response_ttl", default=1800)
-            # Use an empty string if password isn't set
-            self.redis_password = config.get("redis.password", default="")
-            if self.redis_password in ("\"\"", "''"):
+            
+            self.redis_password = os.getenv("REDIS_PASSWORD", config.get("redis.password", default=""))
+            if self.redis_password in ("\"\"", "''", ""):
                 self.redis_password = None
 
-            self.db_host = config.get("db.host", default="localhost")
-            self.db_port = config.get_int("db.port", default=5432)
-            self.db_user = config.get("db.user", default="myuser")
-            self.db_password = config.get("db.password", default="mypassword")
-            self.db_name = config.get("db.name", default="mydatabase")
+            # 🚀 POSTGRES DB ENVIRONMENT OVERRIDES
+            self.db_host = os.getenv("DB_HOST", config.get("db.host", default="localhost"))
+            self.db_port = int(os.getenv("DB_PORT", config.get_int("db.port", default=5432)))
+            self.db_user = os.getenv("DB_USER", config.get("db.user", default="myuser"))
+            self.db_password = os.getenv("DB_PASSWORD", config.get("db.password", default="mypassword"))
+            self.db_name = os.getenv("DB_NAME", config.get("db.name", default="mydatabase"))
 
-            self.neo4j_uri = config.get("neo4j.uri", default="bolt://localhost:7687")
-            self.neo4j_user = config.get("neo4j.user", default="neo4j")
-            self.neo4j_password = config.get("neo4j.password", default="mypassword123")
+            # 🚀 NEO4J ENVIRONMENT OVERRIDES
+            # Prioritizes NEO4J_URI environment variable passed to Docker
+            self.neo4j_uri = os.getenv("NEO4J_URI", config.get("neo4j.uri", default="bolt://localhost:7687"))
+            self.neo4j_user = os.getenv("NEO4J_USER", config.get("neo4j.user", default="neo4j"))
+            self.neo4j_password = os.getenv("NEO4J_PASSWORD", config.get("neo4j.password", default="mypassword123"))
 
+            # Storage & Embedding configurations
             self.storage_local_dir = config.get("storage.local_dir", default="storage/uploads")
             self.storage_max_file_size_mb = config.get_int("storage.max_file_size_mb", default=50)
-
             self.text_embedding_model = config.get("text_embedding_model", default="text-embedding-3-small")
             self.chunk_size = config.get_int("chunk_size", default=1000)
             self.chunk_overlap = config.get_int("chunk_overlap", default=200)
 
-            logger.info(f"Configuration initialized successfully. Base Model: {self.base_model}")
+            logger.info(f"Configuration initialized successfully. Sanitized Base Model Router: {self.base_model}")
 
         except Exception as err:
             logger.critical("Configuration initialization failed", error=str(err))
-            # Raise exception to prevent the application from starting in an invalid state
             raise
 
 # Instantiate a single instance to be shared across the entire app

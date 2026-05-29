@@ -86,3 +86,11 @@ autogen-agentchat
 pyautogen
 pinecone
 phi
+schedule
+playwright
+tenacity
+pgvector
+redis
+sqlalchemy
+asyncpg
+neo4j

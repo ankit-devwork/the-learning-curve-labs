@@ -1,3 +1,6 @@
+fastapi
+uvicorn
+pydantic
 redis
 sqlalchemy
 asyncpg
@@ -5,4 +8,14 @@ neo4j
 tenacity
 pgvector
 langgraph-checkpoint-postgres
+langgraph
+litellm
 psycopg[binary,pool]
+pypdf
+typing-extensions
+loguru
+langfuse
+uvicorn
+torch==2.12.0 --index-url https://download.pytorch.org/whl/cpu
+sentence-transformers
+python-multipart

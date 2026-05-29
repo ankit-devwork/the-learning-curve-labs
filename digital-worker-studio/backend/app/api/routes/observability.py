@@ -1,10 +1,10 @@
+import os
 import time
 from fastapi import APIRouter, Depends
 from litellm import acompletion
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from neo4j.exceptions import ServiceUnavailable, Neo4jError
-# Import AsyncSession from neo4j to enforce asynchronous drivers context rules
 from neo4j import AsyncSession as Neo4jAsyncSession 
 
 from app.core.load_property import settings
@@ -34,10 +34,10 @@ router = APIRouter(prefix="/api/monitor", tags=["Monitoring & Diagnostics"])
 async def run_test_logic(prompt: str):
     """
     Asynchronously executes LLM generation using LiteLLM.
-    Ensures the FastAPI event loop is never blocked during external network I/O.
+    Natively routes with the global, sanitized model string provider prefix.
     """
     return await acompletion(
-        model=settings.base_model,
+        model=settings.base_model,  # 🚀 Clean and streamlined: e.g., 'groq/llama-3.3-70b-versatile'
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -86,6 +86,7 @@ async def check_redis_health():
             message="Redis connection check failed.",
             details={"raw_error": str(e)}
         )
+
 
 @router.get("/neo4j-check")
 async def check_neo4j_health():

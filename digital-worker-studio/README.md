@@ -281,3 +281,101 @@ Additional docs available in `docs/`:
 - Start the app from `digital-worker-studio/backend`.
 - Ensure required service endpoints are available before startup.
 - The React frontend may require a separate install step.
+
+
+# Digital Worker Studio - Docker Deployment Guide
+
+This guide details the step-by-step sequence required to spin up the Digital Worker Studio infrastructure, initialize database storage extensions, map isolated network architectures, and deploy the core GraphRAG microservice container.
+
+---
+
+## Architecture Overview
+
+Deploying the service requires a dedicated Docker bridge network (`studio-network`) to allow secure container-to-container communication using internal Docker DNS resolution instead of exposing raw database ports to `localhost`.
+
+---
+
+## Deployment Steps
+
+### 1. Create Isolated Docker Network
+Establish a custom bridge network so all containers can seamlessly discover each other by their container names.
+```bash
+docker network create studio-network
+
+### 2. Run PostgreSQL Container with Vector Support
+ Spin up a PostgreSQL 17 database image equipped with pgvector for handling hybrid high-dimensional vector embeddings.
+
+Bash
+docker run --name local-postgres \
+  --network studio-network \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=mypassword \
+  -e POSTGRES_DB=digital_worker_db \
+  -p 5432:5432 \
+  -d pgvector/pgvector:pg17
+
+### 3. Initialize Vector Extension
+Execute an internal SQL transaction string to securely install and activate the vector plugin inside the running relational engine.
+
+docker exec -it local-postgres psql -U postgres -d digital_worker_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+4. Run Redis Stack Cache Engine
+Deploy redis-stack to handle structured semantic caching, sliding response TTL management, and checkpoint data. This exposes the cache engine on port 6379 and the RedisInsight management GUI on port 8001.
+
+
+docker run -d --name my-local-redis \
+  --network studio-network \
+  -p 6379:6379 \
+  -p 8001:8001 \
+  redis/redis-stack:latest
+
+
+5. Run Neo4j Graph Database
+Deploy the graph tier to manage structural entities and complex knowledge relations.
+
+docker run --name local-neo4j \
+  --network studio-network \
+  -p 7474:7474 \
+  -p 7687:7687 \
+  -d \
+  -e NEO4J_AUTH=neo4j/mypassword123 \
+  neo4j:latest
+
+
+6. Verify Network Topology (Optional)
+Inspect the active bridge schema to confirm all core data persistence engines are attached correctly
+
+docker network inspect studio-network
+
+7. Build the GraphRAG Application Image
+Execute the Docker build sequence from your root directory to compile your modular Python runtime backend.
+
+Bash
+docker build -t digital-worker-studio:local -f backend/Dockerfile .
+
+
+8. Run the Microservice Container
+Launch the primary application engine, passing environmental overrides that map directly to the internal network host topologies.
+
+Bash
+docker run -d -p 8000:8000 --name graph_rag_app --network studio-network \
+  -e DATABASE_URL="postgresql+asyncpg://postgres:mypassword@local-postgres:5432/digital_worker_db" \
+  -e REDIS_HOST="my-local-redis" \
+  -e REDIS_PORT="6379" \
+  -e NEO4J_URI="bolt://local-neo4j:7687" \
+  -e GROQ_API_KEY="GROQ_API_KEY" \
+  digital-worker-studio:local
+
+
+Post-Deployment Validation
+Once the system is up, you can hit the built-in diagnostic endpoints to verify your infrastructure grid health:
+
+Swagger UI Documentation: http://localhost:8000/docs
+
+Relational Pool Check: GET http://localhost:8000/api/monitor/db-check
+
+Cache Ping Check: GET http://localhost:8000/api/monitor/redis-check
+
+Graph Traversal Check: GET http://localhost:8000/api/monitor/neo4j-check
+
+Cognitive Inference Routing Check: GET http://localhost:8000/api/monitor/observability-check
