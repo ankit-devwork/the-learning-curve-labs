@@ -1,5 +1,6 @@
 import os
 from typing import AsyncGenerator
+from urllib.parse import urlparse
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 from app.core.load_property import settings
@@ -13,36 +14,40 @@ class DatabaseService:
     Manages connection pooling and provides isolated database sessions per request.
     """
     def __init__(self):
-        # 1. Check for an absolute, direct database connection string override first
-        env_db_url = os.getenv("DATABASE_URL")
+        # 1. Fall back to building it piece-by-piece using your Settings attributes directly.
+        # This prioritizes your local properties file as the source of truth for local dev.
+        self.db_user = os.getenv("DB_USER", getattr(settings, "db_user", "postgres"))
+        self.db_password = os.getenv("DB_PASSWORD", getattr(settings, "db_password", "mypassword"))
+        self.db_host = os.getenv("DB_HOST", getattr(settings, "db_host", "localhost"))
+        self.db_port = os.getenv("DB_PORT", getattr(settings, "db_port", "5432"))
+        self.db_name = os.getenv("DB_NAME", getattr(settings, "db_name", "digital_worker_db"))
         
-        if env_db_url:
-            self.db_url = env_db_url
-            # Parse components out of the URL for psycopg compatibility later
-            # Strips prefix and breaks down user:pass@host:port/db
+        # 2. Check for an absolute connection override string, but ONLY use it if we aren't running locally
+        env_db_url = os.getenv("DATABASE_URL")
+        if env_db_url and not any(local_keyword in env_db_url for local_keyword in ["localhost", "127.0.0.1", "5442"]):
+            raw_url = env_db_url.strip("'\"")
+            if raw_url.startswith("postgresql://"):
+                raw_url = raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif raw_url.startswith("postgres://"):
+                raw_url = raw_url.replace("postgres://", "postgresql+asyncpg://", 1)
+                
+            self.db_url = raw_url
             try:
-                remainder = env_db_url.split("://")[1]
-                credentials, host_db = remainder.split("@")
-                self.db_user, self.db_password = credentials.split(":")
-                host_port, self.db_name = host_db.split("/")
-                self.db_host, self.db_port = host_port.split(":")
-            except Exception:
-                # Fallback defaults if URL parsing fails for helper methods
-                self.db_user = os.getenv("DATABASE_USER", getattr(settings, "db_user", "postgres"))
-                self.db_password = os.getenv("DATABASE_PASSWORD", getattr(settings, "db_password", "password"))
-                self.db_host = "postgres-vector"
-                self.db_port = "5432"
-                self.db_name = "digital_worker_db"
+                parsed = urlparse(raw_url.replace("+asyncpg", ""))
+                self.db_user = parsed.username or self.db_user
+                self.db_password = parsed.password or self.db_password
+                self.db_host = parsed.hostname or self.db_host
+                self.db_port = str(parsed.port or self.db_port)
+                self.db_name = parsed.path.lstrip("/") or self.db_name
+            except Exception as parse_err:
+                logger.error(f"Failed to extract DB metadata components from string: {str(parse_err)}")
         else:
-            # 2. Fall back to building it piece-by-piece from environment variables or properties
-            self.db_user = os.getenv("DATABASE_USER", getattr(settings, "db_user", "postgres"))
-            self.db_password = os.getenv("DATABASE_PASSWORD", getattr(settings, "db_password", "password"))
-            self.db_host = os.getenv("DATABASE_HOST", getattr(settings, "db_host", "localhost"))
-            self.db_port = os.getenv("DATABASE_PORT", getattr(settings, "db_port", "5432"))
-            self.db_name = os.getenv("DATABASE_NAME", getattr(settings, "db_name", "digital_worker_db"))
+            # Construct standard local URL out of the safe variables
             self.db_url = f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
             
-        # 2. Create the Database Engine with a Connection Pool
+        # 3. Create the Database Engine with a Connection Pool
+        logger.info(f"Connecting Async Engine to Database URL: postgresql+asyncpg://{self.db_user}:***@{self.db_host}:{self.db_port}/{self.db_name}")
+        
         self.engine = create_async_engine(
             self.db_url,
             echo=False,
@@ -51,7 +56,7 @@ class DatabaseService:
             pool_pre_ping=True
         )
         
-        # 3. Create a Session Factory
+        # 4. Create a Session Factory
         self.session_factory = async_sessionmaker(
             bind=self.engine,
             autoflush=False,
@@ -62,12 +67,8 @@ class DatabaseService:
     def get_psycopg_url(self) -> str:
         """
         Assembles a clean connection string compatible with native psycopg drivers.
-        Drops the '+asyncpg' dialect prefix since psycopg_pool requires standard URLs.
+        Drops the '+asyncpg' dialect prefix since psycopg requires standard URLs.
         """
-        # If an absolute override URL is found, strip out the asyncpg driver component
-        env_db_url = os.getenv("DATABASE_URL")
-        if env_db_url:
-            return env_db_url.replace("+asyncpg", "")
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     def _get_bound_logger(self):
