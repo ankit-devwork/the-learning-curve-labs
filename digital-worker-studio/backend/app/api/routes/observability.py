@@ -8,7 +8,7 @@ from neo4j.exceptions import ServiceUnavailable, Neo4jError
 
 from app.core.load_property import settings
 from app.core.database import db_service
-from app.core.redis import redis_service
+from app.core.unified_redis import redis   # <-- Unified Redis abstraction
 from app.core.exceptions import (
     DatabaseConnectionException,
     RedisConnectionException,
@@ -23,6 +23,9 @@ from app.observability.worker import get_worker_logger
 router = APIRouter(prefix="/api/monitor", tags=["Monitoring & Diagnostics"])
 
 
+# ----------------------------------------------------------------------
+# OBSERVABILITY TEST (LLM)
+# ----------------------------------------------------------------------
 @with_observability(
     name="observability_test_handler",
     include_args=True,
@@ -55,6 +58,9 @@ async def observability_test(request: Request):
     }
 
 
+# ----------------------------------------------------------------------
+# POSTGRES HEALTH CHECK
+# ----------------------------------------------------------------------
 @router.get("/db-check")
 async def check_postgres_health(request: Request, db: AsyncSession = Depends(db_service.get_session)):
     log = get_request_logger(request)
@@ -70,13 +76,26 @@ async def check_postgres_health(request: Request, db: AsyncSession = Depends(db_
         )
 
 
+# ----------------------------------------------------------------------
+# REDIS HEALTH CHECK (Unified: Upstash + Local)
+# ----------------------------------------------------------------------
 @router.get("/redis-check")
 async def check_redis_health(request: Request):
     log = get_request_logger(request)
+
     try:
-        is_alive = await redis_service.client.ping()
-        if is_alive:
-            return {"status": "operational", "cache": "connected"}
+        log.info(f"Checking Redis health...{redis.client.base_url}")
+        alive = await redis.ping()
+
+        if alive:
+            return {
+                "status": "operational",
+                "cache": "connected",
+                "mode": "upstash" if redis.use_upstash else "local"
+            }
+
+        raise Exception("Redis ping returned false")
+
     except Exception as e:
         log.error(f"Redis health check failed: {e}")
         raise RedisConnectionException(
@@ -85,6 +104,9 @@ async def check_redis_health(request: Request):
         )
 
 
+# ----------------------------------------------------------------------
+# NEO4J HEALTH CHECK
+# ----------------------------------------------------------------------
 @router.get("/neo4j-check")
 async def check_neo4j_health(request: Request):
     log = get_request_logger(request)

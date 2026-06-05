@@ -13,16 +13,8 @@ router = APIRouter(prefix="/api/worker/query", tags=["GraphRAG Search Engine"])
 
 
 class QueryRequestSchema(BaseModel):
-    question: str = Field(
-        ...,
-        description="The natural language question you want to ask the cognitive document graph engine.",
-        example="What critical tasks are assigned to MetLife and what are their deadlines?",
-    )
-    thread_id: str = Field(
-        ...,
-        description="Unique string or UUID session identifier used by the checkpointer to load and save chat logs.",
-        example="chat-session-xyz-123",
-    )
+    question: str
+    thread_id: str
 
 
 @router.post("/ask")
@@ -34,108 +26,76 @@ async def execute_graph_rag_query(
     question_text = payload.question.strip()
     thread_session_id = payload.thread_id.strip()
 
-    # Bind logger with correlation_id from middleware
     log = get_request_logger(request, thread_id=thread_session_id)
 
-    cache_lookup_key = f"query:{thread_session_id}:{question_text.lower()}"
-    session_config = {"configurable": {"thread_id": thread_session_id}}
-
-    try:
-        cached_payload = await cache_service.get_with_sliding_ttl(cache_lookup_key)
-        if cached_payload:
-            log.info(f"[API Gateway Cache Hit] Short-circuiting execution for thread: {thread_session_id}")
-
-            if not hasattr(agent_module, "graph_rag_executor") or agent_module.graph_rag_executor is None:
-                if hasattr(agent_module, "pool") and agent_module.pool is not None:
-                    postgres_checkpointer = AsyncPostgresSaver(agent_module.pool)
-                    agent_module.graph_rag_executor = agent_module.workflow.compile(
-                        checkpointer=postgres_checkpointer
-                    )
-
-            if agent_module.graph_rag_executor is not None:
-                try:
-                    await agent_module.graph_rag_executor.aupdate_state(
-                        session_config,
-                        {
-                            "messages": [
-                                HumanMessage(content=question_text),
-                                AIMessage(content=cached_payload["answer"]),
-                            ]
-                        },
-                        as_node="synthesis",
-                    )
-                    log.info("[API Gateway Checkpointer Sync] Synced cached history turn to Postgres thread.")
-                except Exception as sync_err:
-                    log.error(f"[API Gateway Checkpointer Warning] Failed to update history on cache hit: {sync_err}")
-
-            return {
-                "status": "success",
-                "query": question_text,
-                "answer": cached_payload["answer"],
-            }
-
-    except Exception as cache_read_err:
-        log.error(f"[API Gateway Cache Warning] Bypassing Redis read exception: {cache_read_err}")
-
-    log.info(
-        f"Received secure API search request for thread '{thread_session_id}' | question: '{question_text}'"
+    # ---------------------------------------------------------
+    # FINAL ANSWER CACHE CHECK (NEW)
+    # ---------------------------------------------------------
+    cached_answer = await cache_service.get_final_answer(
+        thread_session_id, question_text
     )
 
-    try:
-        if not hasattr(agent_module, "graph_rag_executor") or agent_module.graph_rag_executor is None:
-            log.warning(
-                "[API Gateway Lazy Init] Graph executor was uninitialized at call invocation. Compiling canvas..."
-            )
-            if hasattr(agent_module, "pool") and agent_module.pool is not None:
-                postgres_checkpointer = AsyncPostgresSaver(agent_module.pool)
-                agent_module.graph_rag_executor = agent_module.workflow.compile(
-                    checkpointer=postgres_checkpointer
-                )
-            else:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Relational database checkpoint pool is currently uninitialized.",
-                )
-
-        initial_state = {
-            "query": question_text,
-            "retrieved_context": "",
-            "routing_decision": "",
-            "final_answer": "",
-        }
-
-        log.info(
-            f"[API Gateway] Submitting query state to LangGraph executor canvas for thread: {thread_session_id}..."
-        )
-        final_output_state = await agent_module.graph_rag_executor.ainvoke(
-            initial_state, config=session_config
-        )
-
-        final_answer_string = final_output_state.get("final_answer", "").strip()
-        if not final_answer_string or final_answer_string == "Failed to compile execution response string.":
-            raise ValueError("LangGraph execution loop completed but failed to generate a grounded answer string.")
-
-        cache_payload = {"answer": final_answer_string}
-
-        try:
-            await cache_service.set_fixed_ttl(cache_lookup_key, cache_payload)
-        except Exception as cache_write_err:
-            log.error(
-                f"[API Gateway Cache Warning] Failed to commit new entry payload to Redis grid: {cache_write_err}"
-            )
-
-        log.info("[API Gateway] LangGraph loop finished execution successfully. Returning structured response.")
+    if cached_answer:
+        log.info(f"[FINAL ANSWER CACHE HIT] thread={thread_session_id}")
         return {
             "status": "success",
             "query": question_text,
-            "answer": final_answer_string,
+            "answer": cached_answer["answer"],
         }
 
-    except HTTPException:
-        raise
-    except Exception as graph_runtime_err:
-        log.error(f"[API Gateway Critical Fault] LangGraph execution workflow loop collapsed: {graph_runtime_err}")
+    log.info(f"[FINAL ANSWER CACHE MISS] thread={thread_session_id}")
+
+    # ---------------------------------------------------------
+    # Ensure LangGraph executor is initialized
+    # ---------------------------------------------------------
+    if not hasattr(agent_module, "graph_rag_executor") or agent_module.graph_rag_executor is None:
+        log.warning("[Lazy Init] Compiling LangGraph executor...")
+        if hasattr(agent_module, "pool") and agent_module.pool is not None:
+            postgres_checkpointer = AsyncPostgresSaver(agent_module.pool)
+            agent_module.graph_rag_executor = agent_module.workflow.compile(
+                checkpointer=postgres_checkpointer
+            )
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="Checkpoint pool is uninitialized.",
+            )
+
+    # ---------------------------------------------------------
+    # RUN FULL GRAPHRAG PIPELINE
+    # ---------------------------------------------------------
+    initial_state = {
+        "query": question_text,
+        "retrieved_context": "",
+        "routing_decision": "",
+        "final_answer": "",
+    }
+
+    log.info(f"[API Gateway] Executing LangGraph for thread={thread_session_id}...")
+    final_output_state = await agent_module.graph_rag_executor.ainvoke(
+        initial_state,
+        config={"configurable": {"thread_id": thread_session_id}},
+    )
+
+    final_answer_string = final_output_state.get("final_answer", "").strip()
+    if not final_answer_string:
         raise HTTPException(
             status_code=500,
-            detail=f"GraphRAG Cognitive Engine runtime execution fault: {str(graph_runtime_err)}",
+            detail="LangGraph execution completed but no final answer was produced.",
         )
+
+    # ---------------------------------------------------------
+    # STORE FINAL ANSWER IN CACHE (NEW)
+    # ---------------------------------------------------------
+    await cache_service.set_final_answer(
+        thread_session_id,
+        question_text,
+        {"answer": final_answer_string},
+    )
+
+    log.info("[API Gateway] Returning final answer.")
+    return {
+        "status": "success",
+        "query": question_text,
+        "answer": final_answer_string,
+    }
