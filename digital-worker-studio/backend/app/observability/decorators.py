@@ -25,31 +25,24 @@ def with_observability(
             if model and result:
                 try:
                     cost_model = model
-                    
-                    # 🚀 DYNAMIC RESOLUTION: If provider prefix is missing (no slash), add it
+
                     if "/" not in cost_model:
-                        # 1. First choice: Check if your property file has an explicit provider key
-                        #    (e.g., settings.llm_provider, settings.provider, etc.)
                         from app.core.load_property import settings
                         provider = getattr(settings, "llm_provider", None) or getattr(settings, "provider", None)
-                        
-                        # 2. Fallback: If no provider property exists, check the object type
                         if not provider:
                             if hasattr(result, "x_groq") or "x_groq" in getattr(result, "__dict__", {}):
                                 provider = "groq"
                             else:
-                                provider = "openai" # Default safe fallback
-                        
+                                provider = "openai"
                         cost_model = f"{provider.lower()}/{cost_model}"
 
-                    # Calculate cost using the cleanly constructed string (e.g. "groq/llama-3.3-70b-versatile")
                     cost = float(completion_cost(result, model=cost_model) or 0.0)
                     payload["cost"] = cost
                     payload["model"] = model
 
                     prompt = kwargs.get("prompt") or (args[0] if args else "Unknown Prompt")
                     trace = kwargs.get("__trace_obj__", {})
-                    
+
                     ls_span = trace.get("langsmith")
                     if ls_span and hasattr(ls_span, "log_input") and hasattr(ls_span, "log_output"):
                         ls_span.log_input(str(prompt))
@@ -69,18 +62,21 @@ def with_observability(
             bound_logger.info("Span completed", **payload)
             return result
 
-        # --- ASYNC WRAPPER ---
         @wraps(func)
         async def async_wrapper(*args, **kwargs) -> Any:
             cid = get_current_correlation_id()
-            bound = logger.bind(correlation_id=cid, span=func_name)
+            # DO NOT generate a new correlation_id here; just bind existing one if present
+            if cid:
+                bound = logger.bind(correlation_id=cid, span=func_name)
+            else:
+                bound = logger.bind(span=func_name)
 
             if include_args:
                 bound.info("Span started", args=str(args), kwargs=str(kwargs))
             else:
                 bound.info("Span started")
 
-            with start_trace(func_name, cid) as trace:
+            with start_trace(func_name, cid or "unknown") as trace:
                 start = time.time()
                 try:
                     result = await func(*args, **kwargs)
@@ -90,18 +86,20 @@ def with_observability(
                     bound.exception("Span failed")
                     raise err
 
-        # --- SYNC WRAPPER ---
         @wraps(func)
         def sync_wrapper(*args, **kwargs) -> Any:
             cid = get_current_correlation_id()
-            bound = logger.bind(correlation_id=cid, span=func_name)
+            if cid:
+                bound = logger.bind(correlation_id=cid, span=func_name)
+            else:
+                bound = logger.bind(span=func_name)
 
             if include_args:
                 bound.info("Span started", args=str(args), kwargs=str(kwargs))
             else:
                 bound.info("Span started")
 
-            with start_trace(func_name, cid) as trace:
+            with start_trace(func_name, cid or "unknown") as trace:
                 start = time.time()
                 try:
                     result = func(*args, **kwargs)

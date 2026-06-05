@@ -94,3 +94,5 @@ redis
 sqlalchemy
 asyncpg
 neo4j
+aiobotocore
+boto3

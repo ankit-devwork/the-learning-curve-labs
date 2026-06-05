@@ -3,13 +3,11 @@ from typing import Dict, Any, Optional
 from langfuse import get_client
 from app.observability.logger import logger
 
-# Initialize client cleanly via standard singleton patterns
 langfuse = get_client()
 
 
 @contextmanager
 def start_trace(span_name: str, correlation_id: str) -> Dict[str, Optional[Any]]:
-    """Langfuse v4 context tracking wrapper block."""
     lf_cm = None
     lf_span = None
     ls_span = None

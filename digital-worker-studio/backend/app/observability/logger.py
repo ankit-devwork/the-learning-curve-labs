@@ -10,7 +10,7 @@ from loguru import logger
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_DIR = os.getenv("LOG_DIR", "logs")
 
-# The global context holder for async execution chains
+# Global context holder for async execution chains
 correlation_id_ctx: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
 
 
@@ -19,13 +19,11 @@ def generate_correlation_id() -> str:
 
 
 def set_correlation_id(cid: str):
-    """Sets the correlation ID for the current context."""
     correlation_id_ctx.set(cid)
 
 
-def get_current_correlation_id() -> str:
-    """Retrieves the correlation ID or fallbacks to a new one if outside context."""
-    return correlation_id_ctx.get() or generate_correlation_id()
+def get_current_correlation_id() -> Optional[str]:
+    return correlation_id_ctx.get()
 
 
 class JsonLogSink:
@@ -43,15 +41,19 @@ class JsonLogSink:
                 "line": record["line"],
             }
 
-            # Inject the current ContextVar correlation_id dynamically if missing from 'extra'
-            log["correlation_id"] = record["extra"].get("correlation_id") or correlation_id_ctx.get()
+            # IMPORTANT: do NOT generate a new correlation_id here
+            log["correlation_id"] = record["extra"].get("correlation_id")
 
             # Add remaining extra fields
             for k, v in record["extra"].items():
-                if k != "correlation_id":
+                if k == "correlation_id":
+                    continue
+                try:
+                    json.dumps({k: v})
                     log[k] = v
+                except Exception:
+                    log[k] = str(v)
 
-            # Using sys.stdout.write over print avoids the GIL bottlenecks under load
             sys.stdout.write(json.dumps(log) + "\n")
 
         except Exception as e:
@@ -61,7 +63,6 @@ class JsonLogSink:
 def configure_logging():
     logger.remove()
 
-    # Console JSON logs
     logger.add(
         JsonLogSink(),
         level=LOG_LEVEL,
@@ -70,7 +71,6 @@ def configure_logging():
         diagnose=False,
     )
 
-    # Rotating file logs
     os.makedirs(LOG_DIR, exist_ok=True)
     logger.add(
         f"{LOG_DIR}/app.log",
@@ -87,7 +87,20 @@ def configure_logging():
     return logger
 
 
-# Configure at execution startup
 configure_logging()
 
-__all__ = ["logger", "generate_correlation_id", "correlation_id_ctx", "get_current_correlation_id"]
+__all__ = ["logger", "generate_correlation_id", "correlation_id_ctx", "get_current_correlation_id", "set_correlation_id"]
+
+
+def get_bound_logger(**extra):
+    cid = get_current_correlation_id()
+    return logger.bind(correlation_id=cid, **extra)
+
+
+def get_request_logger(request, **extra):
+    cid = getattr(request.state, "correlation_id", None)
+    return logger.bind(correlation_id=cid, **extra)
+
+
+__all__.append("get_bound_logger")
+__all__.append("get_request_logger")
