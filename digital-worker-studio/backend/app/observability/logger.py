@@ -73,9 +73,10 @@ def configure_logging():
 
     os.makedirs(LOG_DIR, exist_ok=True)
     logger.add(
-        f"{LOG_DIR}/app.log",
-        rotation="10 MB",
-        retention="14 days",
+        f"{LOG_DIR}/app_{{time:YYYY-MM-DD}}.log",
+       # rotation="10 MB", If want rotation by size instead of time, uncomment this and comment the next line
+        rotation="00:00",          # rotate at midnight
+        retention="3 days",
         compression="zip",
         level="DEBUG",
         enqueue=True,
