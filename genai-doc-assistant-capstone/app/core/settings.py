@@ -6,6 +6,7 @@ Centralized application settings loader.
 Responsibilities:
 - Resolve project root reliably (monorepo-safe)
 - Load config.yaml
+- Load .env and apply dynamic env overrides
 - Inject base_dir into config
 - Produce a fully validated AppConfig instance
 - Expose `settings` globally
@@ -19,28 +20,23 @@ from app.schema import config_schema
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------
-# 1. Resolve project root RELIABLY
-# ---------------------------------------------------------
 CURRENT_FILE = Path(__file__).resolve()
 PROJECT_DIR = CURRENT_FILE.parents[2]
-
 CONFIG_PATH = PROJECT_DIR / "config.yaml"
+ENV_PATH = PROJECT_DIR / ".env"
 
-print(f"PROJECT_DIR: {PROJECT_DIR}")
-print(f"CONFIG_PATH: {CONFIG_PATH}")
-print(f"CONFIG EXISTS: {CONFIG_PATH.exists()}")
+settings = ConfigLoader(
+    CONFIG_PATH,
+    base_dir=PROJECT_DIR,
+    env_file=ENV_PATH,
+    env_prefix="APP",
+).load_typed(config_schema.AppConfig)
 
-# ---------------------------------------------------------
-# 2. Load typed config with base_dir injection
-# ---------------------------------------------------------
-settings = ConfigLoader(CONFIG_PATH, base_dir=PROJECT_DIR).load_typed(
-    config_schema.AppConfig
+logger.debug(
+    "Settings loaded",
+    extra={
+        "upload_dir": str(settings.paths.upload_dir),
+        "vector_db_path": str(settings.paths.vector_db_path),
+        "log_dir": str(settings.paths.log_dir),
+    },
 )
-
-# ---------------------------------------------------------
-# 3. Print resolved absolute paths
-# ---------------------------------------------------------
-print(f"UPLOAD_DIR (resolved): {settings.paths.upload_dir}")
-print(f"VECTOR_DB_PATH (resolved): {settings.paths.vector_db_path}")
-print(f"LOG_DIR (resolved): {settings.paths.log_dir}")
