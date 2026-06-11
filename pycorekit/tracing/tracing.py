@@ -18,6 +18,37 @@ _langfuse_client = None
 _langsmith_client = None
 
 
+def _langfuse_configured() -> bool:
+    return bool(os.getenv("LANGFUSE_SECRET_KEY") and os.getenv("LANGFUSE_PUBLIC_KEY"))
+
+
+def _langsmith_configured() -> bool:
+    if not os.getenv("LANGCHAIN_API_KEY"):
+        return False
+    tracing_flag = os.getenv("LANGCHAIN_TRACING_V2", "false").lower()
+    return tracing_flag in ("true", "1", "yes")
+
+
+def get_external_tracing_status() -> Dict[str, Any]:
+    """Return configured/active status for Langfuse and LangSmith."""
+    langfuse_host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com").rstrip("/")
+    langsmith_project = os.getenv("LANGCHAIN_PROJECT", "genai-doc-assistant")
+    langsmith_base = os.getenv("LANGSMITH_ENDPOINT", "https://smith.langchain.com").rstrip("/")
+
+    return {
+        "langfuse": {
+            "configured": _langfuse_configured(),
+            "host": langfuse_host,
+        },
+        "langsmith": {
+            "configured": _langsmith_configured(),
+            "project": langsmith_project,
+            "base_url": langsmith_base,
+            "url": f"{langsmith_base}/o/default/projects/p/{langsmith_project}",
+        },
+    }
+
+
 def _get_langfuse_client():
     """Lazy initialization of Langfuse client with diagnostics."""
     global _langfuse_client
@@ -25,13 +56,10 @@ def _get_langfuse_client():
         return _langfuse_client
 
     try:
-        if not os.getenv("LANGFUSE_SECRET_KEY"):
-            logger.warning("LANGFUSE_SECRET_KEY not set; Langfuse will be disabled")
-            return None
-        if not os.getenv("LANGFUSE_PUBLIC_KEY"):
-            logger.warning("LANGFUSE_PUBLIC_KEY not set; Langfuse will be disabled")
+        if not _langfuse_configured():
             return None
 
+        os.environ.setdefault("LANGFUSE_HOST", "https://cloud.langfuse.com")
         from langfuse import get_client as get_langfuse
         _langfuse_client = get_langfuse()
         logger.info("Langfuse client initialized successfully")
@@ -48,9 +76,11 @@ def get_langsmith_client():
         return _langsmith_client
 
     try:
-        if not os.getenv("LANGCHAIN_API_KEY"):
+        if not _langsmith_configured():
             return None
 
+        os.environ.setdefault("LANGCHAIN_PROJECT", "genai-doc-assistant")
+        os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
         from langsmith import Client as LangSmithClient
         _langsmith_client = LangSmithClient()
         logger.info("LangSmith client initialized successfully")
@@ -98,24 +128,25 @@ def get_current_trace() -> Dict[str, Any] | None:
     return _TRACE_CTX.get()
 
 
-def _init_trace(name: str, inputs: dict | None) -> Dict[str, Any]:
+def _ensure_external_tracing(trace: Dict[str, Any], name: str, inputs: dict | None) -> None:
+    """Attach Langfuse/LangSmith handles once per request trace."""
+    if trace.get("_external_tracing_initialized"):
+        return
+
+    trace["_external_tracing_initialized"] = True
     cid = get_current_correlation_id() or "unknown"
 
-    trace = init_empty_trace()
-
-    # Langfuse
     langfuse = _get_langfuse_client()
     if langfuse:
         try:
             trace["langfuse"] = langfuse.start_observation(
                 name=name,
-                metadata={"correlation_id": cid}
+                metadata={"correlation_id": cid},
             )
         except Exception as e:
             logger.warning("Langfuse start_observation failed", error=str(e))
             trace["errors"].append(f"langfuse_start_failed: {e}")
 
-    # LangSmith
     langsmith = _get_langsmith_client()
     if langsmith:
         try:
@@ -123,17 +154,21 @@ def _init_trace(name: str, inputs: dict | None) -> Dict[str, Any]:
                 name=name,
                 run_type="chain",
                 inputs=inputs or {"input": "<none>"},
-                metadata={"correlation_id": cid}
+                metadata={"correlation_id": cid},
             )
         except Exception as e:
             logger.warning("LangSmith run creation failed", error=str(e))
             trace["errors"].append(f"langsmith_start_failed: {e}")
 
+
+def _init_trace(name: str, inputs: dict | None) -> Dict[str, Any]:
+    trace = init_empty_trace()
+    _ensure_external_tracing(trace, name, inputs)
     return trace
 
 
 @contextmanager
-def start_trace(name: str, inputs: Optional[dict] = None):
+def start_trace(name: str, inputs: Optional[dict] = None, span_type: Optional[str] = None):
     """
     Start a trace span.
 
@@ -147,12 +182,15 @@ def start_trace(name: str, inputs: Optional[dict] = None):
     trace = get_current_trace()
     if trace is None:
         trace = _init_trace(name, inputs)
+    else:
+        _ensure_external_tracing(trace, name, inputs)
 
     lf_obs = trace.get("langfuse")
     ls_run = trace.get("langsmith")
 
     span = {
         "name": name,
+        "type": span_type,
         "inputs": inputs or {},
         "start_ts": time.perf_counter(),
         "end_ts": None,

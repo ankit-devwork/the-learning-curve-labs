@@ -42,6 +42,21 @@ def _find_request(args, kwargs):
     return None
 
 
+def _attach_observability(result, args, kwargs):
+    if not isinstance(result, dict):
+        return result
+
+    request = _find_request(args, kwargs)
+    trace = None
+    if request is not None:
+        trace = getattr(request.state, "trace", None)
+    if trace is None:
+        trace = get_current_trace()
+    if trace is not None:
+        result["observability"] = sanitize_observability(trace)
+    return result
+
+
 def with_observability(name: Optional[str] = None):
     def decorator(func: Callable):
         func_name = name or func.__name__
@@ -56,6 +71,7 @@ def with_observability(name: Optional[str] = None):
             start = time.perf_counter()
             trace_inputs = _safe_inputs(args, kwargs)
 
+            result = None
             with start_trace(func_name, inputs=trace_inputs) as obs:
                 lf_obs = obs.get("langfuse")
                 ls_run = obs.get("langsmith")
@@ -85,18 +101,6 @@ def with_observability(name: Optional[str] = None):
                         except Exception as e:
                             bound.warning("LangSmith update failed", error=str(e))
 
-                    if isinstance(result, dict):
-                        request = _find_request(args, kwargs)
-                        trace = None
-                        if request is not None:
-                            trace = getattr(request.state, "trace", None)
-                        if trace is None:
-                            trace = get_current_trace()
-                        if trace is not None:
-                            result["observability"] = sanitize_observability(trace)
-
-                    return result
-
                 except Exception as e:
                     duration_ms = round((time.perf_counter() - start) * 1000, 2)
                     bound.exception("Observation failed", duration_ms=duration_ms)
@@ -121,6 +125,8 @@ def with_observability(name: Optional[str] = None):
                             pass
 
                     raise
+
+            return _attach_observability(result, args, kwargs)
 
         return async_wrapper if asyncio.iscoroutinefunction(func) else func
 

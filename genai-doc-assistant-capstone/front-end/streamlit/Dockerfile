@@ -1,18 +1,33 @@
+# Build from monorepo root:
+#   docker build -f genai-doc-assistant-capstone/front-end/streamlit/Dockerfile -t genai-streamlit .
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (optional but recommended)
-RUN apt-get update && apt-get install -y curl && apt-get clean
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-RUN pip install --no-cache-dir streamlit requests plotly pandas
+COPY genai-doc-assistant-capstone/front-end/streamlit/requirements.txt ./requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
-COPY . /app
+COPY genai-doc-assistant-capstone/front-end/streamlit /app
 
-# Expose Streamlit port
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 8501
 
-# Streamlit entrypoint
-CMD ["streamlit", "run", "chat.py", "--server.port=8501", "--server.address=0.0.0.0"]
+HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=5 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+
+CMD [
+    "streamlit",
+    "run",
+    "chat.py",
+    "--server.port=8501",
+    "--server.address=0.0.0.0",
+    "--server.headless=true",
+    "--browser.gatherUsageStats=false"
+]

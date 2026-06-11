@@ -44,3 +44,25 @@ QUERY_CACHE_TTL=3600
 ```
 
 When Redis is not configured, the capstone app uses an in-memory cache.
+
+## External observability (optional)
+
+Set these in `.env` to export traces to Langfuse and/or LangSmith. In-process spans always work; external tools add a hosted UI.
+
+### Langfuse
+
+```bash
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+```
+
+### LangSmith
+
+```bash
+LANGCHAIN_API_KEY=lsv2_...
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=genai-doc-assistant
+```
+
+Check configuration at `GET /ready` under `external_tracing`, or in the Streamlit **RAG Observability Dashboard** under **External Tracing**.
