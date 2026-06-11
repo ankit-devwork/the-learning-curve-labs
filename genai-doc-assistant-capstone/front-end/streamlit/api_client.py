@@ -1,7 +1,20 @@
 import os
 import requests
 
-BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000").rstrip("/")
+
+def _resolve_backend_url() -> str:
+    explicit = os.getenv("BACKEND_URL", "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+
+    hostport = os.getenv("BACKEND_HOSTPORT", "").strip()
+    if hostport:
+        return f"http://{hostport}".rstrip("/")
+
+    return "http://backend:8000"
+
+
+BASE_URL = _resolve_backend_url()
 
 
 class BackendAPIError(Exception):

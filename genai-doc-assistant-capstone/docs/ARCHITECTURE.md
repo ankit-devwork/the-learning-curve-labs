@@ -46,3 +46,20 @@ This avoids re-running planner and document selector.
 - `RequestTracingMiddleware` initializes per-request traces
 - `@with_observability` injects sanitized trace payloads into JSON responses
 - Langfuse and LangSmith are optional and lazily initialized
+
+## Deployment
+
+Deployment artifacts live inside the capstone project folder (this monorepo contains multiple projects):
+
+| Artifact | Path | Purpose |
+|----------|------|---------|
+| Docker Compose | `docker-compose.yml` | Local backend + Streamlit stack |
+| Docker Compose (dev) | `docker-compose.dev.yml` | Hot-reload overrides |
+| Render Blueprint | `render.yaml` | Cloud deploy on Render |
+| Backend Dockerfile | `Dockerfile` | API image (build context = monorepo root) |
+| Streamlit Dockerfile | `front-end/streamlit/Dockerfile` | UI image |
+
+Guides:
+- Local: [DOCKER.md](DOCKER.md)
+- Cloud: [RENDER.md](RENDER.md)
+- Diagrams: [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) (sections 11–13)

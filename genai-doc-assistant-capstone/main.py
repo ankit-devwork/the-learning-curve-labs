@@ -9,7 +9,10 @@ Responsibilities:
 - Start FastAPI application
 """
 
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # pycorekit integrations
 from pycorekit.core_logging.logger import init_logger
@@ -25,7 +28,7 @@ from app.api.routes_list_documents import router as list_doc_router
 from app.api.routes_observability import router as observability_router
 from app.core.settings import settings
 # Initialize logging
-import sys, os
+import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -44,6 +47,14 @@ app = FastAPI(
 )
 
 # Add middleware
+_cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "*")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _cors_origins.split(",") if o.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(RequestTracingMiddleware)
 

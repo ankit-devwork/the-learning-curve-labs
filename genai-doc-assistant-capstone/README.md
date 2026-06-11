@@ -24,11 +24,17 @@ genai-doc-assistant-capstone/
 │   └── service/          # ChromaDB, cache, embeddings
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   └── CONFIGURATION.md
+│   ├── ARCHITECTURE_DIAGRAM.md
+│   ├── CONFIGURATION.md
+│   ├── DOCKER.md
+│   └── RENDER.md
 ├── front-end/streamlit/  # Streamlit UI
 ├── tests/
 ├── config.yaml
 ├── .env.example
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── render.yaml
 ├── Dockerfile
 └── main.py
 ```
@@ -40,14 +46,33 @@ genai-doc-assistant-capstone/
 cp genai-doc-assistant-capstone/.env.example genai-doc-assistant-capstone/.env
 # Edit .env and set GROQ_API_KEY
 
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml up --build
+```
+
+Or from the capstone directory:
+
+```bash
+cd genai-doc-assistant-capstone
+cp .env.example .env
 docker compose up --build
 ```
 
 **Dev mode** (hot reload, source mounts):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml -f genai-doc-assistant-capstone/docker-compose.dev.yml up --build
 ```
+
+## Deploy to Render
+
+Use the Blueprint at `genai-doc-assistant-capstone/render.yaml` to deploy backend + Streamlit as two web services.
+
+```text
+Render Dashboard → New → Blueprint → connect repo
+Blueprint path: genai-doc-assistant-capstone/render.yaml → Apply
+```
+
+Set `GROQ_API_KEY` and `CORS_ALLOW_ORIGINS` when prompted. See [docs/RENDER.md](docs/RENDER.md) for full steps, env vars, and troubleshooting.
 
 See [docs/DOCKER.md](docs/DOCKER.md) for full Docker documentation.
 

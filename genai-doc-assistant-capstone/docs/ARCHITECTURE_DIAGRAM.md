@@ -5,7 +5,8 @@ Visual reference for the **GenAI Document Assistant** capstone: components, data
 Related docs:
 - [ARCHITECTURE.md](ARCHITECTURE.md) — narrative architecture overview
 - [CONFIGURATION.md](CONFIGURATION.md) — config and `.env` overrides
-- [DOCKER.md](DOCKER.md) — Docker run guide
+- [DOCKER.md](DOCKER.md) — local Docker Compose guide
+- [RENDER.md](RENDER.md) — cloud deployment on Render
 
 ---
 
@@ -316,12 +317,33 @@ flowchart LR
 
 ---
 
-## 11. Docker deployment topology
+## 11. Project deployment artifacts
+
+All capstone deployment files live inside `genai-doc-assistant-capstone/` (not the monorepo root):
+
+```text
+genai-doc-assistant-capstone/
+├── docker-compose.yml       # Local stack (project: genai-doc-assistant-capstone)
+├── docker-compose.dev.yml   # Dev overrides (hot reload)
+├── render.yaml              # Render Blueprint (cloud deploy)
+├── Dockerfile               # Backend image (build context = monorepo root)
+├── front-end/streamlit/Dockerfile
+├── .env.example
+└── docs/
+    ├── DOCKER.md
+    └── RENDER.md
+```
+
+Docker and Render builds still use the **monorepo root** as context (`..` or `.`) because the backend image copies `pycorekit/`.
+
+---
+
+## 12. Docker deployment topology (local)
 
 ```mermaid
 flowchart TB
     subgraph Host["Host machine"]
-        DC["docker compose up"]
+        DC["docker compose -f genai-doc-assistant-capstone/docker-compose.yml up"]
     end
 
     subgraph Network["genai-net"]
@@ -329,13 +351,13 @@ flowchart TB
         ST["genai_streamlit :8501"]
     end
 
-    subgraph Volumes["Named volumes"]
+    subgraph Volumes["Named volumes (genai-doc-assistant-capstone_*)"]
         V1["genai-uploads"]
         V2["genai-vector-store"]
         V3["genai-logs"]
     end
 
-    ENV[".env file"] --> BE
+    ENV["genai-doc-assistant-capstone/.env"] --> BE
     DC --> BE
     DC --> ST
     ST -->|"BACKEND_URL=http://backend:8000"| BE
@@ -346,7 +368,33 @@ flowchart TB
 
 ---
 
-## 12. End-to-end user journey (sequence)
+## 13. Render deployment topology (cloud)
+
+```mermaid
+flowchart TB
+    subgraph Render["Render.com"]
+        Blueprint["genai-doc-assistant-capstone/render.yaml"]
+        BE["genai-backend Web Service"]
+        ST["genai-streamlit Web Service"]
+        Disk["Persistent disk /app/data"]
+    end
+
+    subgraph External["External"]
+        Groq["Groq API"]
+        User["User browser"]
+    end
+
+    Blueprint --> BE
+    Blueprint --> ST
+    User --> ST
+    ST -->|"BACKEND_HOSTPORT private network"| BE
+    BE --> Disk
+    BE --> Groq
+```
+
+---
+
+## 14. End-to-end user journey (sequence)
 
 ```mermaid
 sequenceDiagram
@@ -388,7 +436,7 @@ sequenceDiagram
 
 ---
 
-## 13. Component summary
+## 15. Component summary
 
 | Component | Technology | Role |
 |-----------|------------|------|

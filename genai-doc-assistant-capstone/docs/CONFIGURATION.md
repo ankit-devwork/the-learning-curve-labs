@@ -66,3 +66,15 @@ LANGCHAIN_PROJECT=genai-doc-assistant
 ```
 
 Check configuration at `GET /ready` under `external_tracing`, or in the Streamlit **RAG Observability Dashboard** under **External Tracing**.
+
+## Deployment files
+
+Configuration and secrets are loaded the same way in all environments. Deployment manifests live in the capstone folder:
+
+| File | Environment |
+|------|-------------|
+| `docker-compose.yml` | Local Docker |
+| `docker-compose.dev.yml` | Local Docker (dev) |
+| `render.yaml` | Render cloud |
+
+See [DOCKER.md](DOCKER.md) and [RENDER.md](RENDER.md).
