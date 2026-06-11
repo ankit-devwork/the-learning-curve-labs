@@ -51,11 +51,11 @@ Share the forwarded URL. Free tier has session limits.
 
 ---
 
-## Render free tier (limited — use `render.free.yaml`)
+## Render free tier (default `render.yaml`)
 
-If you still want Render **without paying**:
+The main Blueprint already uses **free** plans with **no disk**:
 
-1. Blueprint path: **`genai-doc-assistant-capstone/render.free.yaml`**
+1. Blueprint path: **`genai-doc-assistant-capstone/render.yaml`**
 2. Accept limitations:
 
 | Limitation | Impact |
@@ -126,7 +126,7 @@ See HF docs: [Docker Spaces](https://huggingface.co/docs/hub/spaces-sdks-docker)
 |-----------|------------------|
 | Capstone presentation on your laptop | **Local Docker** |
 | Instructor opens a link remotely | **Local Docker + Cloudflare Tunnel** |
-| Must be “in the cloud” with zero payment | **Render free** (`render.free.yaml`) — expect fragility |
+| Must be “in the cloud” with zero payment | **Render free** (`render.yaml`) — expect fragility |
 | Long-term free public demo | **HF Spaces** or **Streamlit Cloud + tunneled API** |
 
 For most capstone submissions, **local Docker + screenshots/video** or **local + Cloudflare Tunnel** is enough and avoids payment entirely.

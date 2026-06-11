@@ -6,12 +6,12 @@ This guide deploys the **FastAPI backend** and **Streamlit UI** as two Render we
 
 ```text
 genai-doc-assistant-capstone/render.yaml
-├── genai-backend (Docker, Starter + 1GB disk)
+├── genai-backend (Docker, Free)
 │   ├── FastAPI + ChromaDB + embeddings
-│   ├── Persistent disk at /app/data (uploads + vector store)
+│   ├── Ephemeral storage (data lost on redeploy/restart)
 │   └── Health check: /health
 │
-└── genai-streamlit (Docker, Starter)
+└── genai-streamlit (Docker, Free)
     ├── Streamlit UI
     ├── BACKEND_HOSTPORT → private network to backend
     └── Health check: /_stcore/health
@@ -21,11 +21,11 @@ genai-doc-assistant-capstone/render.yaml
 
 | Requirement | Notes |
 |-------------|-------|
-| [Render account](https://render.com) | Starter plan recommended (~$7/service/month) |
+| [Render account](https://render.com) | Free tier (no card required for free services) |
 | GitHub repo connected | `ankit-devwork/the-learning-curve-labs` |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 
-> **Why Starter?** The backend needs a **persistent disk** so uploaded documents and the Chroma vector DB survive redeploys. Disks require a paid plan.
+> **Free tier:** No persistent disk — re-upload documents after each redeploy or long idle spin-down. Fine for capstone demos.
 
 > **Build time:** First Docker build downloads PyTorch + embedding models and can take **15–25 minutes**.
 
@@ -57,7 +57,7 @@ The backend Docker image copies **both** `genai-doc-assistant-capstone/` and `py
 | Root Directory | *(leave empty — repo root)* |
 | Dockerfile | `genai-doc-assistant-capstone/Dockerfile` |
 | Docker Context | `.` |
-| Plan | Starter |
+| Plan | Free |
 | Health Check Path | `/health` |
 
 **Environment variables:**
@@ -69,12 +69,7 @@ APP_RAG__SEMANTIC_DEDUPE=false
 CORS_ALLOW_ORIGINS=https://your-streamlit.onrender.com
 ```
 
-**Persistent disk:**
-
-| Setting | Value |
-|---------|-------|
-| Mount path | `/app/data` |
-| Size | 1 GB |
+No persistent disk — skip the Disks section in Render (data is ephemeral).
 
 ### 2. Streamlit service
 
@@ -84,7 +79,7 @@ CORS_ALLOW_ORIGINS=https://your-streamlit.onrender.com
 | Runtime | Docker |
 | Dockerfile | `genai-doc-assistant-capstone/front-end/streamlit/Dockerfile` |
 | Docker Context | `.` |
-| Plan | Starter |
+| Plan | Free |
 | Health Check Path | `/_stcore/health` |
 
 **Environment variables:**
@@ -129,26 +124,20 @@ In the Streamlit UI: upload a PDF, then ask a question.
 
 | Symptom | Fix |
 |---------|-----|
-| Build timeout | Use Starter plan; rebuild. First build is slow due to PyTorch. |
+| Build timeout | Retry deploy; first build is slow due to PyTorch. |
 | 502 on first request | Service cold-starting; wait 30–60s. Embedding model loads on first query. |
-| Upload works but docs gone after redeploy | Attach persistent disk at `/app/data` on backend. |
+| Upload works but docs gone after redeploy | Expected on free tier — re-upload documents. |
 | Streamlit cannot reach API | Check `BACKEND_HOSTPORT` or `BACKEND_URL` in Streamlit env vars. |
 | CORS errors | Set `CORS_ALLOW_ORIGINS` to your Streamlit URL on the backend. |
 | Out of memory | Upgrade backend to Standard (2 GB RAM). Embedding model needs ~1 GB+. |
 
-## Cost estimate
+## Cost
 
-| Service | Plan | Approx. cost |
-|---------|------|--------------|
-| genai-backend | Starter + 1GB disk | ~$9/month |
-| genai-streamlit | Starter | ~$7/month |
+| Service | Plan | Cost |
+|---------|------|------|
+| genai-backend | Free | $0 |
+| genai-streamlit | Free | $0 |
 
-Free tier is not recommended: limited RAM, no persistent disk, and services spin down after inactivity.
+**Trade-offs:** 512 MB RAM per service, spin-down after ~15 min idle, no data persistence.
 
-## Free alternatives (no payment)
-
-See **[FREE_DEPLOY.md](FREE_DEPLOY.md)** for:
-
-- Local Docker (recommended for capstone)
-- Cloudflare Tunnel / ngrok for a free public URL
-- `render.free.yaml` — Render free tier Blueprint (fragile, demo-only)
+For a more reliable demo without cloud limits, see **[FREE_DEPLOY.md](FREE_DEPLOY.md)** (local Docker + optional tunnel).

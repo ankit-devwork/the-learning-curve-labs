@@ -6,7 +6,8 @@
 # Note: dockerContext is the monorepo root (.) because the backend image
 # copies both genai-doc-assistant-capstone/ and pycorekit/ at build time.
 #
-# Requires a paid Starter plan for the backend disk (vector DB + uploads).
+# Free tier: no persistent disk — uploads and vector DB are lost on redeploy/restart.
+# First deploy build may take 15–25 minutes.
 
 services:
   - type: web
@@ -14,16 +15,12 @@ services:
     runtime: docker
     dockerfilePath: ./genai-doc-assistant-capstone/Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /health
     buildFilter:
       paths:
         - genai-doc-assistant-capstone/**
         - pycorekit/**
-    disk:
-      name: genai-data
-      mountPath: /app/data
-      sizeGB: 1
     envVars:
       - key: GROQ_API_KEY
         sync: false
@@ -39,7 +36,7 @@ services:
     runtime: docker
     dockerfilePath: ./genai-doc-assistant-capstone/front-end/streamlit/Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /_stcore/health
     rootDir: genai-doc-assistant-capstone/front-end/streamlit
     envVars:
