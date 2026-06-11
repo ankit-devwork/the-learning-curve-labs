@@ -5,6 +5,8 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
+ENV PATH=/root/.local/bin:$PATH
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-dev \
@@ -12,9 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY genai-doc-assistant-capstone/requirements.txt ./requirements.txt
+# Install CPU torch first so sentence-transformers does not pull CUDA wheels.
 RUN pip install --upgrade pip && \
-    pip install --user --no-cache-dir -r requirements.txt && \
-    pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+    pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --user --no-cache-dir -r requirements.txt
 
 COPY pycorekit /build/pycorekit
 RUN pip install --user --no-cache-dir /build/pycorekit
