@@ -169,7 +169,12 @@ Supports both local filesystem storage and S3 upload.
 from pathlib import Path
 from pycorekit.utils.config_loader import ConfigLoader
 
-config = ConfigLoader(Path("config.yaml"), base_dir=Path("."))
+config = ConfigLoader(
+    Path("config.yaml"),
+    base_dir=Path("."),
+    env_file=Path(".env"),
+    env_prefix="APP",
+)
 raw = config.load()
 ```
 
@@ -178,6 +183,24 @@ For typed model validation:
 ```python
 settings = config.load_typed(Settings)
 ```
+
+### Dynamic `.env` and environment overrides
+
+`ConfigLoader` supports runtime overrides without editing YAML:
+
+1. **`.env` file** — loaded automatically when `env_file` is set. Secrets like `GROQ_API_KEY` are placed in `os.environ` for the rest of the app.
+2. **Config overrides** — env vars override YAML using nested keys with `__`:
+
+| `.env` variable | Overrides `config.yaml` key |
+|-----------------|----------------------------|
+| `APP_ENV=prod` | `env` (with `env_prefix="APP"`) |
+| `APP_RAG__CHUNK_SIZE=500` | `rag.chunk_size` |
+| `APP_MODELS__LLM_MODEL=groq/...` | `models.llm_model` |
+| `APP_FILE_UPLOAD__MAX_FILE_SIZE_MB=10` | `file_upload.max_file_size_mb` |
+
+Without a prefix, use keys like `RAG__CHUNK_SIZE=500` directly.
+
+Type coercion follows the existing YAML value (int, float, bool, list).
 
 ---
 

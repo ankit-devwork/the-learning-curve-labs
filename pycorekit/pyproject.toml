@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,6 +11,20 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+    "loguru",
+    "pyyaml",
+    "python-dotenv",
+    "pydantic>=2",
+    "fastapi",
+    "langsmith",
+    "langfuse",
+    "httpx",
+    "redis",
+]
 
-[tool.setuptools.packages.find]
-where = ["."]
+[tool.setuptools]
+package-dir = { "pycorekit" = "." }
+
+[tool.setuptools.packages]
+find = { where = ["."], include = ["pycorekit*"] }
