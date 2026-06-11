@@ -38,7 +38,9 @@ services:
     dockerContext: .
     plan: free
     healthCheckPath: /_stcore/health
-    rootDir: genai-doc-assistant-capstone/front-end/streamlit
+    buildFilter:
+      paths:
+        - genai-doc-assistant-capstone/front-end/streamlit/**
     envVars:
       - key: BACKEND_HOSTPORT
         fromService:
