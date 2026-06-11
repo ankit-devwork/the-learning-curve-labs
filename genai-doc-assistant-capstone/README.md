@@ -36,16 +36,26 @@ genai-doc-assistant-capstone/
 ## Quick start (Docker)
 
 ```bash
+# From repo root
 cp genai-doc-assistant-capstone/.env.example genai-doc-assistant-capstone/.env
 # Edit .env and set GROQ_API_KEY
 
-docker-compose up --build
+docker compose up --build
 ```
+
+**Dev mode** (hot reload, source mounts):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+See [docs/DOCKER.md](docs/DOCKER.md) for full Docker documentation.
 
 | Service | URL |
 |---------|-----|
 | FastAPI | http://localhost:8000 |
 | API docs | http://localhost:8000/docs |
+| Health | http://localhost:8000/health |
 | Readiness | http://localhost:8000/ready |
 | Streamlit | http://localhost:8501 |
 

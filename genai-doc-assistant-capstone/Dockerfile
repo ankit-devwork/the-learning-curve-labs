@@ -1,22 +1,45 @@
-FROM python:3.11-slim
+# Build from monorepo root:
+#   docker build -f genai-doc-assistant-capstone/Dockerfile -t genai-backend .
 
-WORKDIR /app
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-dev \
     libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY genai-doc-assistant-capstone/requirements.txt ./requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --user --no-cache-dir -r requirements.txt && \
+    pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY pycorekit /build/pycorekit
+RUN pip install --user --no-cache-dir /build/pycorekit
+
+FROM python:3.11-slim AS runtime
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install torch --index-url https://download.pytorch.org/whl/cpu
+COPY --from=builder /root/.local /root/.local
 
-COPY . /app
+ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+COPY genai-doc-assistant-capstone /app
+
+RUN mkdir -p /app/data/uploads /app/data/vector_store /app/logs
 
 EXPOSE 8000
 
-CMD pip install /app/pycorekit && \
-    uvicorn main:app --host 0.0.0.0 --port 8000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

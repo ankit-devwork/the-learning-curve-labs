@@ -1,40 +1,55 @@
 services:
   backend:
     build:
-      context: ./genai-doc-assistant-capstone
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: genai-doc-assistant-capstone/Dockerfile
+    image: genai-doc-assistant-backend:local
     container_name: genai_backend
     ports:
       - "8000:8000"
+    env_file:
+      - path: genai-doc-assistant-capstone/.env
+        required: false
+    environment:
+      # Fallback when .env is missing (override in .env for real keys)
+      APP_ENV: dev
     volumes:
-      - ./genai-doc-assistant-capstone:/app
-      - ./pycorekit:/app/pycorekit
+      # Persist uploads, vector DB, and logs across restarts
+      - genai-uploads:/app/data/uploads
+      - genai-vector-store:/app/data/vector_store
+      - genai-logs:/app/logs
     networks:
       - genai-net
-    env_file:
-      - ./genai-doc-assistant-capstone/.env
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/ready" ]
-      interval: 20s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
       timeout: 5s
-      retries: 30
-      start_period: 40s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
 
   streamlit:
     build:
-      context: ./genai-doc-assistant-capstone/front-end/streamlit
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: genai-doc-assistant-capstone/front-end/streamlit/Dockerfile
+    image: genai-doc-assistant-streamlit:local
     container_name: genai_streamlit
     ports:
       - "8501:8501"
     environment:
-      BACKEND_URL: "http://backend:8000"
+      BACKEND_URL: http://backend:8000
     networks:
       - genai-net
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
 
 networks:
   genai-net:
     driver: bridge
+
+volumes:
+  genai-uploads:
+  genai-vector-store:
+  genai-logs:
