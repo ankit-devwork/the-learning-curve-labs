@@ -68,7 +68,8 @@ async def document_selector_agent(state):
                     doc_map[doc_id] = {
                         "doc_id": doc_id,
                         "title": meta.get("title", "Untitled Document"),
-                        "summary": meta.get("summary", "")
+                        "summary": meta.get("summary", ""),
+                        "filename": meta.get("filename") or meta.get("path", "").split("/")[-1] or "unknown",
                     }
 
             documents = list(doc_map.values())
