@@ -1,15 +1,13 @@
 import streamlit as st
 import uuid
 import requests
-import os
 import json
 
-from api_client import BackendClient, BackendAPIError
+from api_client import BackendClient, BackendAPIError, BASE_URL as BACKEND_URL
 
 st.set_page_config(page_title="GenAI Doc Assistant", layout="wide")
 
 client = BackendClient()
-BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
 
 # ---------------------------------------------------------

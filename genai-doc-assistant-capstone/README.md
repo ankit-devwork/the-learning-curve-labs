@@ -49,6 +49,16 @@ docker compose up --build
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
+## Deploy to Render
+
+Use the Blueprint at the repo root (`render.yaml`) to deploy backend + Streamlit as two web services.
+
+```text
+Render Dashboard → New → Blueprint → connect repo → Apply
+```
+
+Set `GROQ_API_KEY` and `CORS_ALLOW_ORIGINS` when prompted. See [docs/RENDER.md](docs/RENDER.md) for full steps, env vars, and troubleshooting.
+
 See [docs/DOCKER.md](docs/DOCKER.md) for full Docker documentation.
 
 | Service | URL |

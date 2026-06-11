@@ -1,0 +1,41 @@
+# Render Blueprint — GenAI Document Assistant
+# Deploy: Dashboard → New → Blueprint → connect this repo → Apply
+#
+# Requires a paid Starter plan for the backend disk (vector DB + uploads persist).
+# Set GROQ_API_KEY when prompted during Blueprint setup.
+
+services:
+  - type: web
+    name: genai-backend
+    runtime: docker
+    dockerfilePath: ./genai-doc-assistant-capstone/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    disk:
+      name: genai-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: APP_RAG__SEMANTIC_DEDUPE
+        value: "false"
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+
+  - type: web
+    name: genai-streamlit
+    runtime: docker
+    dockerfilePath: ./genai-doc-assistant-capstone/front-end/streamlit/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          name: genai-backend
+          type: web
+          property: hostport
