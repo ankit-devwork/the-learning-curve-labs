@@ -74,6 +74,8 @@ Blueprint path: genai-doc-assistant-capstone/render.yaml → Apply
 
 Set `GROQ_API_KEY` and `CORS_ALLOW_ORIGINS` when prompted. See [docs/RENDER.md](docs/RENDER.md) for full steps, env vars, and troubleshooting.
 
+**No budget for Render?** Use local Docker (free) or [docs/FREE_DEPLOY.md](docs/FREE_DEPLOY.md) for tunnel-based public demos and `render.free.yaml`.
+
 See [docs/DOCKER.md](docs/DOCKER.md) for full Docker documentation.
 
 | Service | URL |

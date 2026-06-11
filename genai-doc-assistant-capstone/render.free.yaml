@@ -1,0 +1,48 @@
+# Render Blueprint — FREE tier (capstone demo only)
+#
+# Blueprint path: genai-doc-assistant-capstone/render.free.yaml
+#
+# LIMITATIONS (no payment required):
+# - 512 MB RAM per service — embedding model may OOM
+# - No persistent disk — uploads/vector DB lost on redeploy
+# - Services spin down after ~15 min idle (cold starts)
+#
+# For a reliable demo, use local Docker + Cloudflare Tunnel instead.
+# See docs/FREE_DEPLOY.md
+
+services:
+  - type: web
+    name: genai-backend
+    runtime: docker
+    dockerfilePath: ./genai-doc-assistant-capstone/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - genai-doc-assistant-capstone/**
+        - pycorekit/**
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: APP_RAG__SEMANTIC_DEDUPE
+        value: "false"
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+
+  - type: web
+    name: genai-streamlit
+    runtime: docker
+    dockerfilePath: ./genai-doc-assistant-capstone/front-end/streamlit/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /_stcore/health
+    rootDir: genai-doc-assistant-capstone/front-end/streamlit
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          name: genai-backend
+          type: web
+          property: hostport

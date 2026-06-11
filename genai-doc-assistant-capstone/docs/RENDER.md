@@ -144,3 +144,11 @@ In the Streamlit UI: upload a PDF, then ask a question.
 | genai-streamlit | Starter | ~$7/month |
 
 Free tier is not recommended: limited RAM, no persistent disk, and services spin down after inactivity.
+
+## Free alternatives (no payment)
+
+See **[FREE_DEPLOY.md](FREE_DEPLOY.md)** for:
+
+- Local Docker (recommended for capstone)
+- Cloudflare Tunnel / ngrok for a free public URL
+- `render.free.yaml` — Render free tier Blueprint (fragile, demo-only)
