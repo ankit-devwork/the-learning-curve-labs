@@ -4,7 +4,7 @@ import uuid
 import asyncio
 import hashlib
 
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 from pycorekit.utils.uploader import upload_bytes
 from pycorekit.exceptions.file import FileException
 from pycorekit.exceptions.base import AppException
@@ -26,8 +26,9 @@ from app.core.rag import (
 from app.service.db_connection import (
     async_embed_texts,
     async_add_to_chroma,
-    async_get_collection,
+    async_find_document_by_hash,
 )
+from app.service.query_cache import invalidate_query_cache
 
 router = APIRouter(tags=["Upload + Ingest"])
 log = get_logger("upload_ingest")
@@ -37,14 +38,6 @@ log = get_logger("upload_ingest")
 
 ALLOWED_EXTENSIONS = settings.file_upload.allowed_file_types
 MAX_FILE_SIZE = settings.file_upload.max_file_size_mb * 1024 * 1024
-
-
-def _flatten_metadatas(raw_metadatas):
-    if not raw_metadatas:
-        return []
-    if isinstance(raw_metadatas, list) and raw_metadatas and isinstance(raw_metadatas[0], list):
-        return [item for batch in raw_metadatas for item in batch if isinstance(item, dict)]
-    return raw_metadatas
 
 
 def validate_file(file: UploadFile, file_bytes: bytes):
@@ -132,36 +125,34 @@ async def upload_and_ingest(request: Request, file: UploadFile = File(...)):
         file_bytes = await file.read()
         validate_file(file, file_bytes)
 
+    doc_id = str(uuid.uuid4())
+
     # 2. Duplicate detection (SHA-256)
     with start_trace("duplicate_detection", inputs={"filename": file.filename}):
         file_hash = hashlib.sha256(file_bytes).hexdigest()
+        existing_meta = await async_find_document_by_hash(file_hash)
 
-        collection = await async_get_collection("documents")
-        existing = await asyncio.to_thread(collection.get, include=["metadatas"])
-        metadatas = _flatten_metadatas(existing.get("metadatas", []))
+        if existing_meta:
+            return {
+                "message": "Duplicate file detected — skipping ingestion",
+                "duplicate": True,
+                "filename": file.filename,
+                "doc_id": existing_meta.get("doc_id"),
+                "title": existing_meta.get("title"),
+                "summary": existing_meta.get("summary"),
+                "correlation_id": get_current_correlation_id() or "unknown",
+            }
 
-        for meta in metadatas:
-            if meta.get("file_hash") == file_hash:
-                return {
-                    "message": "Duplicate file detected — skipping ingestion",
-                    "duplicate": True,
-                    "filename": file.filename,
-                    "doc_id": meta["doc_id"],
-                    "title": meta.get("title"),
-                    "summary": meta.get("summary"),
-                    "correlation_id": get_current_correlation_id() or "unknown",
-                }
-
-        safe_filename = Path(file.filename).name
-        if not safe_filename:
+        original_name = Path(file.filename).name
+        if not original_name:
             raise FileException("Invalid uploaded file name")
 
-        saved_path = settings.paths.upload_dir / safe_filename
+        stored_filename = f"{doc_id}_{original_name}"
         saved_path_str = await upload_bytes(
             file_bytes,
             dest="local",
             dest_dir=str(settings.paths.upload_dir),
-            dest_name=safe_filename,
+            dest_name=stored_filename,
         )
         saved_path = Path(saved_path_str)
         log.info(f"File saved to: {saved_path}")
@@ -204,7 +195,6 @@ async def upload_and_ingest(request: Request, file: UploadFile = File(...)):
             chunks = await dedupe_semantic_async(chunks, async_embed_texts)
 
     # 10. Document metadata
-    doc_id = str(uuid.uuid4())
     base_title = file.filename.rsplit(".", 1)[0]
 
     with start_trace("generate_summary"):
@@ -237,6 +227,9 @@ async def upload_and_ingest(request: Request, file: UploadFile = File(...)):
             embeddings=embeddings,
             metadata=metadata,
         )
+
+    with start_trace("invalidate_query_cache"):
+        await invalidate_query_cache()
 
     result = {
         "message": "Upload + ingestion successful",

@@ -1,7 +1,7 @@
 from litellm import acompletion
 from pycorekit.tracing.tracing import start_trace
 from pycorekit.correlation.context import get_current_correlation_id
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 from app.core.settings import settings
 log = get_logger("llm")
 MODEL = settings.models.llm_model

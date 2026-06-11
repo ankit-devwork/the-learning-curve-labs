@@ -23,7 +23,7 @@ from chromadb import Client
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 
 # Unified tracing engine
 from pycorekit.tracing.tracing import start_trace
@@ -191,7 +191,7 @@ def save_chat_message(thread_id: str, role: str, content: str):
         collection = get_chat_collection()
         msg_id = f"{thread_id}_{uuid.uuid4()}"
 
-        embedding_dim = getattr(settings.models, "embedding_dim", 768)
+        embedding_dim = settings.models.embedding_dim
         dummy_embedding = [0.0] * embedding_dim
 
         return collection.add(
@@ -237,6 +237,33 @@ def load_chat_history(thread_id: str) -> List[Dict[str, str]]:
         history = sorted(results["metadatas"], key=lambda x: x.get("timestamp", ""))
 
         return [{"role": h["role"], "content": h["content"]} for h in history]
+
+
+async def async_find_document_by_hash(file_hash: str) -> Dict[str, Any] | None:
+    """Lookup an existing document by SHA-256 file hash."""
+    collection = await async_get_collection("documents")
+
+    def _lookup():
+        return collection.get(
+            where={"file_hash": file_hash},
+            include=["metadatas"],
+            limit=1,
+        )
+
+    results = await observe_db(
+        "chroma_find_by_hash",
+        func=lambda: asyncio.to_thread(_lookup),
+        query=f"get where file_hash={file_hash}",
+    )
+
+    metadatas = results.get("metadatas") if results else None
+    if not metadatas:
+        return None
+
+    first = metadatas[0]
+    if isinstance(first, list):
+        return first[0] if first else None
+    return first if isinstance(first, dict) else None
 
 
 async def async_load_chat_history(thread_id: str) -> List[Dict[str, str]]:

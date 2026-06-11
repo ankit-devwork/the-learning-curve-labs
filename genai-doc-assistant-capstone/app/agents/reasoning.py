@@ -2,7 +2,7 @@ from pycorekit.tracing.tracing import start_trace
 from pycorekit.observability.observability import observe_llm
 from pycorekit.correlation.context import get_current_correlation_id
 from app.core.agent_state import AgentState
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 from app.core.llm import llm
 log = get_logger("reasoning")
 

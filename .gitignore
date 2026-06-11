@@ -237,6 +237,10 @@ logs/
 **/docs/
 **/logs/
 
+# Allow capstone project documentation
+!genai-doc-assistant-capstone/docs/
+!genai-doc-assistant-capstone/docs/**
+
 # Ignore log files
 *.log
 

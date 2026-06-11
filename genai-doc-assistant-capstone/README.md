@@ -1,302 +1,135 @@
 # GenAI Document Assistant (Multi‑Agent RAG System)
 
-## Overview
+Production-oriented document intelligence capstone built on FastAPI, LangGraph, ChromaDB, LiteLLM, and **pycorekit**.
 
-GenAI Document Assistant is a multi‑agent Retrieval‑Augmented Generation (RAG) system designed for production‑grade document intelligence workflows.
+## Features
 
-It enables you to:
+- Multi-format ingestion: PDF, TXT, CSV, XLSX, JSON, YAML
+- Multi-agent RAG pipeline with planner, selector, retriever, reasoning, and response agents
+- True HITL pause when document selection is ambiguous
+- Chunk-level hallucination detection and safety guardrails
+- Query answer caching (in-memory by default, Redis optional)
+- Observability with correlation IDs, spans, and sanitized trace payloads
+- Streamlit UI for upload, chat, HITL, and observability inspection
 
-- Upload and ingest documents  
-- Parse, clean, chunk, dedupe, and embed them  
-- Ask natural‑language questions  
-- Use a multi‑agent reasoning pipeline  
-- Handle ambiguous document selection via HITL  
-- Chat with your documents through a Streamlit UI  
+## Project structure
 
-The system integrates:
-
-- FastAPI backend  
-- Streamlit frontend  
-- ChromaDB vector store  
-- LangGraph multi‑agent orchestration  
-- LiteLLM for LLM calls  
-- pycorekit for config, logging, tracing, observability, uploading, and utilities  
-
----
-
-## Key Features
-
-### 1. Unified Upload + Ingest Pipeline
-
-Supported file types:
-
-- PDF  
-- TXT  
-- CSV  
-- XLSX  
-- JSON  
-- YAML  
-
-The ingestion pipeline performs:
-
-- File validation  
-- Safe local upload to configured `settings.paths.upload_dir`  
-- Filename sanitization to prevent path traversal  
-- Parsing  
-- Cleaning  
-- Chunking (sliding / recursive / hybrid)  
-- Quality scoring  
-- Exact + semantic deduplication  
-- LLM‑powered document summary  
-- Embedding + storage in ChromaDB  
-
-**Endpoint:** `POST /upload-and-ingest`
-
----
-
-### 2. Multi‑Agent RAG Querying
-
-The system uses:
-
-- Planner Agent  
-- Document Selector Agent  
-- Retriever Agent  
-- Reasoning Agent  
-- Response Agent  
-
-**Endpoint:** `POST /ask-question`
-
----
-
-### 3. Human‑in‑the‑Loop (HITL) Document Selection
-
-If multiple documents match your question:
-
-- Backend returns candidate documents  
-- User selects one  
-- Pipeline resumes from retriever  
-
-**Endpoint:** `POST /choose-document`
-
----
-
-### 4. Document Listing
-
-List all ingested documents with:
-
-- doc_id  
-- title  
-- summary  
-
-**Endpoint:** `GET /documents`
-
----
-
-### 5. Observability and Error Handling
-
-The backend uses `pycorekit` to provide:
-
-- request trace initialization via middleware  
-- automatic injection of sanitized observability payloads into JSON responses  
-- `AppException` and `FileException` for structured error responses  
-- correlation IDs returned in response headers (`x-correlation-id`)  
-
-This means route handlers do not need to manually serialize trace data.
-
----
-
-### 6. Streamlit Frontend
-
-Provides:
-
-- Document upload  
-- Document list  
-- Chat interface  
-- HITL document selection  
-- Response visualization  
-
----
-
-### 7. Docker‑First Architecture
-
-Run everything with:
-
+```text
+genai-doc-assistant-capstone/
+├── app/
+│   ├── agents/           # LangGraph agent nodes
+│   ├── api/              # FastAPI routes
+│   ├── core/             # RAG, graphs, settings, guardrails
+│   ├── schema/           # Pydantic config models
+│   └── service/          # ChromaDB, cache, embeddings
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── CONFIGURATION.md
+├── front-end/streamlit/  # Streamlit UI
+├── tests/
+├── config.yaml
+├── .env.example
+├── Dockerfile
+└── main.py
 ```
+
+## Quick start (Docker)
+
+```bash
+cp genai-doc-assistant-capstone/.env.example genai-doc-assistant-capstone/.env
+# Edit .env and set GROQ_API_KEY
+
 docker-compose up --build
 ```
-
----
-
-## Project Structure
-
-```
-the-learning-curve-labs/
-│
-├── pycorekit/                     # Shared utilities (mounted into backend)
-│
-└── genai-doc-assistant-capstone/
-    ├── app/
-    │   ├── core/                  # RAG logic, settings, LLM, chunking
-    │   ├── service/               # DB + embedding services
-    │   ├── api/                   # FastAPI routes
-    │   └── main.py                # FastAPI entrypoint
-    │
-    ├── front-end/
-    │   └── streamlit/
-    │       ├── chat.py            # Streamlit UI
-    │       └── api_client.py      # Backend client wrapper
-    │
-    ├── Dockerfile                 # Backend Dockerfile
-    ├── requirements.txt
-    └── config.yaml                # System configuration
-│
-├── docker-compose.yml             # Root-level compose file
-└── README.md
-```
-
----
-
-## How to Run the Project (Docker)
-
-### 1. Clone the repository
-
-```
-git clone <your-repo-url>
-cd the-learning-curve-labs
-```
-
-### 2. Create a `.env` file (optional)
-
-```
-OPENAI_API_KEY=your_key
-GROQ_API_KEY=your_key
-```
-
-### 3. Start the system
-
-```
-docker-compose up --build
-```
-
-### 4. Access the services
 
 | Service | URL |
-|--------|-----|
-| FastAPI Backend | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
-| Streamlit UI | http://localhost:8501 |
+|---------|-----|
+| FastAPI | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+| Readiness | http://localhost:8000/ready |
+| Streamlit | http://localhost:8501 |
 
----
+## Local development
 
-## How to Run Locally (Without Docker)
-
-### 1. Install backend dependencies
-
-```
+```bash
 cd genai-doc-assistant-capstone
+cp .env.example .env
+
+pip install -e ../pycorekit
 pip install -r requirements.txt
-pip install ../pycorekit
-```
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 
-### 2. Start FastAPI
-
-```
 uvicorn main:app --reload
 ```
 
-### 3. Start Streamlit
+Streamlit UI:
 
-```
+```bash
 cd front-end/streamlit
-streamlit run chat.py
+BACKEND_URL=http://127.0.0.1:8000 streamlit run chat.py
 ```
 
----
+## Configuration
 
-## Multi‑Agent Pipeline Overview
+Base settings live in `config.yaml`. Secrets and runtime overrides use `.env`.
 
-### 1. Upload + Ingest
-- File saved  
-- Parsed  
-- Cleaned  
-- Chunked  
-- Deduped  
-- Summarized  
-- Embedded  
-- Stored in ChromaDB  
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for override conventions.
 
-### 2. Ask Question
-- Planner decides steps  
-- Document selector picks best doc  
-- If ambiguous → HITL  
-- Retriever fetches chunks  
-- Reasoning agent synthesizes  
-- Response agent answers  
-
-### 3. Choose Document (HITL)
-- User selects doc  
-- Pipeline resumes  
-- Final answer returned  
-
----
-
-## API Usage Examples
-
-### Upload a document
+Example overrides:
 
 ```bash
-curl -X POST "http://localhost:8000/upload-and-ingest" \
-  -F "file=@sample.pdf"
+APP_RAG__CHUNK_SIZE=500
+APP_FILE_UPLOAD__MAX_FILE_SIZE_MB=25
+APP_CACHE__TTL_SECONDS=7200
 ```
 
-### Ask a question
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Liveness check |
+| GET | `/ready` | Readiness check (Chroma, embeddings, API key) |
+| POST | `/upload-and-ingest` | Upload and ingest a document |
+| GET | `/documents` | List ingested documents |
+| POST | `/ask-question` | Run query graph (with HITL pause) |
+| POST | `/choose-document` | Resume answer graph after HITL |
+| GET | `/observability` | Observability smoke test |
+
+## Agent flow
+
+### Ask question
+
+1. Planner creates an execution plan using the LLM
+2. Document selector scores documents and may trigger HITL
+3. If unambiguous: retriever → reasoning → response
+4. If ambiguous: pipeline pauses and returns candidate documents
+
+### Choose document (HITL)
+
+1. Client sends selected `doc_id`
+2. Answer graph runs: retriever → reasoning → response
+
+## Testing
 
 ```bash
-curl -X POST "http://localhost:8000/ask-question" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is this document about?", "thread_id": "123"}'
+pytest pycorekit/tests -q
+cd genai-doc-assistant-capstone && pytest tests -q
 ```
 
-### Choose a document
+## Recent improvements
 
-```bash
-curl -X POST "http://localhost:8000/choose-document" \
-  -H "Content-Type: application/json" \
-  -d '{"thread_id": "123", "question": "What is this?", "selected_doc_id": "abc"}'
-```
+- HITL graph pause (no wasted LLM calls on ambiguous selection)
+- Resume graph for `/choose-document`
+- LLM-powered planner agent
+- Chunk-level hallucination detection
+- Query cache with in-memory or Redis backend
+- Readiness endpoint and improved health checks
+- Duplicate upload detection by `file_hash`
+- UUID-prefixed stored filenames
+- Missing dependency fixes (`scikit-learn`, `pyyaml`, `openpyxl`)
 
-### List documents
+## Documentation
 
-```bash
-curl http://localhost:8000/documents
-```
-
----
-
-## Tech Stack
-
-- FastAPI  
-- Streamlit  
-- ChromaDB  
-- LangGraph  
-- LiteLLM  
-- pycorekit  
-- Docker Compose  
-
----
-
-## Future Enhancements
-
-- Agent trace visualization  
-- Document preview + chunk viewer  
-- Multi‑document reasoning  
-- Embedding dashboard  
-- Multi‑tenant support  
-
----
-
-## Contributing
-
-PRs are welcome.  
-Open an issue to propose features or report bugs.
-
+- [Architecture](docs/ARCHITECTURE.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [pycorekit README](../pycorekit/README.md)
