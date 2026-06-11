@@ -141,5 +141,7 @@ cd genai-doc-assistant-capstone && pytest tests -q
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Architecture diagrams](docs/ARCHITECTURE_DIAGRAM.md)
 - [Configuration](docs/CONFIGURATION.md)
+- [Docker guide](docs/DOCKER.md)
 - [pycorekit README](../pycorekit/README.md)

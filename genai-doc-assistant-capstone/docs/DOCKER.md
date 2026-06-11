@@ -81,6 +81,12 @@ Loaded by:
 1. Docker Compose `env_file`
 2. App `ConfigLoader` at startup (`settings.py`)
 
+## Related docs
+
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)
+- [CONFIGURATION.md](CONFIGURATION.md)
+
 ## Troubleshooting
 
 | Issue | Fix |

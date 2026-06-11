@@ -1,5 +1,7 @@
 # Architecture
 
+> For visual diagrams (Mermaid), see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md).
+
 ## Components
 
 | Layer | Technology | Responsibility |
