@@ -42,8 +42,9 @@ services:
       paths:
         - genai-doc-assistant-capstone/front-end/streamlit/**
     envVars:
-      - key: BACKEND_HOSTPORT
+      # Public URL — private hostport DNS often fails on free-tier web services.
+      - key: BACKEND_URL
         fromService:
           name: genai-backend
           type: web
-          property: hostport
+          envVarKey: RENDER_EXTERNAL_URL

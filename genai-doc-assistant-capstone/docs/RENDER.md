@@ -13,7 +13,7 @@ genai-doc-assistant-capstone/render.yaml
 │
 └── genai-streamlit (Docker, Free)
     ├── Streamlit UI
-    ├── BACKEND_HOSTPORT → private network to backend
+    ├── BACKEND_URL → backend public URL (RENDER_EXTERNAL_URL)
     └── Health check: /_stcore/health
 ```
 
