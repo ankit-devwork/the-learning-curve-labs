@@ -46,6 +46,8 @@ genai-doc-assistant-capstone/render.yaml
 
 The backend Docker image copies **both** `genai-doc-assistant-capstone/` and `pycorekit/` from the monorepo. Paths in `render.yaml` are relative to the **repository root**, even though the Blueprint file lives inside the capstone folder.
 
+Do **not** set `rootDir` on Docker services here — it breaks `dockerfilePath` resolution for this monorepo layout.
+
 ## Option B — Manual setup
 
 ### 1. Backend service
