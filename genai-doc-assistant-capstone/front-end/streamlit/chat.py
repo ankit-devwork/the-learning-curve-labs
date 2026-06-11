@@ -218,12 +218,14 @@ if st.session_state.hitl_active:
 
     if st.button("Submit Choice"):
         selected_doc_id = options[choice]
+        hitl_question = st.session_state.hitl_question or ""
+        hitl_thread_id = st.session_state.hitl_thread_id
 
         try:
             with st.spinner("Resuming pipeline..."):
                 final = client.choose_document(
-                    thread_id=st.session_state.hitl_thread_id,
-                    question=st.session_state.hitl_question,
+                    thread_id=hitl_thread_id,
+                    question=hitl_question,
                     selected_doc_id=selected_doc_id,
                 )
         except BackendAPIError as exc:
@@ -245,8 +247,9 @@ if st.session_state.hitl_active:
         render_observability(obs)
 
         if obs:
+            label_question = final.get("question") or hitl_question or "document selection"
             st.session_state.observability_history.append({
-                "label": f"HITL: {st.session_state.hitl_question[:40]}...",
+                "label": f"HITL: {label_question[:40]}...",
                 "endpoint": "/choose-document",
                 "correlation_id": final.get("correlation_id"),
                 "answer": final.get("answer"),
