@@ -1,11 +1,11 @@
 # Deploy to Render
 
-This guide deploys the **FastAPI backend** and **Streamlit UI** as two Render web services using the Blueprint at the repo root (`render.yaml`).
+This guide deploys the **FastAPI backend** and **Streamlit UI** as two Render web services using the Blueprint at `genai-doc-assistant-capstone/render.yaml`.
 
 ## Architecture on Render
 
 ```text
-render.yaml
+genai-doc-assistant-capstone/render.yaml
 ├── genai-backend (Docker, Starter + 1GB disk)
 │   ├── FastAPI + ChromaDB + embeddings
 │   ├── Persistent disk at /app/data (uploads + vector store)
@@ -34,12 +34,17 @@ render.yaml
 1. Push this repo to GitHub (branch `main`).
 2. In Render: **New → Blueprint**.
 3. Connect the `the-learning-curve-labs` repository.
-4. Render detects `render.yaml` and shows two services.
-5. When prompted, set:
+4. Set the Blueprint file path to **`genai-doc-assistant-capstone/render.yaml`** (not the repo root — this monorepo has multiple projects).
+5. Render shows two services from the Blueprint.
+6. When prompted, set:
    - `GROQ_API_KEY` — your Groq API key
    - `CORS_ALLOW_ORIGINS` — your Streamlit URL, e.g. `https://genai-streamlit.onrender.com`
-6. Click **Apply** and wait for both services to deploy.
-7. Open the **genai-streamlit** service URL in your browser.
+7. Click **Apply** and wait for both services to deploy.
+8. Open the **genai-streamlit** service URL in your browser.
+
+### Why is `dockerContext` the repo root?
+
+The backend Docker image copies **both** `genai-doc-assistant-capstone/` and `pycorekit/` from the monorepo. Paths in `render.yaml` are relative to the **repository root**, even though the Blueprint file lives inside the capstone folder.
 
 ## Option B — Manual setup
 

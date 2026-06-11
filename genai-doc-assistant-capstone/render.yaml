@@ -1,8 +1,12 @@
-# Render Blueprint — GenAI Document Assistant
-# Deploy: Dashboard → New → Blueprint → connect this repo → Apply
+# Render Blueprint — GenAI Document Assistant (capstone)
 #
-# Requires a paid Starter plan for the backend disk (vector DB + uploads persist).
-# Set GROQ_API_KEY when prompted during Blueprint setup.
+# Deploy: Render Dashboard → New → Blueprint → connect repo
+# Blueprint file path: genai-doc-assistant-capstone/render.yaml
+#
+# Note: dockerContext is the monorepo root (.) because the backend image
+# copies both genai-doc-assistant-capstone/ and pycorekit/ at build time.
+#
+# Requires a paid Starter plan for the backend disk (vector DB + uploads).
 
 services:
   - type: web
@@ -12,6 +16,10 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /health
+    buildFilter:
+      paths:
+        - genai-doc-assistant-capstone/**
+        - pycorekit/**
     disk:
       name: genai-data
       mountPath: /app/data
@@ -33,6 +41,7 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /_stcore/health
+    rootDir: genai-doc-assistant-capstone/front-end/streamlit
     envVars:
       - key: BACKEND_HOSTPORT
         fromService:
