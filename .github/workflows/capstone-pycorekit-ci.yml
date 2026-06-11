@@ -22,21 +22,32 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pycorekit
-        run: pip install -e ./pycorekit
+      - name: Upgrade pip and build tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install pycorekit (editable)
+        run: |
+          pip install -e "./pycorekit"
+          python -c "import pycorekit; print('pycorekit', pycorekit.__version__)"
 
       - name: Install capstone dependencies
         run: |
           pip install -r genai-doc-assistant-capstone/requirements.txt
           pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -c "import pycorekit; print('pycorekit import ok after capstone deps')"
 
       - name: Run pycorekit tests
         run: pytest pycorekit/tests -q
 
       - name: Run capstone tests
         working-directory: genai-doc-assistant-capstone
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: pytest tests -q
 
       - name: Import smoke test
         working-directory: genai-doc-assistant-capstone
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: python -c "from main import app; print(app.title)"

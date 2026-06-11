@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -25,6 +25,13 @@ dependencies = [
 
 [tool.setuptools]
 package-dir = { "pycorekit" = "." }
-
-[tool.setuptools.packages]
-find = { where = ["."], include = ["pycorekit*"] }
+packages = [
+    "pycorekit",
+    "pycorekit.cache",
+    "pycorekit.correlation",
+    "pycorekit.core_logging",
+    "pycorekit.exceptions",
+    "pycorekit.observability",
+    "pycorekit.tracing",
+    "pycorekit.utils",
+]
