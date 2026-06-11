@@ -21,7 +21,6 @@ import asyncio
 
 from chromadb import Client
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
 
 from pycorekit.core_logging.logger import get_logger
 

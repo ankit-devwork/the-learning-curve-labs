@@ -67,6 +67,22 @@ The main Blueprint already uses **free** plans with **no disk**:
 
 Use only for a **short live demo** after a fresh upload — not for production.
 
+### Out of memory on Render (`used over 512Mi`)
+
+The backend loads **PyTorch + embedding models**. Render **free tier = 512 MB RAM**, which often is not enough for the default `all-mpnet-base-v2` model.
+
+**Symptoms:** deploy logs show `Out of memory (used over 512Mi)`, `/documents` returns HTML errors, Streamlit shows `Invalid JSON response`.
+
+**Options (pick one):**
+
+| Option | Cost | Reliability |
+|--------|------|-------------|
+| **Local Docker** | Free | Best for capstone |
+| **Render + smaller model** | Free | `render.yaml` sets `all-MiniLM-L6-v2` — may still OOM |
+| **Render Standard backend** | ~$25/mo (2 GB RAM) | Works with full model |
+
+**Recommended for capstone:** local Docker + screen recording or Cloudflare Tunnel — no Render backend needed.
+
 ---
 
 ## Streamlit Community Cloud (free, UI only)

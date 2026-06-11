@@ -7,6 +7,8 @@
 # copies both genai-doc-assistant-capstone/ and pycorekit/ at build time.
 #
 # Free tier: no persistent disk — uploads and vector DB are lost on redeploy/restart.
+# Free tier RAM is 512 MB — backend uses a smaller embedding model below.
+# If you still see OOM, use local Docker (docs/FREE_DEPLOY.md) or upgrade backend plan.
 # First deploy build may take 15–25 minutes.
 
 services:

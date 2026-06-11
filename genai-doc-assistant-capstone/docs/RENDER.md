@@ -87,14 +87,10 @@ No persistent disk — skip the Disks section in Render (data is ephemeral).
 **Environment variables:**
 
 ```bash
-BACKEND_HOSTPORT=genai-backend:10000
+BACKEND_URL=https://genai-backend-qspw.onrender.com
 ```
 
-Use the backend’s private **host:port** from the Render dashboard (Networking → Private). Or set a public URL:
-
-```bash
-BACKEND_URL=https://genai-backend.onrender.com
-```
+Use your backend’s public URL from the Render dashboard (copy from **genai-backend** service page).
 
 ## Verify deployment
 
@@ -117,8 +113,8 @@ In the Streamlit UI: upload a PDF, then ask a question.
 |----------|---------|----------|-------------|
 | `GROQ_API_KEY` | backend | Yes | LLM API key |
 | `CORS_ALLOW_ORIGINS` | backend | Recommended | Streamlit public URL(s), comma-separated |
-| `BACKEND_HOSTPORT` | streamlit | Auto in Blueprint | Private `host:port` from Render |
-| `BACKEND_URL` | streamlit | Alternative | Public backend URL |
+| `BACKEND_URL` | streamlit | Auto in Blueprint | Backend public URL (`RENDER_EXTERNAL_URL`) |
+| `BACKEND_HOSTPORT` | streamlit | Docker Compose only | Private `host:port` (local network) |
 | `APP_RAG__SEMANTIC_DEDUPE` | backend | No | Set `false` on Render for faster uploads |
 | `PORT` | both | Auto | Injected by Render; do not override |
 
@@ -129,7 +125,7 @@ In the Streamlit UI: upload a PDF, then ask a question.
 | Build timeout | Retry deploy; first build is slow due to PyTorch. |
 | 502 on first request | Service cold-starting; wait 30–60s. Embedding model loads on first query. |
 | Upload works but docs gone after redeploy | Expected on free tier — re-upload documents. |
-| Streamlit cannot reach API | Check `BACKEND_HOSTPORT` or `BACKEND_URL` in Streamlit env vars. |
+| Streamlit cannot reach API | Set `BACKEND_URL=https://your-backend.onrender.com` on Streamlit (remove `BACKEND_HOSTPORT` if set). |
 | CORS errors | Set `CORS_ALLOW_ORIGINS` to your Streamlit URL on the backend. |
 | Out of memory | Upgrade backend to Standard (2 GB RAM). Embedding model needs ~1 GB+. |
 
@@ -141,5 +137,7 @@ In the Streamlit UI: upload a PDF, then ask a question.
 | genai-streamlit | Free | $0 |
 
 **Trade-offs:** 512 MB RAM per service, spin-down after ~15 min idle, no data persistence.
+
+**OOM warning:** The backend may exceed 512 MB when loading embeddings. `render.yaml` uses the smaller `all-MiniLM-L6-v2` model. If deploy logs show `Out of memory (used over 512Mi)`, use [FREE_DEPLOY.md](FREE_DEPLOY.md) (local Docker) or upgrade the backend to **Standard** (2 GB).
 
 For a more reliable demo without cloud limits, see **[FREE_DEPLOY.md](FREE_DEPLOY.md)** (local Docker + optional tunnel).
