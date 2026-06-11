@@ -35,10 +35,23 @@ class BackendClient:
         try:
             data = resp.json()
         except ValueError:
-            data = {"error": resp.text or "Invalid JSON response"}
+            snippet = (resp.text or "").strip().replace("\n", " ")[:280]
+            data = {
+                "error": (
+                    f"Backend returned non-JSON (HTTP {resp.status_code}). "
+                    f"This often means the API is cold-starting, crashed, or BACKEND_URL is wrong. "
+                    f"Response preview: {snippet or '(empty)'}"
+                )
+            }
 
         if resp.status_code >= 400:
-            message = data.get("error") or data.get("message") or resp.text
+            message = (
+                data.get("error")
+                or data.get("message")
+                or data.get("detail")
+                or (resp.text or "")[:280]
+                or f"HTTP {resp.status_code}"
+            )
             raise BackendAPIError(
                 message=message,
                 status_code=resp.status_code,

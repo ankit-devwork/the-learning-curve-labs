@@ -136,17 +136,37 @@ with st.sidebar:
     st.divider()
     st.header("📚 Documents in Vector DB")
 
+    with st.expander("Backend connection", expanded=False):
+        st.code(BACKEND_URL, language=None)
+        if st.button("Test backend /health"):
+            try:
+                import requests
+                r = requests.get(f"{BACKEND_URL}/health", timeout=120)
+                st.write(f"HTTP {r.status_code}: {r.text[:200]}")
+            except Exception as exc:
+                st.error(str(exc))
+
     try:
         docs = cached_list_documents()
     except BackendAPIError as exc:
         st.error(str(exc))
+        if exc.status_code:
+            st.caption(f"HTTP status: {exc.status_code}")
         if exc.correlation_id:
             st.caption(f"Correlation ID: `{exc.correlation_id}`")
+        st.info(
+            "On Render free tier: open the **backend** URL in a browser first "
+            "(`/health`, then `/documents`) to wake it up, wait ~60s, then refresh this page."
+        )
         docs = {}
 
     if isinstance(docs, dict) and "documents" in docs:
+        if not docs.get("documents"):
+            st.caption("No documents yet — upload a file above.")
         for d in docs.get("documents", []):
             st.write(f"**{d['title']}** ({d.get('filename','unknown')}) — {d['summary']}")
+    elif isinstance(docs, dict) and docs.get("error"):
+        st.error(docs["error"])
 
     st.divider()
     st.header("🩺 Observability")
