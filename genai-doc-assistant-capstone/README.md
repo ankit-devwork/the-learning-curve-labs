@@ -24,7 +24,10 @@ genai-doc-assistant-capstone/
 │   └── service/          # ChromaDB, cache, embeddings
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   └── CONFIGURATION.md
+│   ├── ARCHITECTURE_DIAGRAM.md
+│   ├── CONFIGURATION.md
+│   ├── DOCKER.md
+│   └── RENDER.md
 ├── front-end/streamlit/  # Streamlit UI
 ├── tests/
 ├── config.yaml
