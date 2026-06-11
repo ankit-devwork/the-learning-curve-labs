@@ -1,118 +1,220 @@
 # pycorekit
 
-`pycorekit` is a plug‑and‑play **observability**, **logging**, **caching**, **tracing**, **configuration**, and **exception-handling** toolkit for Python and FastAPI services.
+`pycorekit` is a plug-and-play toolkit for Python backends and FastAPI services. It provides:
 
-It is designed to be reusable across multiple backend projects with zero friction — a true internal infrastructure framework.
+- Observability
+- Logging
+- Tracing
+- Correlation ID propagation
+- Caching
+- Configuration loading
+- Exception handling
+
+The package is designed to be reusable across multiple projects with minimal setup.
 
 ---
 
 # ✨ Features
 
-### 🔹 Logging
+## 🔹 Logging
+- Structured log binding with module and correlation ID
 - Daily log rotation
-- Correlation ID binding
-- Worker-safe logging
-- JSON-friendly formatting
-- Async-safe queueing
+- Optional JSON logs
+- Async-safe output
 
-### 🔹 Correlation IDs
-- Automatic extraction or generation
-- ContextVar-based propagation
-- FastAPI middleware included
+## 🔹 Correlation Context
+- `ContextVar`-based correlation ID propagation
+- Simple API for request-scoped IDs
 
-### 🔹 Tracing
-- Unified Langfuse + LangSmith tracing
-- Span decorators
-- Automatic duration measurement
+## 🔹 Tracing
+- Built-in Langfuse + LangSmith tracing support
+- FastAPI route decorator for observability
+- Automatic duration measurement and span lifecycle management
 
-### 🔹 Caching
-- Unified Redis client (Upstash REST + local Redis)
-- Final-answer caching (GraphRAG / LLM pipelines)
-- SHA256 stable cache keys
-- TTL support
-- Pattern-based invalidation
+## 🔹 Caching
+- Final-answer cache helper
+- Stable SHA256 query key generation
+- JSON-safe Redis get/set
+- TTL support and pattern delete
 
-### 🔹 Configuration
-- YAML loader (safe, cached)
-- Typed config loader (Pydantic)
-- ConfigLoader with env overrides + auto-reload
+## 🔹 Configuration
+- Safe YAML loading
+- Typed config validation
+- Base directory injection for path config
 
-### 🔹 Exceptions
-- Custom exception class
-- FastAPI exception handler
+## 🔹 Exceptions
+- Structured `AppException`
+- Domain-specific `FileException`
+- FastAPI exception handlers for consistent responses
 
 ---
 
 # 📦 Installation
 
-Local development:
+Install locally for development:
 
 ```bash
 pip install -e .
+```
 
+---
 
-📁 Project Structure
+# 📁 Package Layout
+
+```text
 pycorekit/
-    logging/
-    correlation/
-    tracing/
-    cache/
-    exceptions/
-    utils/
+  cache/
+  correlation/
+  exceptions/
+  logging/
+  observability/
+  tracing/
+  utils/
+```
 
-🚀 Quick Start
+---
 
-1. Add Correlation ID Middleware
+# 🚀 Quick Start
 
-from fastapi import FastAPI
-from pycorekit.correlation.middleware import CorrelationIdMiddleware
+## 1. Initialize logging
 
-app = FastAPI()
-app.add_middleware(CorrelationIdMiddleware)
+```python
+from pycorekit.logging.logger import init_logger, get_logger
 
-🧩 Logging
-Import logger
-from pycorekit.logging.logger import get_logger
+init_logger(
+    log_dir="logs",
+    rotation="00:00",
+    retention="7 days",
+    json_file=True,
+)
 
 log = get_logger("startup")
 log.info("Service started")
+```
 
-Worker logger (background tasks)
-from pycorekit.logging.worker_logger import get_worker_logger
+## 2. Use correlation IDs
 
-log = get_worker_logger()
-log.info("Background job running")
+```python
+from pycorekit.correlation.context import (
+    generate_correlation_id,
+    set_current_correlation_id,
+    get_current_correlation_id,
+)
 
-🧩 Correlation IDs
-Get current correlation ID
-from pycorekit.correlation.context import get_current_correlation_id
+cid = generate_correlation_id()
+set_current_correlation_id(cid)
+log.info("correlation set", correlation_id=cid)
+```
 
-cid = get_current_correlation_id()
+## 3. Add request tracing middleware
 
+```python
+from fastapi import FastAPI
+from pycorekit.tracing.middleware import RequestTracingMiddleware
 
-🧩 Tracing
-Use tracing decorator
+app = FastAPI()
+app.add_middleware(RequestTracingMiddleware)
+```
 
+This middleware initializes the request trace and adds `x-correlation-id` to responses.
+
+## 4. Decorate FastAPI routes for observability
+
+```python
+from fastapi import APIRouter, Request
 from pycorekit.tracing.decorators import with_observability
-@with_observability("generate_summary")
-async def generate_summary(text: str):
-    return "summary..."
 
-🧩 Unified Redis
-Works with:
+router = APIRouter()
 
-Upstash REST API
+@router.post("/upload")
+@with_observability("upload_and_ingest")
+async def upload(request: Request):
+    return {"status": "ok"}
+```
 
-Local Redis server
+When the decorated route returns a dict, `pycorekit` automatically injects a sanitized `observability` payload.
 
-Usage
+## 5. Sanitize observability traces
 
-from pycorekit.cache.unified_redis import redis
-pong = await redis.ping()
+```python
+from pycorekit.utils.sanitize_observability import sanitize_observability
 
-🧩 Cache Service
+safe_trace = sanitize_observability(request.state.trace)
+```
 
-from pycorekit.cache.unified_redis import redis
+Use this helper to convert raw trace objects into frontend-safe JSON.
+
+---
+
+# 🧰 Utilities
+
+## File uploader
+
+```python
+from pycorekit.utils.uploader import upload_bytes
+
+saved_path = await upload_bytes(
+    data=file_bytes,
+    dest="local",
+    dest_dir="./uploads",
+    dest_name="document.pdf",
+)
+```
+
+Supports both local filesystem storage and S3 upload.
+
+## YAML configuration loader
+
+```python
+from pathlib import Path
+from pycorekit.utils.config_loader import ConfigLoader
+
+config = ConfigLoader(Path("config.yaml"), base_dir=Path("."))
+raw = config.load()
+```
+
+For typed model validation:
+
+```python
+settings = config.load_typed(Settings)
+```
+
+---
+
+# 🗃 Caching
+
+```python
 from pycorekit.cache.cache_service import CacheService
+from pycorekit.cache.unified_redis import redis
 
 cache = CacheService(redis)
+await cache.set_final(thread_id, question, payload)
+result = await cache.get_final(thread_id, question)
+```
+
+Cache keys are normalized and stable using SHA256 hashing.
+
+---
+
+# 🚨 Exception handling
+
+```python
+from pycorekit.exceptions.base import AppException
+from pycorekit.exceptions.handlers import (
+    app_exception_handler,
+    generic_exception_handler,
+)
+
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+```
+
+Use `AppException` for known application errors and `FileException` for file-specific failures.
+
+---
+
+# 📘 Notes
+
+- `pycorekit` is intentionally minimal and lightweight.
+- The tracing layer is optimized for production observability with Langfuse and LangSmith.
+- The package is suitable for backend services, FastAPI APIs, and async workflows.

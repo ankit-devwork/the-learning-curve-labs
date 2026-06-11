@@ -131,20 +131,26 @@ async def upload_file(
     dest_name: Optional[str] = None,
 ) -> str:
     """
-    Upload a file to:
-    - Local directory
-    - S3 bucket
+    Upload a file to either local storage or S3.
 
     Args:
-        file_path: Local file path to upload
-        dest: Local directory OR "s3"
-        bucket: Required if dest="s3"
-        key_prefix: Optional S3 prefix
-        region: AWS region
-        dest_name: Optional override for destination filename
+        file_path: Local file path to upload.
+        dest: Destination type, either `local` or `s3`.
+        bucket: S3 bucket name when using S3.
+        key_prefix: Optional S3 key prefix.
+        region: AWS region for S3.
+        dest_name: Optional destination filename override.
 
     Returns:
-        str: Destination path or S3 URI
+        str: Destination path or S3 URI.
+
+    Example:
+        await upload_file(
+            "./tmp/doc.pdf",
+            dest="local",
+            dest_name="doc.pdf",
+            dest_dir="./uploads",
+        )
     """
 
     if dest == "s3":
@@ -167,20 +173,27 @@ async def upload_bytes(
     dest_name: Optional[str] = None,
 ) -> str:
     """
-    Upload raw bytes to:
-    - Local directory
-    - S3 bucket
+    Upload raw bytes to local storage or S3.
 
     Args:
-        data: Raw bytes
-        dest: "s3" or "local"
-        bucket: Required if dest="s3"
-        key: Required if dest="s3"
-        dest_dir: Required if dest="local"
-        dest_name: Required if dest="local"
+        data: Raw bytes.
+        dest: `local` or `s3`.
+        bucket: S3 bucket name for S3 uploads.
+        key: S3 object key for S3 uploads.
+        region: AWS region for S3.
+        dest_dir: Local directory for local uploads.
+        dest_name: Local destination filename.
 
     Returns:
-        str: Destination path or S3 URI
+        str: Destination path or S3 URI.
+
+    Example:
+        await upload_bytes(
+            b"hello world",
+            dest="local",
+            dest_dir="./uploads",
+            dest_name="hello.txt",
+        )
     """
 
     if dest == "s3":

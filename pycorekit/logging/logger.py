@@ -1,15 +1,16 @@
-"""
-Generic Loguru logger initializer with:
-- Console sink
-- Rotating file sink
-- JSON structured log sink
-- Correlation ID binding
-"""
-
 import os
 from loguru import logger
 from typing import Optional
 from pycorekit.correlation.context import get_current_correlation_id
+
+
+def correlation_patcher(record):
+    """
+    Inject correlation_id into every log record automatically.
+    """
+    cid = get_current_correlation_id()
+    if cid:
+        record["extra"]["correlation_id"] = cid
 
 
 def init_logger(
@@ -21,16 +22,14 @@ def init_logger(
     console: bool = True,
     file: bool = True,
     json_file: bool = False,
-    format: str = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    format: str = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message} | {extra}",
 ):
-    """
-    Initialize Loguru logger with multiple sinks.
-    """
-
     os.makedirs(log_dir, exist_ok=True)
     logger.remove()
 
-    # Console sink
+    # Enable correlation ID injection
+    logger.configure(patcher=correlation_patcher)
+
     if console:
         logger.add(
             sink=lambda msg: print(msg, end=""),
@@ -39,7 +38,6 @@ def init_logger(
             enqueue=True,
         )
 
-    # File sink
     if file:
         logger.add(
             f"{log_dir}/app_{{time:YYYY-MM-DD}}.log",
@@ -53,7 +51,6 @@ def init_logger(
             format=format,
         )
 
-    # JSON structured logs
     if json_file:
         logger.add(
             f"{log_dir}/json_{{time:YYYY-MM-DD}}.log",

@@ -18,23 +18,20 @@ import os
 import yaml
 from functools import lru_cache
 from typing import Any, Dict
-
+from pathlib import Path
 
 class YamlLoadError(Exception):
     """Raised when a YAML file cannot be loaded or parsed."""
     pass
 
 
-def _validate_path(path: str):
-    """Ensure the YAML file exists before loading."""
-    if not os.path.exists(path):
-        raise YamlLoadError(f"YAML file not found: {path}")
-    if not path.endswith((".yaml", ".yml")):
-        raise YamlLoadError(f"Invalid YAML file extension: {path}")
+def _validate_path(path: Path):
+    if path.suffix not in (".yaml", ".yml"):
+        raise ValueError(f"Invalid YAML file extension: {path}")
 
 
 @lru_cache(maxsize=32)
-def load_yaml(path: str) -> Dict[str, Any]:
+def load_yaml(path: Path) -> Dict[str, Any]:
     """
     Load a YAML file safely with caching.
 
@@ -52,6 +49,7 @@ def load_yaml(path: str) -> Dict[str, Any]:
     Raises:
         YamlLoadError: If file missing or invalid YAML.
     """
+    path = Path(path)
     _validate_path(path)
 
     try:

@@ -44,14 +44,17 @@ class CacheService:
 
     async def get_final(self, thread_id: str, question: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieve a cached final answer for a given thread + question.
+        Retrieve a cached final answer for a thread/question pair.
 
         Args:
-            thread_id (str): Session or conversation ID
-            question (str): User question text
+            thread_id (str): Session or conversation ID.
+            question (str): User question text.
 
         Returns:
-            dict or None: Cached payload, or None if not found
+            dict or None: Cached payload, or None if not found.
+
+        Example:
+            answer = await cache.get_final(thread_id, question)
         """
         key = make_query_cache_key(thread_id, question)
         raw = await self.redis.get(key)
@@ -65,13 +68,16 @@ class CacheService:
         ttl: int = 86400,
     ) -> None:
         """
-        Store a final answer in cache.
+        Store a final answer payload in the cache.
 
         Args:
-            thread_id (str): Session or conversation ID
-            question (str): User question text
-            payload (dict): Data to store (e.g., {"answer": "..."} )
-            ttl (int): Time-to-live in seconds (default: 24 hours)
+            thread_id (str): Session or conversation ID.
+            question (str): User question text.
+            payload (dict): JSON-serializable payload.
+            ttl (int): Time-to-live in seconds (default: 24 hours).
+
+        Example:
+            await cache.set_final(thread_id, question, {"answer": "..."})
         """
         key = make_query_cache_key(thread_id, question)
         await self.redis.set(key, json.dumps(payload), ttl)
