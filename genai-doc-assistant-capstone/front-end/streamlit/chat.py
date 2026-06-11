@@ -4,7 +4,7 @@ import requests
 import os
 import json
 
-from api_client import BackendClient
+from api_client import BackendClient, BackendAPIError
 
 st.set_page_config(page_title="GenAI Doc Assistant", layout="wide")
 
@@ -105,12 +105,19 @@ with st.sidebar:
     )
 
     if uploaded_file:
-        with st.spinner("Uploading and ingesting..."):
-            result = client.upload_document(uploaded_file)
+        try:
+            with st.spinner("Uploading and ingesting..."):
+                result = client.upload_document(uploaded_file)
+        except BackendAPIError as exc:
+            st.error(str(exc))
+            if exc.correlation_id:
+                st.caption(f"Correlation ID: `{exc.correlation_id}`")
+            st.stop()
 
-        if "error" in result:
-            st.error(result["error"])
-        else:
+        if isinstance(result, dict) and result.get("duplicate"):
+            st.info(result.get("message", "Duplicate file skipped."))
+            st.json(result)
+        elif isinstance(result, dict) and "error" not in result:
             st.success("Document ingested successfully!")
             st.json(result)
 
@@ -131,10 +138,15 @@ with st.sidebar:
     st.divider()
     st.header("📚 Documents in Vector DB")
 
-    docs = cached_list_documents()
-    if "error" in docs:
-        st.error(docs["error"])
-    else:
+    try:
+        docs = cached_list_documents()
+    except BackendAPIError as exc:
+        st.error(str(exc))
+        if exc.correlation_id:
+            st.caption(f"Correlation ID: `{exc.correlation_id}`")
+        docs = {}
+
+    if isinstance(docs, dict) and "documents" in docs:
         for d in docs.get("documents", []):
             st.write(f"**{d['title']}** ({d.get('filename','unknown')}) — {d['summary']}")
 
@@ -207,12 +219,18 @@ if st.session_state.hitl_active:
     if st.button("Submit Choice"):
         selected_doc_id = options[choice]
 
-        with st.spinner("Resuming pipeline..."):
-            final = client.choose_document(
-                thread_id=st.session_state.hitl_thread_id,
-                question=st.session_state.hitl_question,
-                selected_doc_id=selected_doc_id
-            )
+        try:
+            with st.spinner("Resuming pipeline..."):
+                final = client.choose_document(
+                    thread_id=st.session_state.hitl_thread_id,
+                    question=st.session_state.hitl_question,
+                    selected_doc_id=selected_doc_id,
+                )
+        except BackendAPIError as exc:
+            st.error(str(exc))
+            if exc.correlation_id:
+                st.caption(f"Correlation ID: `{exc.correlation_id}`")
+            st.stop()
 
         st.session_state.hitl_active = False
         st.session_state.hitl_candidates = None
@@ -247,12 +265,17 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.chat_message("user").write(user_input)
 
-    with st.spinner("Thinking..."):
-        response = client.ask_question(user_input, thread_id)
-
-    if "error" in response:
-        st.error(response["error"])
+    try:
+        with st.spinner("Thinking..."):
+            response = client.ask_question(user_input, thread_id)
+    except BackendAPIError as exc:
+        st.error(str(exc))
+        if exc.correlation_id:
+            st.caption(f"Correlation ID: `{exc.correlation_id}`")
         st.stop()
+
+    if response.get("cache_hit"):
+        st.caption("Answer served from cache.")
 
     if response.get("needs_user_choice"):
         st.session_state.hitl_active = True

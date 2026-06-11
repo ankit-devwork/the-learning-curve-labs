@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 import asyncio
 
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 from pycorekit.tracing.decorators import with_observability
 from pycorekit.tracing.tracing import start_trace
 from pycorekit.correlation.context import get_current_correlation_id

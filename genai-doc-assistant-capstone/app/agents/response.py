@@ -4,7 +4,7 @@ from app.core.llm import llm
 from app.core.guardrails import apply_guardrails
 from app.core.guardrails import detect_hallucination_async
 
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 log = get_logger("response")
 
 # ✅ Use unified tracing engine
@@ -51,7 +51,9 @@ async def response_agent(state: AgentState):
         # 3. Hallucination detection
         with start_trace("hallucination_detection"):
             context = "\n\n".join(context_chunks)
-            hallucinated = await detect_hallucination_async(answer, context)
+            hallucinated = await detect_hallucination_async(
+                answer, context, retrieved_chunks=context_chunks
+            )
             confidence = 1.0 if not hallucinated else 0.4
 
         log.info(

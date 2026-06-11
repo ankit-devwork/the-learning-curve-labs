@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 from pycorekit.utils.env_overrides import apply_env_overrides
 from pycorekit.utils.yaml_loader import load_yaml
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 
 logger = get_logger(__name__)
 

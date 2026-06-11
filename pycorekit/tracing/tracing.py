@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import Optional, Dict, Any
 import contextvars
 
-from pycorekit.logging.logger import logger
+from pycorekit.core_logging.logger import logger
 from pycorekit.correlation.context import get_current_correlation_id
 
 _TRACE_CTX: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar(
@@ -41,7 +41,7 @@ def _get_langfuse_client():
         return None
 
 
-def _get_langsmith_client():
+def get_langsmith_client():
     """Lazy initialization of LangSmith client with diagnostics."""
     global _langsmith_client
     if _langsmith_client is not None:
@@ -49,7 +49,6 @@ def _get_langsmith_client():
 
     try:
         if not os.getenv("LANGCHAIN_API_KEY"):
-            logger.warning("LANGCHAIN_API_KEY not set; LangSmith will be disabled")
             return None
 
         from langsmith import Client as LangSmithClient
@@ -59,6 +58,10 @@ def _get_langsmith_client():
     except Exception as e:
         logger.warning(f"Failed to initialize LangSmith: {e}")
         return None
+
+
+def _get_langsmith_client():
+    return get_langsmith_client()
 
 
 def init_empty_trace():

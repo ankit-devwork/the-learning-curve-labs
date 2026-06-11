@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from .base import AppException
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 
 log = get_logger("exception")
 

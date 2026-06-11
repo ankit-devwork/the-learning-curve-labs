@@ -63,14 +63,16 @@ pip install -e .
 
 ```text
 pycorekit/
-  cache/
+  cache/           # CacheService, MemoryCache, UnifiedRedis
+  core_logging/    # Loguru logging (renamed from logging to avoid stdlib shadowing)
   correlation/
   exceptions/
-  logging/
   observability/
   tracing/
   utils/
 ```
+
+> **Note:** Install from the repository root (`pip install -e ./pycorekit`), not from inside the `pycorekit/` folder, to avoid import conflicts with the stdlib `logging` module name.
 
 ---
 
@@ -79,7 +81,7 @@ pycorekit/
 ## 1. Initialize logging
 
 ```python
-from pycorekit.logging.logger import init_logger, get_logger
+from pycorekit.core_logging.logger import init_logger, get_logger
 
 init_logger(
     log_dir="logs",
@@ -207,15 +209,22 @@ Type coercion follows the existing YAML value (int, float, bool, list).
 # 🗃 Caching
 
 ```python
-from pycorekit.cache.cache_service import CacheService
-from pycorekit.cache.unified_redis import redis
+from pycorekit.cache import CacheService, MemoryCache
 
-cache = CacheService(redis)
-await cache.set_final(thread_id, question, payload)
+# In-memory (no Redis required)
+cache = CacheService(MemoryCache())
+
+# Or Redis / Upstash when REDIS_HOST or Upstash env vars are set
+from pycorekit.cache.unified_redis import UnifiedRedis
+cache = CacheService(UnifiedRedis())
+
+await cache.set_final(thread_id, question, {"answer": "..."})
 result = await cache.get_final(thread_id, question)
 ```
 
 Cache keys are normalized and stable using SHA256 hashing.
+
+LangSmith and Langfuse clients are lazily initialized — missing API keys will not break imports.
 
 ---
 

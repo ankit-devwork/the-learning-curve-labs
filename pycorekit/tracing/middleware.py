@@ -10,7 +10,7 @@ from pycorekit.correlation.context import (
     set_current_correlation_id,
     clear_correlation_id,
 )
-from pycorekit.logging.logger import logger
+from pycorekit.core_logging.logger import logger
 from pycorekit.tracing.tracing import start_trace, get_current_trace, init_empty_trace
 
 

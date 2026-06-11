@@ -15,7 +15,7 @@ from app.service.db_connection import (
 )
 from app.core.agent_state import AgentState
 
-from pycorekit.logging.logger import get_logger
+from pycorekit.core_logging.logger import get_logger
 
 # Unified tracing engine
 from pycorekit.tracing.tracing import start_trace
