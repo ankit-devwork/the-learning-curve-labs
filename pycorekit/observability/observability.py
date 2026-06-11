@@ -179,7 +179,7 @@ async def observe_db(name: str, func: Callable[..., Awaitable[Any]], *, query: s
 
     bound.info("DB query started", query=query)
 
-    with start_trace(name, inputs={"query": query}) as obs:
+    with start_trace(name, inputs={"query": query}, span_type="db") as obs:
         lf_obs = obs["langfuse"]
         ls_run = obs["langsmith"]
 

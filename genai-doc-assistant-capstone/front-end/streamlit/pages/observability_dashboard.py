@@ -48,10 +48,45 @@ def render_observability_record(record):
 
     st.divider()
 
+    external = obs.get("external_tracing", {})
+    if external:
+        st.header("🔗 External Tracing")
+        cols = st.columns(2)
+
+        lf = external.get("langfuse", {})
+        with cols[0]:
+            st.markdown("**Langfuse**")
+            if lf.get("configured"):
+                st.success("Configured")
+                if lf.get("active"):
+                    st.caption(f"Trace ID: `{lf.get('id')}`")
+                if lf.get("url"):
+                    st.markdown(f"[Open in Langfuse]({lf['url']})")
+            else:
+                st.info("Not configured — set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in `.env`")
+
+        ls = external.get("langsmith", {})
+        with cols[1]:
+            st.markdown("**LangSmith**")
+            if ls.get("configured"):
+                st.success("Configured")
+                if ls.get("active"):
+                    st.caption(f"Run ID: `{ls.get('id')}`")
+                if ls.get("url"):
+                    st.markdown(f"[Open in LangSmith]({ls['url']})")
+            else:
+                st.info("Not configured — set `LANGCHAIN_API_KEY` and `LANGCHAIN_TRACING_V2=true` in `.env`")
+
+        total_ms = obs.get("total_duration_ms")
+        if total_ms:
+            st.metric("Total Endpoint Duration", f"{total_ms:.0f} ms")
+
+        st.divider()
+
     # -----------------------------
     # Latency Metrics
     # -----------------------------
-    durations = obs.get("durations", {})
+    durations = dict(obs.get("durations", {}))
 
     # OPTIONAL: Add DB spans to latency chart
     spans = obs.get("raw", {}).get("spans", [])
@@ -63,9 +98,9 @@ def render_observability_record(record):
         st.header("⏱️ Latency Metrics")
         df = pd.DataFrame([
             {"step": k, "latency_ms": v}
-            for k, v in durations.items()
+            for k, v in sorted(durations.items(), key=lambda item: item[1], reverse=True)
         ])
-        fig = px.bar(df, x="step", y="latency_ms", title="Latency per Agent Step")
+        fig = px.bar(df, x="step", y="latency_ms", title="Latency per Pipeline Step")
         st.plotly_chart(fig, use_container_width=True)
 
     # -----------------------------
@@ -100,13 +135,14 @@ def render_observability_record(record):
     if db_spans:
         st.header("🗄️ Database Operations")
         for span in db_spans:
+            inputs = span.get("inputs") or {}
             with st.expander(f"{span['name']} ({span.get('duration_ms', 0)} ms)"):
                 st.json({
-                    "query": span.get("query"),
-                    "collection": span.get("collection"),
-                    "num_items": span.get("num_items"),
+                    "query": span.get("query") or inputs.get("query"),
+                    "collection": span.get("collection") or inputs.get("collection"),
+                    "num_items": span.get("num_items") or inputs.get("num_items"),
                     "duration_ms": span.get("duration_ms"),
-                    "error": span.get("error")
+                    "error": span.get("error"),
                 })
 
     # -----------------------------

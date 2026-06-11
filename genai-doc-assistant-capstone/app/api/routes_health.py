@@ -7,6 +7,7 @@ import asyncio
 
 from fastapi import APIRouter
 from pycorekit.core_logging.logger import get_logger
+from pycorekit.tracing.tracing import get_external_tracing_status
 from app.service.db_connection import async_get_collection, get_embedding_model
 
 router = APIRouter(tags=["Health"])
@@ -21,11 +22,14 @@ async def health_check():
 
 @router.get("/ready", summary="Readiness check", operation_id="readinessCheck")
 async def readiness_check():
+    tracing = get_external_tracing_status()
     checks = {
         "api": "ok",
         "chroma": "unknown",
         "embedding_model": "unknown",
         "llm_api_key": "unknown",
+        "langfuse": "configured" if tracing["langfuse"]["configured"] else "not_configured",
+        "langsmith": "configured" if tracing["langsmith"]["configured"] else "not_configured",
     }
 
     try:
@@ -48,8 +52,9 @@ async def readiness_check():
     else:
         checks["llm_api_key"] = "missing"
 
+    core_checks = ("api", "chroma", "embedding_model", "llm_api_key")
     status = "ok" if all(
-        v == "ok" or v == "configured" for v in checks.values()
+        checks[k] == "ok" or checks[k] == "configured" for k in core_checks
     ) else "degraded"
 
-    return {"status": status, "checks": checks}
+    return {"status": status, "checks": checks, "external_tracing": tracing}
