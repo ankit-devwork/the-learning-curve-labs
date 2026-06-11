@@ -14,6 +14,14 @@ cp genai-doc-assistant-capstone/.env.example genai-doc-assistant-capstone/.env
 # Edit .env and set at minimum:
 # GROQ_API_KEY=gsk_your_key_here
 
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml up --build
+```
+
+Or from the capstone directory:
+
+```bash
+cd genai-doc-assistant-capstone
+cp .env.example .env
 docker compose up --build
 ```
 
@@ -28,20 +36,20 @@ docker compose up --build
 ## Architecture
 
 ```text
-docker-compose.yml
-├── backend   (monorepo root build context)
+genai-doc-assistant-capstone/docker-compose.yml   (project: genai-doc-assistant-capstone)
+├── backend   (monorepo root build context via ..)
 │   ├── Copies pycorekit + capstone into image at build time
-│   ├── Loads genai-doc-assistant-capstone/.env (optional)
+│   ├── Loads .env from capstone folder (optional)
 │   └── Persists data/uploads, data/vector_store, logs in named volumes
 │
-└── streamlit (monorepo root build context)
+└── streamlit (monorepo root build context via ..)
     └── BACKEND_URL=http://backend:8000
 ```
 
 ## Production-style compose (default)
 
 ```bash
-docker compose up --build
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml up --build
 ```
 
 - `pycorekit` is baked into the backend image at build time
@@ -51,7 +59,7 @@ docker compose up --build
 ## Development compose (hot reload)
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml -f genai-doc-assistant-capstone/docker-compose.dev.yml up --build
 ```
 
 - Mounts capstone + pycorekit source into the backend container
@@ -68,7 +76,7 @@ docker build -f genai-doc-assistant-capstone/Dockerfile -t genai-backend .
 docker build -f genai-doc-assistant-capstone/front-end/streamlit/Dockerfile -t genai-streamlit .
 ```
 
-Build context must be the **monorepo root** (`.`), not the capstone folder.
+Build context must be the **monorepo root** (`.`), not the capstone folder alone.
 
 ## Environment file
 
@@ -86,6 +94,7 @@ Loaded by:
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)
 - [CONFIGURATION.md](CONFIGURATION.md)
+- [RENDER.md](RENDER.md)
 
 ## Troubleshooting
 
@@ -94,4 +103,4 @@ Loaded by:
 | Streamlit cannot reach API | Ensure `BACKEND_URL=http://backend:8000` inside Docker network |
 | LLM errors on query | Set `GROQ_API_KEY` in `.env` |
 | Slow first query | First request downloads the embedding model — normal |
-| Reset vector data | `docker compose down -v` (removes named volumes) |
+| Reset vector data | `docker compose -f genai-doc-assistant-capstone/docker-compose.yml down -v` |

@@ -1,20 +1,28 @@
+# GenAI Document Assistant — local Docker stack
+#
+# From repo root:
+#   docker compose -f genai-doc-assistant-capstone/docker-compose.yml up --build
+#
+# From this directory:
+#   docker compose up --build
+
+name: genai-doc-assistant-capstone
+
 services:
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: genai-doc-assistant-capstone/Dockerfile
     image: genai-doc-assistant-backend:local
     container_name: genai_backend
     ports:
       - "8000:8000"
     env_file:
-      - path: genai-doc-assistant-capstone/.env
+      - path: .env
         required: false
     environment:
-      # Fallback when .env is missing (override in .env for real keys)
       APP_ENV: dev
     volumes:
-      # Persist uploads, vector DB, and logs across restarts
       - genai-uploads:/app/data/uploads
       - genai-vector-store:/app/data/vector_store
       - genai-logs:/app/logs
@@ -30,7 +38,7 @@ services:
 
   streamlit:
     build:
-      context: .
+      context: ..
       dockerfile: genai-doc-assistant-capstone/front-end/streamlit/Dockerfile
     image: genai-doc-assistant-streamlit:local
     container_name: genai_streamlit

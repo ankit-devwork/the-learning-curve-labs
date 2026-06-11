@@ -321,7 +321,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph Host["Host machine"]
-        DC["docker compose up"]
+        DC["docker compose -f genai-doc-assistant-capstone/docker-compose.yml up"]
     end
 
     subgraph Network["genai-net"]

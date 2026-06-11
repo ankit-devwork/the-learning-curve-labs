@@ -29,6 +29,9 @@ genai-doc-assistant-capstone/
 ├── tests/
 ├── config.yaml
 ├── .env.example
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── render.yaml
 ├── Dockerfile
 └── main.py
 ```
@@ -40,13 +43,21 @@ genai-doc-assistant-capstone/
 cp genai-doc-assistant-capstone/.env.example genai-doc-assistant-capstone/.env
 # Edit .env and set GROQ_API_KEY
 
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml up --build
+```
+
+Or from the capstone directory:
+
+```bash
+cd genai-doc-assistant-capstone
+cp .env.example .env
 docker compose up --build
 ```
 
 **Dev mode** (hot reload, source mounts):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+docker compose -f genai-doc-assistant-capstone/docker-compose.yml -f genai-doc-assistant-capstone/docker-compose.dev.yml up --build
 ```
 
 ## Deploy to Render
