@@ -9,15 +9,20 @@ paths:
 rag:
   chunk_size: 300
   chunk_overlap: 50
-  splitter: recursive   # or: sliding or: hybrid
+  splitter: recursive
   quality_threshold: 0.4
   semantic_dedupe: True
   document_selection_margin: 0.15
 
 file_upload:
-  max_file_size_mb: 2
+  max_file_size_mb: 10
   allowed_file_types: ["pdf", "txt", "csv", "xlsx", "json", "yaml", "yml"]
 
 models:
   embedding_model: sentence-transformers/all-mpnet-base-v2
   llm_model: groq/llama-3.3-70b-versatile
+  embedding_dim: 768
+
+cache:
+  enabled: true
+  ttl_seconds: 3600

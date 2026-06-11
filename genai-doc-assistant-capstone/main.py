@@ -12,7 +12,7 @@ Responsibilities:
 from fastapi import FastAPI
 
 # pycorekit integrations
-from pycorekit.logging.logger import init_logger
+from pycorekit.core_logging.logger import init_logger
 from pycorekit.exceptions.base import AppException
 from pycorekit.exceptions.handlers import app_exception_handler, generic_exception_handler
 # Local imports

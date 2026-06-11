@@ -1,11 +1,11 @@
-# guardrails.py
 import re
 from typing import List
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+
 from app.service.db_connection import async_embed_texts
 
-# --------- UNSAFE OPS ---------
 UNSAFE_PATTERNS = [
     r"\brm\s+-rf\b",
     r"\bdelete\s+all\b",
@@ -20,11 +20,6 @@ UNSAFE_PATTERNS = [
     r"\bmodify\s+system32\b",
 ]
 
-def detect_unsafe_ops(text: str) -> bool:
-    return any(re.search(p, text, re.IGNORECASE) for p in UNSAFE_PATTERNS)
-
-
-# --------- UNSAFE CONTENT ---------
 UNSAFE_CONTENT_PATTERNS = [
     r"\bhow\s+to\s+hack\b",
     r"\bexploit\b",
@@ -37,6 +32,11 @@ UNSAFE_CONTENT_PATTERNS = [
     r"\bkill\s+someone\b",
 ]
 
+
+def detect_unsafe_ops(text: str) -> bool:
+    return any(re.search(p, text, re.IGNORECASE) for p in UNSAFE_PATTERNS)
+
+
 def detect_unsafe_content(text: str) -> bool:
     return any(re.search(p, text, re.IGNORECASE) for p in UNSAFE_CONTENT_PATTERNS)
 
@@ -47,33 +47,40 @@ def apply_guardrails(answer: str) -> str:
     return answer
 
 
-# --------- ASYNC HALLUCINATION DETECTOR ---------
+def _split_context_chunks(context: str, retrieved_chunks: List[str] | None = None) -> List[str]:
+    if retrieved_chunks:
+        chunks = [c.strip() for c in retrieved_chunks if c and str(c).strip()]
+        if chunks:
+            return chunks
+    if not context or not context.strip():
+        return []
+    return [part.strip() for part in context.split("\n\n") if part.strip()]
 
-async def detect_hallucination_async(answer: str, context: str, threshold: float = 0.75) -> bool:
-    """
-    Async embedding-based hallucination detection.
-    Compares the answer embedding to the full concatenated context embedding.
-    """
 
-    # Empty answer → hallucination
+async def detect_hallucination_async(
+    answer: str,
+    context: str,
+    retrieved_chunks: List[str] | None = None,
+    threshold: float = 0.55,
+) -> bool:
+    """
+    Chunk-level grounding check.
+
+    Embeds the answer and each context chunk, then uses the maximum similarity.
+    This is more reliable than comparing the answer to one giant context vector.
+    """
     if not answer.strip():
         return True
 
-    # Empty context → hallucination
-    if not context or not context.strip():
+    chunks = _split_context_chunks(context, retrieved_chunks)
+    if not chunks:
         return True
 
-    # Normalize
-    answer = answer.strip()
-    context = context.strip()
+    texts = [answer.strip(), *chunks]
+    embeddings = await async_embed_texts(texts)
+    answer_emb = np.array(embeddings[0]).reshape(1, -1)
+    chunk_embs = np.array(embeddings[1:])
 
-    # Embed both
-    embeddings = await async_embed_texts([answer, context])
-    ans_emb = np.array(embeddings[0]).reshape(1, -1)
-    ctx_emb = np.array(embeddings[1]).reshape(1, -1)
-
-    # Cosine similarity
-    sim = float(cosine_similarity(ans_emb, ctx_emb)[0][0])
-
-    # Hallucination if similarity too low
-    return sim < threshold
+    similarities = cosine_similarity(answer_emb, chunk_embs)[0]
+    max_sim = float(np.max(similarities))
+    return max_sim < threshold

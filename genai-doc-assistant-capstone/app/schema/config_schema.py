@@ -14,9 +14,6 @@ class PathsConfig(BaseModel):
 
     @model_validator(mode="after")
     def resolve_absolute_paths(self):
-        """
-        Convert all relative paths into absolute paths using base_dir.
-        """
         if not self.upload_dir.is_absolute():
             self.upload_dir = self.base_dir / self.upload_dir
 
@@ -32,8 +29,8 @@ class PathsConfig(BaseModel):
 class RagConfig(BaseModel):
     chunk_size: int
     chunk_overlap: int
-    splitter: str = "hybrid"  # options: "sliding", "recursive", "hybrid"
-    quality_threshold:float = 0.4
+    splitter: str = "hybrid"
+    quality_threshold: float = 0.4
     semantic_dedupe: bool = True
     document_selection_margin: float = 0.15
 
@@ -42,9 +39,16 @@ class FileUploadConfig(BaseModel):
     max_file_size_mb: int
     allowed_file_types: list[str]
 
+
 class ModelConfig(BaseModel):
     embedding_model: str
     llm_model: str
+    embedding_dim: int = 768
+
+
+class CacheConfig(BaseModel):
+    enabled: bool = True
+    ttl_seconds: int = 3600
 
 
 class AppConfig(BaseModel):
@@ -53,3 +57,4 @@ class AppConfig(BaseModel):
     rag: RagConfig
     file_upload: FileUploadConfig
     models: ModelConfig
+    cache: CacheConfig = CacheConfig()
