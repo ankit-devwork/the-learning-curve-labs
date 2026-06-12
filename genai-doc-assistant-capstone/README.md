@@ -169,6 +169,12 @@ cd genai-doc-assistant-capstone && pytest tests -q
 - UUID-prefixed stored filenames
 - Missing dependency fixes (`scikit-learn`, `pyyaml`, `openpyxl`)
 
+## Architecture overview
+
+![GenAI Document Assistant architecture](docs/assets/genai-doc-assistant-architecture.png)
+
+See [Architecture diagrams](docs/ARCHITECTURE_DIAGRAM.md) for Mermaid flows (ingestion, HITL, deployment).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)

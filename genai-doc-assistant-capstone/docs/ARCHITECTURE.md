@@ -1,6 +1,8 @@
 # Architecture
 
-> For visual diagrams (Mermaid), see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md).
+> For visual diagrams, see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) — includes a [presentation-style overview](ARCHITECTURE_DIAGRAM.md#presentation-architecture-capstone-overview) and Mermaid flows.
+
+![System architecture overview](assets/genai-doc-assistant-architecture.png)
 
 ## Components
 
