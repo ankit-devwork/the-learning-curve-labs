@@ -27,4 +27,5 @@ exec streamlit run chat.py \
   --server.port="$PORT" \
   --server.address=0.0.0.0 \
   --server.headless=true \
+  --server.maxUploadSize="$MAX_MB" \
   --browser.gatherUsageStats=false
