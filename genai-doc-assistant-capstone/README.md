@@ -130,6 +130,7 @@ APP_CACHE__TTL_SECONDS=7200
 |--------|------|-------------|
 | GET | `/health` | Liveness check |
 | GET | `/ready` | Readiness check (Chroma, embeddings, API key) |
+| GET | `/upload-limits` | Max upload size (MB) and allowed file types |
 | POST | `/upload-and-ingest` | Upload and ingest a document |
 | GET | `/documents` | List ingested documents |
 | POST | `/ask-question` | Run query graph (with HITL pause) |

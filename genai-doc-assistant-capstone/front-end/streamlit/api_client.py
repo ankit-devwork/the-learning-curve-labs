@@ -84,3 +84,7 @@ class BackendClient:
     def readiness(self) -> dict:
         resp = requests.get(f"{self.base_url}/ready", timeout=30)
         return self._handle_response(resp)
+
+    def upload_limits(self) -> dict:
+        resp = requests.get(f"{self.base_url}/upload-limits", timeout=30)
+        return self._handle_response(resp)

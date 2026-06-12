@@ -1,0 +1,6 @@
+# Default Streamlit server upload cap (MB). Overwritten at container start by
+# scripts/start-streamlit.sh when APP_FILE_UPLOAD__MAX_FILE_SIZE_MB is set.
+# Must match backend config.yaml / APP_FILE_UPLOAD__MAX_FILE_SIZE_MB.
+
+[server]
+maxUploadSize = 10

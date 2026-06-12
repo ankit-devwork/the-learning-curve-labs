@@ -41,6 +41,18 @@ def reset_thread():
     st.session_state.messages = []
 
 
+@st.cache_data(ttl=60)
+def cached_upload_limits():
+    """Fetch max size and allowed types from backend (single source of truth)."""
+    try:
+        return client.upload_limits()
+    except BackendAPIError:
+        return {
+            "max_file_size_mb": 10,
+            "allowed_file_types": ["pdf", "txt", "csv", "xlsx", "json", "yaml", "yml"],
+        }
+
+
 def render_observability(obs: dict):
     obs = _normalize_observability(obs)
     with st.expander("📊 Observability Metadata", expanded=False):
@@ -96,10 +108,18 @@ for key, default in {
 with st.sidebar:
     st.header("📤 Upload Document")
 
+    upload_limits = cached_upload_limits()
+    max_mb = upload_limits.get("max_file_size_mb", 10)
+    allowed_types = upload_limits.get("allowed_file_types") or [
+        "pdf", "txt", "csv", "xlsx", "json", "yaml", "yml"
+    ]
+    types_label = ", ".join(f".{ext}" for ext in allowed_types)
+    st.caption(f"Max {max_mb} MB per file · Allowed: {types_label}")
+
     uploaded_file = st.file_uploader(
-        "Upload a file",
-        type=["pdf", "txt", "csv", "xlsx", "json", "yaml"],
-        key=f"uploader_{st.session_state.uploader_key}"
+        f"Upload a file (max {max_mb} MB)",
+        type=allowed_types,
+        key=f"uploader_{st.session_state.uploader_key}",
     )
 
     if uploaded_file:
