@@ -51,6 +51,9 @@ services:
     container_name: genai_streamlit
     ports:
       - "8501:8501"
+    env_file:
+      - path: .env
+        required: false
     environment:
       BACKEND_URL: http://backend:8000
     networks:

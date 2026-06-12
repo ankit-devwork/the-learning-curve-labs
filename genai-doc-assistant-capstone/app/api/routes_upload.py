@@ -33,6 +33,18 @@ from app.service.query_cache import invalidate_query_cache
 router = APIRouter(tags=["Upload + Ingest"])
 log = get_logger("upload_ingest")
 
+
+@router.get(
+    "/upload-limits",
+    summary="Upload size and allowed file types (for Streamlit UI)",
+    operation_id="uploadLimits",
+)
+async def upload_limits():
+    return {
+        "max_file_size_mb": settings.file_upload.max_file_size_mb,
+        "allowed_file_types": settings.file_upload.allowed_file_types,
+    }
+
 # @with_observability wraps this endpoint and appends sanitized trace data.
 # Endpoint handlers should not manually serialize or inject request.state.trace.
 
@@ -55,7 +67,10 @@ def validate_file(file: UploadFile, file_bytes: bytes):
 
     if len(file_bytes) > MAX_FILE_SIZE:
         raise FileException(
-            message=f"File too large. Max allowed size is {MAX_FILE_SIZE} bytes"
+            message=(
+                f"File too large. Max allowed size is "
+                f"{settings.file_upload.max_file_size_mb} MB"
+            )
         )
 
 
