@@ -82,7 +82,7 @@ if "observability_history" not in st.session_state:
 # UI Layout
 # ---------------------------------------------------------
 st.title("📄 GenAI Document Assistant")
-st.caption("Upload → Ingest → Ask Questions → HITL Document Selection")
+st.caption("Upload → Ingest → Ask Questions → HITL Document Selection · build 2026-06-12")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
