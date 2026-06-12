@@ -39,6 +39,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 COPY genai-doc-assistant-capstone /app
 
 RUN mkdir -p /app/data/uploads /app/data/vector_store /app/logs && \
+    sed -i 's/\r$//' /app/scripts/start-backend.sh && \
     chmod +x /app/scripts/start-backend.sh
 
 EXPOSE 8000
@@ -46,4 +47,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
     CMD sh -c 'curl -f "http://localhost:${PORT:-8000}/health" || exit 1'
 
-CMD ["/app/scripts/start-backend.sh"]
+CMD ["sh", "/app/scripts/start-backend.sh"]

@@ -100,6 +100,7 @@ Loaded by:
 
 | Issue | Fix |
 |-------|-----|
+| `exec /app/scripts/start-backend.sh: no such file or directory` (Windows) | Rebuild after pulling latest (`--build`). Scripts are normalized to LF in the image; `.gitattributes` keeps `*.sh` as LF in git. |
 | Streamlit cannot reach API | Ensure `BACKEND_URL=http://backend:8000` inside Docker network |
 | LLM errors on query | Set `GROQ_API_KEY` in `.env` |
 | Slow first query | First request downloads the embedding model — normal |
