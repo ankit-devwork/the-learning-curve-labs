@@ -5,6 +5,7 @@ from pycorekit.core_logging.logger import get_logger
 from pycorekit.tracing.decorators import with_observability
 from pycorekit.tracing.tracing import start_trace
 from pycorekit.correlation.context import get_current_correlation_id
+from app.core.settings import settings
 from app.core.graph_runtime import answer_graph
 from app.service.db_connection import (
     async_load_chat_history,
@@ -73,6 +74,7 @@ async def choose_document(payload: ChooseDocumentRequest, request: Request):
         "question": question,
         "selected_doc_id": selected_doc_id,
         "answer": final_answer,
+        "model": settings.models.llm_model,
         "confidence": confidence,
         "hallucinated": hallucinated,
         "cache_hit": False,

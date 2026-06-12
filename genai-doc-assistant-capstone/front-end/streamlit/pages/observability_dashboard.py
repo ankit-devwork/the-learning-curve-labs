@@ -35,16 +35,30 @@ def _normalize_observability(obs):
     return obs
 
 
+def _trace_summary(record: dict) -> dict:
+    """Build endpoint-aware summary for the dashboard header."""
+    endpoint = record.get("endpoint", "")
+    summary = {
+        "endpoint": record.get("endpoint"),
+        "correlation_id": record.get("correlation_id"),
+        "model": record.get("model"),
+    }
+
+    if endpoint == "/upload-and-ingest":
+        summary["title"] = record.get("title")
+        summary["summary"] = record.get("summary")
+        summary["num_chunks"] = record.get("num_chunks")
+    else:
+        summary["answer"] = record.get("answer")
+
+    return summary
+
+
 def render_observability_record(record):
     obs = _normalize_observability(record["observability"])
 
     st.subheader(f"🔍 Trace: {record['label']}")
-    st.json({
-        "endpoint": record["endpoint"],
-        "correlation_id": record["correlation_id"],
-        "model": record.get("model"),
-        "answer": record.get("answer"),
-    })
+    st.json(_trace_summary(record))
 
     st.divider()
 

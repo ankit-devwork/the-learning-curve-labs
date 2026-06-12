@@ -126,7 +126,11 @@ with st.sidebar:
                     "label": f"Upload: {uploaded_file.name}",
                     "endpoint": "/upload-and-ingest",
                     "correlation_id": result.get("correlation_id"),
-                    "observability": obs
+                    "model": result.get("model"),
+                    "title": result.get("title"),
+                    "summary": result.get("summary"),
+                    "num_chunks": result.get("num_chunks"),
+                    "observability": obs,
                 })
 
         # Reset uploader widget completely
@@ -200,8 +204,9 @@ with st.sidebar:
                         "label": "Observability Test",
                         "endpoint": "/observability",
                         "correlation_id": data.get("correlation_id"),
+                        "model": data.get("model"),
                         "answer": data.get("answer"),
-                        "observability": obs
+                        "observability": obs,
                     })
             else:
                 st.error("Observability test failed")
@@ -270,8 +275,9 @@ if st.session_state.hitl_active:
                 "label": f"HITL: {label_question[:40]}...",
                 "endpoint": "/choose-document",
                 "correlation_id": final.get("correlation_id"),
+                "model": final.get("model"),
                 "answer": final.get("answer"),
-                "observability": obs
+                "observability": obs,
             })
 
         st.rerun()
@@ -317,8 +323,9 @@ if user_input:
                 "label": f"Query: {user_input[:40]}...",
                 "endpoint": "/ask-question",
                 "correlation_id": response.get("correlation_id"),
+                "model": response.get("model"),
                 "answer": answer,
-                "observability": obs
+                "observability": obs,
             })
 
 
