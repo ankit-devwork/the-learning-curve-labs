@@ -7,10 +7,6 @@ def _resolve_backend_url() -> str:
     if explicit:
         return explicit.rstrip("/")
 
-    hostport = os.getenv("BACKEND_HOSTPORT", "").strip()
-    if hostport:
-        return f"http://{hostport}".rstrip("/")
-
     return "http://backend:8000"
 
 
@@ -82,7 +78,7 @@ class BackendClient:
         return self._handle_response(resp)
 
     def list_documents(self) -> dict:
-        resp = requests.get(f"{self.base_url}/documents", timeout=60)
+        resp = requests.get(f"{self.base_url}/documents", timeout=120)
         return self._handle_response(resp)
 
     def readiness(self) -> dict:

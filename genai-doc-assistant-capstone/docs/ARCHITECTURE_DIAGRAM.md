@@ -6,7 +6,7 @@ Related docs:
 - [ARCHITECTURE.md](ARCHITECTURE.md) — narrative architecture overview
 - [CONFIGURATION.md](CONFIGURATION.md) — config and `.env` overrides
 - [DOCKER.md](DOCKER.md) — local Docker Compose guide
-- [RENDER.md](RENDER.md) — cloud deployment on Render
+- [EC2.md](EC2.md) — cloud deployment on AWS EC2 + ECR
 
 ---
 
@@ -325,16 +325,18 @@ All capstone deployment files live inside `genai-doc-assistant-capstone/` (not t
 genai-doc-assistant-capstone/
 ├── docker-compose.yml       # Local stack (project: genai-doc-assistant-capstone)
 ├── docker-compose.dev.yml   # Dev overrides (hot reload)
-├── render.yaml              # Render Blueprint (cloud deploy)
+├── docker-compose.ecr.yml   # EC2 pull-and-run from ECR
+├── scripts/push-ecr.sh      # Build, tag, push both images
 ├── Dockerfile               # Backend image (build context = monorepo root)
 ├── front-end/streamlit/Dockerfile
 ├── .env.example
+├── .env.ecr.example
 └── docs/
     ├── DOCKER.md
-    └── RENDER.md
+    └── EC2.md
 ```
 
-Docker and Render builds still use the **monorepo root** as context (`..` or `.`) because the backend image copies `pycorekit/`.
+Docker and ECR image builds use the **monorepo root** as context (`..` or `.`) because the backend image copies `pycorekit/`.
 
 ---
 
@@ -368,15 +370,22 @@ flowchart TB
 
 ---
 
-## 13. Render deployment topology (cloud)
+## 13. EC2 + ECR deployment topology (cloud)
 
 ```mermaid
 flowchart TB
-    subgraph Render["Render.com"]
-        Blueprint["genai-doc-assistant-capstone/render.yaml"]
-        BE["genai-backend Web Service"]
-        ST["genai-streamlit Web Service"]
-        Disk["Persistent disk /app/data"]
+    subgraph Dev["Developer machine"]
+        Build["docker build + push-ecr.sh"]
+    end
+
+    subgraph AWS["AWS"]
+        ECR["ECR: backend + streamlit images"]
+        EC2["EC2 instance"]
+        subgraph Compose["docker-compose.ecr.yml"]
+            BE["genai_backend :8000"]
+            ST["genai_streamlit :8501"]
+        end
+        Volumes["EBS + Docker volumes"]
     end
 
     subgraph External["External"]
@@ -384,11 +393,12 @@ flowchart TB
         User["User browser"]
     end
 
-    Blueprint --> BE
-    Blueprint --> ST
-    User --> ST
-    ST -->|"BACKEND_HOSTPORT private network"| BE
-    BE --> Disk
+    Build --> ECR
+    ECR --> EC2
+    EC2 --> Compose
+    User -->|"public IP :8501"| ST
+    ST -->|"BACKEND_URL=http://backend:8000"| BE
+    BE --> Volumes
     BE --> Groq
 ```
 

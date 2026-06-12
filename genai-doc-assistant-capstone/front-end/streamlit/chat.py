@@ -155,8 +155,8 @@ with st.sidebar:
         if exc.correlation_id:
             st.caption(f"Correlation ID: `{exc.correlation_id}`")
         st.info(
-            "On Render free tier: open the **backend** URL in a browser first "
-            "(`/health`, then `/documents`) to wake it up, wait ~60s, then refresh this page."
+            "If the backend is still starting, wait a moment and refresh. "
+            "Check `GET /health` on the API (port 8000) if the problem persists."
         )
         docs = {}
 

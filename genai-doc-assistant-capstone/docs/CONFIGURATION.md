@@ -75,6 +75,7 @@ Configuration and secrets are loaded the same way in all environments. Deploymen
 |------|-------------|
 | `docker-compose.yml` | Local Docker |
 | `docker-compose.dev.yml` | Local Docker (dev) |
-| `render.yaml` | Render cloud |
+| `docker-compose.ecr.yml` | EC2 / ECR |
+| `.env.ecr.example` | ECR registry + image tag |
 
-See [DOCKER.md](DOCKER.md) and [RENDER.md](RENDER.md).
+See [DOCKER.md](DOCKER.md) and [EC2.md](EC2.md).

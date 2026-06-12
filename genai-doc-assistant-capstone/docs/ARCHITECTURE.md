@@ -55,11 +55,13 @@ Deployment artifacts live inside the capstone project folder (this monorepo cont
 |----------|------|---------|
 | Docker Compose | `docker-compose.yml` | Local backend + Streamlit stack |
 | Docker Compose (dev) | `docker-compose.dev.yml` | Hot-reload overrides |
-| Render Blueprint | `render.yaml` | Cloud deploy on Render |
+| Docker Compose (ECR) | `docker-compose.ecr.yml` | EC2 pull-and-run from ECR |
+| ECR push script | `scripts/push-ecr.sh` | Build, tag, push both images |
 | Backend Dockerfile | `Dockerfile` | API image (build context = monorepo root) |
 | Streamlit Dockerfile | `front-end/streamlit/Dockerfile` | UI image |
 
 Guides:
 - Local: [DOCKER.md](DOCKER.md)
-- Cloud: [RENDER.md](RENDER.md)
+- Cloud: [EC2.md](EC2.md)
+- Options: [FREE_DEPLOY.md](FREE_DEPLOY.md)
 - Diagrams: [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) (sections 11–13)
