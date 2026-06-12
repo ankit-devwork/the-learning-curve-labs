@@ -7,11 +7,11 @@ Run the **backend** and **Streamlit** containers on a single EC2 instance using 
 ```text
 Your laptop                         AWS
 ───────────                         ───
-build + push ──► ECR repos          EC2 instance
-  ├── genai-doc-assistant-backend       ├── docker compose (ecr.yml)
-  └── genai-doc-assistant-streamlit     ├── backend :8000
-                                        └── streamlit :8501
-                                              └── BACKEND_URL=http://backend:8000
+build + push ──► ECR repo             EC2 instance
+  digital-worker-studio:              ├── docker compose (ecr.yml)
+    ├── genai-backend-latest          ├── backend :8000
+    └── genai-streamlit-latest        └── streamlit :8501
+                                          └── BACKEND_URL=http://backend:8000
 ```
 
 | Component | Role |
@@ -45,14 +45,22 @@ Users open **Streamlit** at `http://<ec2-public-ip>:8501`. Streamlit calls the b
 
 ## Part 1 — Build and push images (your machine)
 
-### 1. Create ECR repositories (once)
+### 1. ECR repository (one repo, two tags)
+
+Use a **single** ECR repo (e.g. `digital-worker-studio`) and distinguish services by **tag**:
+
+| Image | Full URI |
+|-------|----------|
+| Backend | `123456789012.dkr.ecr.us-east-1.amazonaws.com/digital-worker-studio:genai-backend-latest` |
+| Streamlit | `123456789012.dkr.ecr.us-east-1.amazonaws.com/digital-worker-studio:genai-streamlit-latest` |
+
+Create the repo once (skip if it already exists):
 
 ```bash
-aws ecr create-repository --repository-name genai-doc-assistant-backend --region us-east-1
-aws ecr create-repository --repository-name genai-doc-assistant-streamlit --region us-east-1
+aws ecr create-repository --repository-name digital-worker-studio --region us-east-1
 ```
 
-Or let `scripts/push-ecr.sh` create them automatically.
+Or let `scripts/push-ecr.sh` create it automatically.
 
 ### 2. Push both images
 
@@ -62,8 +70,8 @@ From the **monorepo root** (`the-learning-curve-labs/`):
 chmod +x genai-doc-assistant-capstone/scripts/push-ecr.sh
 
 ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+ECR_REPOSITORY=digital-worker-studio \
 AWS_REGION=us-east-1 \
-IMAGE_TAG=latest \
 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
 ```
 
@@ -71,6 +79,7 @@ IMAGE_TAG=latest \
 
 ```powershell
 $ECR_REGISTRY = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+$ECR_REPO = "digital-worker-studio"
 $REGION = "us-east-1"
 
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
@@ -78,14 +87,14 @@ aws ecr get-login-password --region $REGION | docker login --username AWS --pass
 docker build -f genai-doc-assistant-capstone/Dockerfile -t genai-doc-assistant-backend:local .
 docker build -f genai-doc-assistant-capstone/front-end/streamlit/Dockerfile -t genai-doc-assistant-streamlit:local .
 
-docker tag genai-doc-assistant-backend:local "$ECR_REGISTRY/genai-doc-assistant-backend:latest"
-docker tag genai-doc-assistant-streamlit:local "$ECR_REGISTRY/genai-doc-assistant-streamlit:latest"
+docker tag genai-doc-assistant-backend:local "${ECR_REGISTRY}/${ECR_REPO}:genai-backend-latest"
+docker tag genai-doc-assistant-streamlit:local "${ECR_REGISTRY}/${ECR_REPO}:genai-streamlit-latest"
 
-docker push "$ECR_REGISTRY/genai-doc-assistant-backend:latest"
-docker push "$ECR_REGISTRY/genai-doc-assistant-streamlit:latest"
+docker push "${ECR_REGISTRY}/${ECR_REPO}:genai-backend-latest"
+docker push "${ECR_REGISTRY}/${ECR_REPO}:genai-streamlit-latest"
 ```
 
-You must push **both** images — backend and Streamlit are separate containers.
+You push **two tags** into **one repo** — backend and Streamlit remain separate containers at runtime.
 
 ---
 
@@ -118,7 +127,7 @@ Copy these files into e.g. `~/genai-app/` on the instance:
 |------|---------|
 | `docker-compose.ecr.yml` | Pull-and-run stack |
 | `.env` | Secrets (`GROQ_API_KEY`, etc.) |
-| `.env.ecr` | `ECR_REGISTRY`, `IMAGE_TAG` |
+| `.env.ecr` | `ECR_REGISTRY`, `ECR_REPOSITORY`, image tags |
 
 ```bash
 # On EC2
@@ -144,8 +153,10 @@ Example `.env.ecr`:
 
 ```bash
 ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
+ECR_REPOSITORY=digital-worker-studio
 AWS_REGION=us-east-1
-IMAGE_TAG=latest
+BACKEND_IMAGE_TAG=genai-backend-latest
+STREAMLIT_IMAGE_TAG=genai-streamlit-latest
 ```
 
 ### 5. Log in to ECR and start
@@ -177,13 +188,15 @@ Open `http://<ec2-public-ip>:8501` in your browser.
 **On your machine:**
 
 ```bash
-IMAGE_TAG=v1.0.1 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
+BACKEND_IMAGE_TAG=genai-backend-v1.0.1 \
+STREAMLIT_IMAGE_TAG=genai-streamlit-v1.0.1 \
+./genai-doc-assistant-capstone/scripts/push-ecr.sh
 ```
 
 **On EC2:**
 
 ```bash
-# Update IMAGE_TAG in .env.ecr if you used a version tag
+# Update BACKEND_IMAGE_TAG / STREAMLIT_IMAGE_TAG in .env.ecr if you used version tags
 docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr pull
 docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
 ```
@@ -198,7 +211,9 @@ Data in named volumes (`genai-uploads`, `genai-vector-store`) survives image upd
 |----------|-------|----------|-------------|
 | `GROQ_API_KEY` | `.env` | Yes | LLM API key |
 | `ECR_REGISTRY` | `.env.ecr` | Yes | ECR registry host |
-| `IMAGE_TAG` | `.env.ecr` | No | Image tag (default `latest`) |
+| `ECR_REPOSITORY` | `.env.ecr` | Yes | ECR repo name (e.g. `digital-worker-studio`) |
+| `BACKEND_IMAGE_TAG` | `.env.ecr` | No | Backend tag (default `genai-backend-latest`) |
+| `STREAMLIT_IMAGE_TAG` | `.env.ecr` | No | Streamlit tag (default `genai-streamlit-latest`) |
 | `BACKEND_URL` | compose | Auto | `http://backend:8000` inside Docker network |
 | `APP_ENV` | compose | Auto | Set to `production` in `docker-compose.ecr.yml` |
 | `CORS_ALLOW_ORIGINS` | `.env` | No | Defaults to `*`; tighten if exposing API publicly |

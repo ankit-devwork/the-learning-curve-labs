@@ -18,7 +18,7 @@ name: genai-doc-assistant-capstone
 
 services:
   backend:
-    image: ${ECR_REGISTRY}/genai-doc-assistant-backend:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${BACKEND_IMAGE_TAG:-genai-backend-latest}
     container_name: genai_backend
     ports:
       - "8000:8000"
@@ -42,7 +42,7 @@ services:
     restart: unless-stopped
 
   streamlit:
-    image: ${ECR_REGISTRY}/genai-doc-assistant-streamlit:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${STREAMLIT_IMAGE_TAG:-genai-streamlit-latest}
     container_name: genai_streamlit
     ports:
       - "8501:8501"

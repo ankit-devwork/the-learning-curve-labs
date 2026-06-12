@@ -70,6 +70,7 @@ Push both images to ECR, then run `docker-compose.ecr.yml` on an EC2 instance:
 
 ```bash
 ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+ECR_REPOSITORY=digital-worker-studio \
 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
 ```
 

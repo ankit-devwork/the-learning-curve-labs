@@ -85,6 +85,7 @@ For cloud deployment, push images to ECR and use `docker-compose.ecr.yml` on EC2
 ```bash
 # From your machine (monorepo root)
 ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+ECR_REPOSITORY=digital-worker-studio \
 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
 
 # On EC2
