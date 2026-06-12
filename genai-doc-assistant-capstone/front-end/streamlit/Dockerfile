@@ -17,11 +17,12 @@ COPY genai-doc-assistant-capstone/front-end/streamlit /app
 
 ENV PYTHONUNBUFFERED=1
 
-RUN chmod +x /app/scripts/start-streamlit.sh
+RUN sed -i 's/\r$//' /app/scripts/start-streamlit.sh && \
+    chmod +x /app/scripts/start-streamlit.sh
 
 EXPOSE 8501
 
 HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=5 \
     CMD sh -c 'curl -f "http://localhost:${PORT:-8501}/_stcore/health" || exit 1'
 
-CMD ["/app/scripts/start-streamlit.sh"]
+CMD ["sh", "/app/scripts/start-streamlit.sh"]
