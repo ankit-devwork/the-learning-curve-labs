@@ -27,14 +27,15 @@ genai-doc-assistant-capstone/
 │   ├── ARCHITECTURE_DIAGRAM.md
 │   ├── CONFIGURATION.md
 │   ├── DOCKER.md
-│   └── RENDER.md
+│   └── EC2.md
 ├── front-end/streamlit/  # Streamlit UI
 ├── tests/
 ├── config.yaml
 ├── .env.example
+├── .env.ecr.example
 ├── docker-compose.yml
+├── docker-compose.ecr.yml
 ├── docker-compose.dev.yml
-├── render.yaml
 ├── Dockerfile
 └── main.py
 ```
@@ -63,18 +64,18 @@ docker compose up --build
 docker compose -f genai-doc-assistant-capstone/docker-compose.yml -f genai-doc-assistant-capstone/docker-compose.dev.yml up --build
 ```
 
-## Deploy to Render
+## Deploy to AWS EC2 (ECR)
 
-Use the Blueprint at `genai-doc-assistant-capstone/render.yaml` to deploy backend + Streamlit as two web services.
+Push both images to ECR, then run `docker-compose.ecr.yml` on an EC2 instance:
 
-```text
-Render Dashboard → New → Blueprint → connect repo
-Blueprint path: genai-doc-assistant-capstone/render.yaml → Apply
+```bash
+ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+./genai-doc-assistant-capstone/scripts/push-ecr.sh
 ```
 
-Set `GROQ_API_KEY` and `CORS_ALLOW_ORIGINS` when prompted. See [docs/RENDER.md](docs/RENDER.md) for full steps, env vars, and troubleshooting.
+See [docs/EC2.md](docs/EC2.md) for EC2 setup, IAM, and compose commands.
 
-**No budget for Render?** `render.yaml` uses the free tier (no disk). See also [docs/FREE_DEPLOY.md](docs/FREE_DEPLOY.md) for local Docker + tunnel options.
+**Local demo only?** See [docs/FREE_DEPLOY.md](docs/FREE_DEPLOY.md) for local Docker + optional tunnel.
 
 See [docs/DOCKER.md](docs/DOCKER.md) for full Docker documentation.
 
@@ -171,4 +172,6 @@ cd genai-doc-assistant-capstone && pytest tests -q
 - [Architecture diagrams](docs/ARCHITECTURE_DIAGRAM.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Docker guide](docs/DOCKER.md)
+- [EC2 / ECR deployment](docs/EC2.md)
+- [Deployment options](docs/FREE_DEPLOY.md)
 - [pycorekit README](../pycorekit/README.md)

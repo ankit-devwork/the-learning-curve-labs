@@ -1,0 +1,65 @@
+# GenAI Document Assistant — EC2 / ECR deployment
+#
+# Pull pre-built images from AWS ECR (no local build on the server).
+#
+# 1. Push images from your machine — see scripts/push-ecr.sh and docs/EC2.md
+# 2. On EC2, copy this file, .env, and .env.ecr into one folder
+# 3. Set ECR_REGISTRY in .env.ecr to your account registry
+#
+# From the capstone directory:
+#   docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
+#
+# From repo root:
+#   docker compose -f genai-doc-assistant-capstone/docker-compose.ecr.yml \
+#     --env-file genai-doc-assistant-capstone/.env \
+#     --env-file genai-doc-assistant-capstone/.env.ecr up -d
+
+name: genai-doc-assistant-capstone
+
+services:
+  backend:
+    image: ${ECR_REGISTRY}/genai-doc-assistant-backend:${IMAGE_TAG:-latest}
+    container_name: genai_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: production
+    volumes:
+      - genai-uploads:/app/data/uploads
+      - genai-vector-store:/app/data/vector_store
+      - genai-logs:/app/logs
+    networks:
+      - genai-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  streamlit:
+    image: ${ECR_REGISTRY}/genai-doc-assistant-streamlit:${IMAGE_TAG:-latest}
+    container_name: genai_streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      BACKEND_URL: http://backend:8000
+    networks:
+      - genai-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  genai-net:
+    driver: bridge
+
+volumes:
+  genai-uploads:
+  genai-vector-store:
+  genai-logs:

@@ -78,6 +78,22 @@ docker build -f genai-doc-assistant-capstone/front-end/streamlit/Dockerfile -t g
 
 Build context must be the **monorepo root** (`.`), not the capstone folder alone.
 
+## EC2 / ECR compose (pull pre-built images)
+
+For cloud deployment, push images to ECR and use `docker-compose.ecr.yml` on EC2 (no build on the server):
+
+```bash
+# From your machine (monorepo root)
+ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+./genai-doc-assistant-capstone/scripts/push-ecr.sh
+
+# On EC2
+cp .env.ecr.example .env.ecr   # set ECR_REGISTRY
+docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
+```
+
+See [EC2.md](EC2.md) for full AWS setup.
+
 ## Environment file
 
 | File | Purpose |
@@ -94,7 +110,8 @@ Loaded by:
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)
 - [CONFIGURATION.md](CONFIGURATION.md)
-- [RENDER.md](RENDER.md)
+- [EC2.md](EC2.md)
+- [FREE_DEPLOY.md](FREE_DEPLOY.md)
 
 ## Troubleshooting
 
