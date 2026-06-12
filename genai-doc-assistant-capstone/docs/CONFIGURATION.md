@@ -75,7 +75,7 @@ Configuration and secrets are loaded the same way in all environments. Deploymen
 |------|-------------|
 | `docker-compose.yml` | Local Docker |
 | `docker-compose.dev.yml` | Local Docker (dev) |
-| `docker-compose.ecr.yml` | EC2 / ECR |
-| `.env.ecr.example` | ECR registry + image tag |
+| `docker-compose.ecr.yml` | EC2 / ECR (one repo, two tags) |
+| `.env.ecr.example` | `ECR_REGISTRY`, `ECR_REPOSITORY`, `BACKEND_IMAGE_TAG`, `STREAMLIT_IMAGE_TAG` |
 
-See [DOCKER.md](DOCKER.md) and [EC2.md](EC2.md).
+See [DOCKER.md](DOCKER.md) and [EC2.md](EC2.md) for the verified EC2 runbook.

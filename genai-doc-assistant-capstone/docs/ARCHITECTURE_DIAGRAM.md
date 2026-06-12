@@ -10,6 +10,99 @@ Related docs:
 
 ---
 
+## Presentation architecture (capstone overview)
+
+High-level product diagram — similar layout to a single-slide system overview for demos and submissions.
+
+![GenAI Document Assistant — system architecture](assets/genai-doc-assistant-architecture.png)
+
+> **Secure & efficient multi-agent document intelligence**
+
+```mermaid
+flowchart LR
+    subgraph UserLayer["👤 User"]
+        U(["Upload & Ask Questions"])
+    end
+
+    subgraph Ingest["📄 DOCUMENT UPLOAD & INGEST"]
+        direction TB
+        UP["Save to data/uploads"]
+        PARSE["Parse PDF · TXT · CSV · XLSX · JSON · YAML"]
+        CHUNK["Break into Chunks"]
+        SPLIT["Text Chunks + Quality Filter"]
+        UP --> PARSE --> CHUNK --> SPLIT
+    end
+
+    subgraph VectorDB["🗄️ VECTOR STORE"]
+        EMB["SentenceTransformer Embeddings"]
+        CHROMA[("ChromaDB\nPersistent Vectors")]
+        EMB --> CHROMA
+    end
+
+    subgraph Agents["🤖 LANGGRAPH MULTI-AGENT RAG"]
+        direction TB
+        PL["Planner Agent\nLLM execution plan"]
+        DS["Document Selector\nembed + score docs"]
+        HITL{"Ambiguous?\nHITL pause"}
+        RET["Retriever Agent\ntop-k chunks"]
+        REA["Reasoning Agent"]
+        RES["Response Agent\n+ guardrails"]
+        PL --> DS --> HITL
+        HITL -->|User picks doc| RET
+        HITL -->|Clear match| RET
+        RET --> REA --> RES
+    end
+
+    subgraph LLM["☁️ LLM GATEWAY"]
+        GROQ["Groq API\nLlama 3.3 70B\nvia LiteLLM"]
+    end
+
+    subgraph UI["🖥️ STREAMLIT UI :8501"]
+        direction TB
+        UPLOAD_UI["Upload Panel"]
+        CHAT["Chat & Follow-up Questions"]
+        PICK["HITL Document Picker"]
+        OBS["Observability Dashboard"]
+    end
+
+    subgraph API["⚡ FASTAPI BACKEND :8000"]
+        ROUTES["/upload-and-ingest\n/ask-question\n/choose-document"]
+    end
+
+    subgraph Deploy["☁️ DEPLOYMENT"]
+        EC2["AWS EC2 + ECR\ndigital-worker-studio"]
+    end
+
+    U -->|Upload file| UPLOAD_UI
+    UPLOAD_UI -->|HTTP| ROUTES
+    ROUTES --> UP
+    SPLIT --> EMB
+    CHROMA -.->|Search relevant chunks| RET
+    CHROMA -.->|Score documents| DS
+    PL & REA & RES --> GROQ
+    CHAT -->|HTTP| ROUTES
+    ROUTES --> Agents
+    RES -->|Live AI answer| CHAT
+    HITL --> PICK
+    PICK -->|/choose-document| ROUTES
+    ROUTES --> OBS
+    EC2 -.-> API
+    EC2 -.-> UI
+```
+
+### Flow summary
+
+| Stage | What happens |
+|-------|----------------|
+| **1. Upload** | User uploads a document via Streamlit → FastAPI saves and parses it |
+| **2. Chunk & embed** | Text is chunked, embedded with SentenceTransformers, stored in ChromaDB |
+| **3. Plan & select** | Planner creates a strategy; Document Selector scores ingested docs |
+| **4. HITL (if needed)** | If multiple docs match, UI pauses for user to pick one |
+| **5. Retrieve & reason** | Retriever pulls chunks; Reasoning + Response agents call Groq via LiteLLM |
+| **6. Answer** | Guardrails check the response; answer + observability return to Streamlit |
+
+---
+
 ## 1. High-level system overview
 
 ```mermaid

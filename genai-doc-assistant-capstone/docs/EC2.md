@@ -2,34 +2,70 @@
 
 Run the **backend** and **Streamlit** containers on a single EC2 instance using images stored in **Amazon ECR**.
 
+This guide reflects a **verified deployment** using one ECR repository (`digital-worker-studio`) and two image tags.
+
 ## Architecture
 
 ```text
 Your laptop                         AWS
 ───────────                         ───
-build + push ──► ECR repos          EC2 instance
-  ├── genai-doc-assistant-backend       ├── docker compose (ecr.yml)
-  └── genai-doc-assistant-streamlit     ├── backend :8000
-                                        └── streamlit :8501
-                                              └── BACKEND_URL=http://backend:8000
+build + push ──► ECR repo             EC2 instance
+  digital-worker-studio:              ├── docker compose (ecr.yml)
+    ├── genai-backend-latest          ├── backend :8000
+    └── genai-streamlit-latest        └── streamlit :8501
+                                          └── BACKEND_URL=http://backend:8000
 ```
 
 | Component | Role |
 |-----------|------|
-| **ECR** | Stores both Docker images |
+| **ECR** | One repo, two tags (backend + Streamlit) |
 | **EC2** | Pulls images and runs `docker-compose.ecr.yml` |
 | **Named volumes** | Persist uploads, Chroma vector DB, logs |
 | **Groq API** | External LLM (set `GROQ_API_KEY` in `.env`) |
 
-Users open **Streamlit** at `http://<ec2-public-ip>:8501`. Streamlit calls the backend over the internal Docker network — port 8000 does not need to be public unless you want direct API access.
+Users open **Streamlit** at `http://<ec2-public-ip>:8501`. Streamlit calls the backend on the internal Docker network (`http://backend:8000`). Port **8000** does not need to be public unless you want `/docs` exposed.
+
+---
+
+## Image naming (important)
+
+Use **one ECR repository** and **different tags** per service:
+
+| Service | ECR image URI |
+|---------|----------------|
+| Backend | `<account>.dkr.ecr.<region>.amazonaws.com/digital-worker-studio:genai-backend-latest` |
+| Streamlit | `<account>.dkr.ecr.<region>.amazonaws.com/digital-worker-studio:genai-streamlit-latest` |
+
+`docker-compose.ecr.yml` must reference:
+
+```yaml
+image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${BACKEND_IMAGE_TAG:-genai-backend-latest}   # backend
+image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${STREAMLIT_IMAGE_TAG:-genai-streamlit-latest}  # streamlit
+```
+
+**Do not use** the old pattern (separate repos per service):
+
+```yaml
+# WRONG — will fail with "not found"
+image: ${ECR_REGISTRY}/genai-doc-assistant-backend:${IMAGE_TAG:-latest}
+image: ${ECR_REGISTRY}/genai-doc-assistant-streamlit:${IMAGE_TAG:-latest}
+```
+
+Verify resolved URLs before pull:
+
+```bash
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr config | grep image:
+```
+
+---
 
 ## Prerequisites
 
 | Requirement | Notes |
 |-------------|-------|
 | AWS account | ECR + EC2 |
-| AWS CLI | Configured locally (`aws configure`) and on EC2 |
-| Docker + Compose | On your machine (build/push) and EC2 (run) |
+| AWS CLI | `aws configure` on laptop; IAM role or `aws configure` on EC2 |
+| Docker + Compose | Laptop (build/push) and EC2 (run) |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 
 ### Recommended EC2 sizing
@@ -38,39 +74,37 @@ Users open **Streamlit** at `http://<ec2-public-ip>:8501`. Streamlit calls the b
 |----------|----------------|
 | Instance | `t3.medium` (4 GB RAM) minimum; `t3.large` (8 GB) for default embedding model |
 | AMI | Ubuntu 22.04 LTS |
-| EBS | 30 GB gp3 |
-| Security group | Inbound: 22 (SSH, your IP), 8501 (Streamlit). Optional: 8000 (API) |
+| EBS root volume | **20–30 GB** minimum (default ~8 GB is too small for Docker + images) |
+| Security group | Inbound: **22** (SSH, your IP), **8501** (Streamlit). Optional: **8000** (API `/docs`) |
 
 ---
 
-## Part 1 — Build and push images (your machine)
+## Part 1 — Build and push images (your Windows machine)
 
-### 1. Create ECR repositories (once)
-
-```bash
-aws ecr create-repository --repository-name genai-doc-assistant-backend --region us-east-1
-aws ecr create-repository --repository-name genai-doc-assistant-streamlit --region us-east-1
-```
-
-Or let `scripts/push-ecr.sh` create them automatically.
-
-### 2. Push both images
-
-From the **monorepo root** (`the-learning-curve-labs/`):
-
-```bash
-chmod +x genai-doc-assistant-capstone/scripts/push-ecr.sh
-
-ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
-AWS_REGION=us-east-1 \
-IMAGE_TAG=latest \
-./genai-doc-assistant-capstone/scripts/push-ecr.sh
-```
-
-**PowerShell (manual steps):**
+### 1. Get AWS account ID
 
 ```powershell
-$ECR_REGISTRY = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+aws sts get-caller-identity --query Account --output text
+```
+
+Example: `321204595484` → registry `321204595484.dkr.ecr.us-east-1.amazonaws.com`
+
+### 2. Create ECR repo (once)
+
+```powershell
+aws ecr create-repository --repository-name digital-worker-studio --region us-east-1
+```
+
+### 3. Build, tag, and push both images
+
+From monorepo root (`the-learning-curve-labs/`):
+
+```powershell
+cd D:\Mine\Learining\GenAI\python\the-learning-curve-labs
+
+$ACCOUNT_ID = aws sts get-caller-identity --query Account --output text
+$ECR_REGISTRY = "$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com"
+$ECR_REPO = "digital-worker-studio"
 $REGION = "us-east-1"
 
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
@@ -78,117 +112,241 @@ aws ecr get-login-password --region $REGION | docker login --username AWS --pass
 docker build -f genai-doc-assistant-capstone/Dockerfile -t genai-doc-assistant-backend:local .
 docker build -f genai-doc-assistant-capstone/front-end/streamlit/Dockerfile -t genai-doc-assistant-streamlit:local .
 
-docker tag genai-doc-assistant-backend:local "$ECR_REGISTRY/genai-doc-assistant-backend:latest"
-docker tag genai-doc-assistant-streamlit:local "$ECR_REGISTRY/genai-doc-assistant-streamlit:latest"
+docker tag genai-doc-assistant-backend:local "${ECR_REGISTRY}/${ECR_REPO}:genai-backend-latest"
+docker tag genai-doc-assistant-streamlit:local "${ECR_REGISTRY}/${ECR_REPO}:genai-streamlit-latest"
 
-docker push "$ECR_REGISTRY/genai-doc-assistant-backend:latest"
-docker push "$ECR_REGISTRY/genai-doc-assistant-streamlit:latest"
+docker push "${ECR_REGISTRY}/${ECR_REPO}:genai-backend-latest"
+docker push "${ECR_REGISTRY}/${ECR_REPO}:genai-streamlit-latest"
 ```
 
-You must push **both** images — backend and Streamlit are separate containers.
+Confirm tags in ECR:
+
+```bash
+aws ecr describe-images --repository-name digital-worker-studio --region us-east-1 \
+  --query 'imageDetails[*].imageTags' --output table
+```
+
+Expected: `genai-backend-latest`, `genai-streamlit-latest`
+
+**Bash alternative** (Git Bash / WSL):
+
+```bash
+ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+ECR_REPOSITORY=digital-worker-studio \
+AWS_REGION=us-east-1 \
+./genai-doc-assistant-capstone/scripts/push-ecr.sh
+```
 
 ---
 
-## Part 2 — Run on EC2
+## Part 2 — Launch and prepare EC2
 
-### 1. Launch and connect
+### 1. SSH from Windows (fix PEM permissions if needed)
 
-```bash
-ssh -i your-key.pem ubuntu@<ec2-public-ip>
+If you see `UNPROTECTED PRIVATE KEY FILE` or `bad permissions`:
+
+```powershell
+cd D:\Mine\Learining\AWS
+icacls .\digital-worker-pem.pem /inheritance:r
+icacls .\digital-worker-pem.pem /grant:r "$($env:USERNAME):(R)"
+icacls .\digital-worker-pem.pem /remove "Authenticated Users"
+icacls .\digital-worker-pem.pem /remove "Users"
+icacls .\digital-worker-pem.pem /remove "Everyone"
 ```
 
-### 2. Install Docker
+Then connect:
+
+```powershell
+ssh -i digital-worker-pem.pem ubuntu@<ec2-public-ip>
+```
+
+### 2. Expand disk (if root is ~7 GB and full)
+
+Check:
+
+```bash
+df -h /
+lsblk
+```
+
+If `xvda` is 20G but `xvda1` is only ~7G, grow the partition:
+
+```bash
+sudo apt install -y cloud-guest-utils
+sudo growpart /dev/xvda 1
+sudo resize2fs /dev/xvda1
+df -h /
+```
+
+If the EBS volume is still small, expand it in **EC2 → Volumes → Modify volume** (set 20–30 GB), then run `growpart` + `resize2fs` again.
+
+### 3. Install Docker
 
 ```bash
 sudo apt update
 sudo apt install -y docker.io docker-compose-v2 awscli
 sudo usermod -aG docker ubuntu
-# Log out and back in so the docker group applies
 ```
 
-### 3. IAM permissions for ECR pull
-
-Attach an IAM role to the EC2 instance (recommended) with `AmazonEC2ContainerRegistryReadOnly`, or configure `aws configure` on the instance.
-
-### 4. Copy deployment files to EC2
-
-Copy these files into e.g. `~/genai-app/` on the instance:
-
-| File | Purpose |
-|------|---------|
-| `docker-compose.ecr.yml` | Pull-and-run stack |
-| `.env` | Secrets (`GROQ_API_KEY`, etc.) |
-| `.env.ecr` | `ECR_REGISTRY`, `IMAGE_TAG` |
+Exit and SSH back in, then verify:
 
 ```bash
-# On EC2
+docker --version
+docker compose version
+df -h /
+```
+
+### 4. IAM role for ECR pull
+
+Attach IAM role **`AmazonEC2ContainerRegistryReadOnly`** to the EC2 instance (recommended). Otherwise run `aws configure` on the instance.
+
+### 5. Security group
+
+Add inbound rules:
+
+| Port | Purpose |
+|------|---------|
+| 22 | SSH |
+| **8501** | Streamlit UI (required for browser access) |
+| 8000 | Optional — FastAPI `/docs` |
+
+> Port 8000 can work while 8501 is blocked — open **8501** explicitly for the UI.
+
+---
+
+## Part 3 — Deploy on EC2
+
+### 1. Create app directory
+
+```bash
 mkdir -p ~/genai-app
 cd ~/genai-app
-
-cp .env.example .env    # if you copied the example from the repo
-# Edit .env — set GROQ_API_KEY at minimum
-
-cp .env.ecr.example .env.ecr
-# Edit .env.ecr — set your ECR_REGISTRY
 ```
 
-Example `.env`:
+### 2. Copy `docker-compose.ecr.yml` from laptop
+
+```powershell
+scp -i D:\Mine\Learining\AWS\digital-worker-pem.pem `
+  D:\Mine\Learining\GenAI\python\the-learning-curve-labs\genai-doc-assistant-capstone\docker-compose.ecr.yml `
+  ubuntu@<ec2-public-ip>:~/genai-app/
+```
+
+Confirm image lines on EC2:
 
 ```bash
+grep "image:" ~/genai-app/docker-compose.ecr.yml
+```
+
+Must show `${ECR_REPOSITORY}` and `${BACKEND_IMAGE_TAG}` / `${STREAMLIT_IMAGE_TAG}` — not `genai-doc-assistant-backend`.
+
+**Quick fix** if you have the old file:
+
+```bash
+cd ~/genai-app
+sed -i 's|image: ${ECR_REGISTRY}/genai-doc-assistant-backend:${IMAGE_TAG:-latest}|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${BACKEND_IMAGE_TAG:-genai-backend-latest}|' docker-compose.ecr.yml
+sed -i 's|image: ${ECR_REGISTRY}/genai-doc-assistant-streamlit:${IMAGE_TAG:-latest}|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${STREAMLIT_IMAGE_TAG:-genai-streamlit-latest}|' docker-compose.ecr.yml
+```
+
+### 3. Create `.env`
+
+```bash
+nano ~/genai-app/.env
+```
+
+```env
 GROQ_API_KEY=gsk_your_key_here
 APP_ENV=production
 LANGCHAIN_TRACING_V2=false
 ```
 
-Example `.env.ecr`:
+### 4. Create `.env.ecr`
 
 ```bash
-ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
-AWS_REGION=us-east-1
-IMAGE_TAG=latest
+nano ~/genai-app/.env.ecr
 ```
 
-### 5. Log in to ECR and start
+```env
+ECR_REGISTRY=321204595484.dkr.ecr.us-east-1.amazonaws.com
+ECR_REPOSITORY=digital-worker-studio
+AWS_REGION=us-east-1
+BACKEND_IMAGE_TAG=genai-backend-latest
+STREAMLIT_IMAGE_TAG=genai-streamlit-latest
+```
+
+Replace `321204595484` with your account ID.
+
+### 5. ECR login, pull, and start
+
+Use `sudo` consistently if you logged in with `sudo docker login`:
 
 ```bash
 cd ~/genai-app
+set -a && source .env.ecr && set +a
 
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region $AWS_REGION | \
+  sudo docker login --username AWS --password-stdin $ECR_REGISTRY
 
-docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr pull
-docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr config | grep image:
+
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr pull
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
 ```
 
 ### 6. Verify
 
 ```bash
-docker compose -f docker-compose.ecr.yml ps
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr ps
 curl http://localhost:8000/health
 curl http://localhost:8501/_stcore/health
 ```
 
-Open `http://<ec2-public-ip>:8501` in your browser.
+Browser:
+
+- Streamlit UI: `http://<ec2-public-ip>:8501`
+- API docs (optional): `http://<ec2-public-ip>:8000/docs`
 
 ---
 
-## Updates (new code release)
+## Operations
 
-**On your machine:**
-
-```bash
-IMAGE_TAG=v1.0.1 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
-```
-
-**On EC2:**
+### View logs
 
 ```bash
-# Update IMAGE_TAG in .env.ecr if you used a version tag
-docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr pull
-docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
+cd ~/genai-app
+COMPOSE="sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr"
+
+$COMPOSE logs backend --tail 50
+$COMPOSE logs streamlit --tail 50
+$COMPOSE logs -f backend          # follow live
 ```
 
-Data in named volumes (`genai-uploads`, `genai-vector-store`) survives image updates.
+Or directly:
+
+```bash
+sudo docker logs genai_backend --tail 50
+sudo docker logs genai_streamlit --tail 50
+```
+
+### Restart / stop
+
+```bash
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr restart
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr down
+```
+
+### Update after new image push
+
+**Laptop:** rebuild and push with new tags (or reuse `genai-backend-latest`).
+
+**EC2:**
+
+```bash
+cd ~/genai-app
+set -a && source .env.ecr && set +a
+aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr pull
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
+```
 
 ---
 
@@ -198,22 +356,44 @@ Data in named volumes (`genai-uploads`, `genai-vector-store`) survives image upd
 |----------|-------|----------|-------------|
 | `GROQ_API_KEY` | `.env` | Yes | LLM API key |
 | `ECR_REGISTRY` | `.env.ecr` | Yes | ECR registry host |
-| `IMAGE_TAG` | `.env.ecr` | No | Image tag (default `latest`) |
+| `ECR_REPOSITORY` | `.env.ecr` | Yes | ECR repo name (`digital-worker-studio`) |
+| `BACKEND_IMAGE_TAG` | `.env.ecr` | No | Default `genai-backend-latest` |
+| `STREAMLIT_IMAGE_TAG` | `.env.ecr` | No | Default `genai-streamlit-latest` |
 | `BACKEND_URL` | compose | Auto | `http://backend:8000` inside Docker network |
-| `APP_ENV` | compose | Auto | Set to `production` in `docker-compose.ecr.yml` |
-| `CORS_ALLOW_ORIGINS` | `.env` | No | Defaults to `*`; tighten if exposing API publicly |
+
+Always pass both env files to compose:
+
+```bash
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr <command>
+```
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| `no basic auth credentials` on pull | Run `aws ecr get-login-password \| docker login ...` on EC2 |
-| Streamlit cannot reach API | Ensure `BACKEND_URL=http://backend:8000` (set in `docker-compose.ecr.yml`) |
-| OOM on upload/query | Use `t3.large` or set `APP_MODELS__EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2` |
-| Slow first query | Embedding model downloads on first use — normal |
-| Reset all data | `docker compose -f docker-compose.ecr.yml down -v` |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `genai-doc-assistant-streamlit:latest: not found` | Old `docker-compose.ecr.yml` or wrong `.env.ecr` | Use `${ECR_REPOSITORY}` + tag vars; run `config \| grep image:` |
+| `no basic auth credentials` | `sudo docker login` but compose without `sudo` | Use `sudo` for both login and compose |
+| `ECR_REGISTRY variable is not set` warning | `ps`/`logs` without `--env-file .env.ecr` | Add `--env-file .env --env-file .env.ecr` or `source .env.ecr` |
+| `apt install docker` fails, disk full | Root volume too small | Expand EBS; `growpart` + `resize2fs` |
+| `:8000/docs` works, `:8501` does not | Security group | Add inbound **TCP 8501** |
+| SSH `bad permissions` on `.pem` (Windows) | ACL too open | `icacls` steps in Part 2 |
+| OOM on upload/query | Instance too small | `t3.large` or MiniLM embedding model in `.env` |
+| Slow first query | Model download | Normal on first use |
+
+### Verify ECR tags
+
+```bash
+aws ecr describe-images --repository-name digital-worker-studio --region us-east-1 \
+  --query 'imageDetails[*].imageTags' --output table
+```
+
+### Reset all app data
+
+```bash
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr down -v
+```
 
 ---
 

@@ -2,9 +2,14 @@
 #
 # Pull pre-built images from AWS ECR (no local build on the server).
 #
-# 1. Push images from your machine — see scripts/push-ecr.sh and docs/EC2.md
-# 2. On EC2, copy this file, .env, and .env.ecr into one folder
-# 3. Set ECR_REGISTRY in .env.ecr to your account registry
+# One ECR repo, two tags (see .env.ecr.example):
+#   digital-worker-studio:genai-backend-latest
+#   digital-worker-studio:genai-streamlit-latest
+#
+# 1. Push images from your machine — scripts/push-ecr.sh and docs/EC2.md
+# 2. On EC2: copy this file, .env, and .env.ecr into ~/genai-app/
+# 3. Verify: docker compose ... config | grep image:
+#    (must NOT reference genai-doc-assistant-backend as a separate repo)
 #
 # From the capstone directory:
 #   docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
@@ -18,7 +23,7 @@ name: genai-doc-assistant-capstone
 
 services:
   backend:
-    image: ${ECR_REGISTRY}/genai-doc-assistant-backend:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${BACKEND_IMAGE_TAG:-genai-backend-latest}
     container_name: genai_backend
     ports:
       - "8000:8000"
@@ -42,7 +47,7 @@ services:
     restart: unless-stopped
 
   streamlit:
-    image: ${ECR_REGISTRY}/genai-doc-assistant-streamlit:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${STREAMLIT_IMAGE_TAG:-genai-streamlit-latest}
     container_name: genai_streamlit
     ports:
       - "8501:8501"
