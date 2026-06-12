@@ -44,7 +44,10 @@ log = get_logger("db")
 def get_embedding_model():
     """
     Loads the embedding model once and caches it.
+    Lazy-import sentence_transformers to avoid loading PyTorch at app import time.
     """
+    from sentence_transformers import SentenceTransformer
+
     with start_trace("load_embedding_model", inputs={"model": settings.models.embedding_model}):
         log.info(f"Loading embedding model: {settings.models.embedding_model}")
         return SentenceTransformer(settings.models.embedding_model)
