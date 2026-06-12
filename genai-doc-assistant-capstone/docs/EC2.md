@@ -380,7 +380,9 @@ sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ec
 | `:8000/docs` works, `:8501` does not | Security group | Add inbound **TCP 8501** |
 | SSH `bad permissions` on `.pem` (Windows) | ACL too open | `icacls` steps in Part 2 |
 | OOM on upload/query | Instance too small | `t3.large` or MiniLM embedding model in `.env` |
-| Slow first query | Model download | Normal on first use |
+| Upload timed out (300s) | EC2 slow + LangSmith overhead | `LANGCHAIN_TRACING_V2=false`, `APP_RAG__SEMANTIC_DEDUPE=false`; restart backend |
+| LangSmith `429` warnings | Free tier trace limit exceeded | `LANGCHAIN_TRACING_V2=false` in `.env` — app still works |
+| Slow first query | Model download | Normal on first use (several minutes on EC2) |
 
 ### Verify ECR tags
 
