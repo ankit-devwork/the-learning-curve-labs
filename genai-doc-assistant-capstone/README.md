@@ -66,7 +66,7 @@ docker compose -f genai-doc-assistant-capstone/docker-compose.yml -f genai-doc-a
 
 ## Deploy to AWS EC2 (ECR)
 
-Push both images to ECR, then run `docker-compose.ecr.yml` on an EC2 instance:
+One ECR repo (`digital-worker-studio`), two tags (`genai-backend-latest`, `genai-streamlit-latest`):
 
 ```bash
 ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
@@ -74,7 +74,9 @@ ECR_REPOSITORY=digital-worker-studio \
 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
 ```
 
-See [docs/EC2.md](docs/EC2.md) for EC2 setup, IAM, and compose commands.
+On EC2: `docker-compose.ecr.yml` + `.env` + `.env.ecr` → `docker compose up -d`.
+
+See [docs/EC2.md](docs/EC2.md) for the full verified runbook (PEM permissions, disk expand, image naming, security group, logs).
 
 **Local demo only?** See [docs/FREE_DEPLOY.md](docs/FREE_DEPLOY.md) for local Docker + optional tunnel.
 

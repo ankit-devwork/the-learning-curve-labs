@@ -88,12 +88,12 @@ ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
 ECR_REPOSITORY=digital-worker-studio \
 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
 
-# On EC2
-cp .env.ecr.example .env.ecr   # set ECR_REGISTRY
-docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
+# On EC2 (~/genai-app)
+cp .env.ecr.example .env.ecr   # ECR_REGISTRY + ECR_REPOSITORY=digital-worker-studio
+sudo docker compose -f docker-compose.ecr.yml --env-file .env --env-file .env.ecr up -d
 ```
 
-See [EC2.md](EC2.md) for full AWS setup.
+Images use **one ECR repo** (`digital-worker-studio`) with tags `genai-backend-latest` and `genai-streamlit-latest`. See [EC2.md](EC2.md) for the full verified runbook (disk expand, security group, troubleshooting).
 
 ## Environment file
 
@@ -122,4 +122,6 @@ Loaded by:
 | Streamlit cannot reach API | Ensure `BACKEND_URL=http://backend:8000` inside Docker network |
 | LLM errors on query | Set `GROQ_API_KEY` in `.env` |
 | Slow first query | First request downloads the embedding model — normal |
+| EC2: image `not found` on pull | Use `docker-compose.ecr.yml` with `ECR_REPOSITORY` + tags, not separate ECR repos — see [EC2.md](EC2.md) |
+| EC2: `:8000` works, `:8501` does not | Open security group port **8501** |
 | Reset vector data | `docker compose -f genai-doc-assistant-capstone/docker-compose.yml down -v` |

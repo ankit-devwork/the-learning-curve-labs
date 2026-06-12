@@ -31,14 +31,15 @@ Open http://localhost:8501 — demo via screen share, recording, or slides.
 
 ## AWS EC2 + ECR (cloud, persistent)
 
-Push two images to ECR (backend + Streamlit), run `docker-compose.ecr.yml` on an EC2 instance.
+Push two image **tags** into one ECR repo (`digital-worker-studio`), run `docker-compose.ecr.yml` on EC2.
 
 ```bash
 ECR_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com \
+ECR_REPOSITORY=digital-worker-studio \
 ./genai-doc-assistant-capstone/scripts/push-ecr.sh
 ```
 
-Full steps: **[EC2.md](EC2.md)**
+Full verified steps (disk, security group, image naming): **[EC2.md](EC2.md)**
 
 | Pros | Cons |
 |------|------|
