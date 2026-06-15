@@ -56,14 +56,17 @@ docker compose up -d
 
 Starts local **Redis** and **Neo4j**. Use a hosted [Supabase](https://supabase.com) project for auth and Postgres.
 
-### 3. Backend
+### 3. Backend (Conda)
 
-```bash
+```powershell
 cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+conda env create -f environment.yml
+conda activate insightlab
+copy .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
+
+See [backend/README.md](backend/README.md) for Conda updates and troubleshooting.
 
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs

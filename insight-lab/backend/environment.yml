@@ -1,0 +1,24 @@
+# InsightLab backend — Conda environment
+#
+# Create:
+#   conda env create -f environment.yml
+#
+# Activate:
+#   conda activate insightlab
+#
+# Update after requirements.txt changes:
+#   conda activate insightlab
+#   pip install -r requirements.txt
+#
+# Remove:
+#   conda env remove -n insightlab
+
+name: insightlab
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - -r requirements.txt
