@@ -1,0 +1,10 @@
+{
+  "name": "insightlab-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "InsightLab web app — scaffold pending create-next-app (see README.md)",
+  "scripts": {
+    "dev": "echo \"Run create-next-app first — see frontend/README.md\" && exit 1",
+    "build": "echo \"Run create-next-app first — see frontend/README.md\" && exit 1"
+  }
+}
