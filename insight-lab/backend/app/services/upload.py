@@ -3,11 +3,14 @@ import re
 import uuid
 from pathlib import Path
 
+from pycorekit.core_logging.logger import get_logger
 from pycorekit.exceptions.file import FileException
 from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.config import settings
+
+log = get_logger("upload")
 
 EXCEL_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 DOCUMENT_EXTENSIONS = {".pdf", ".txt", ".docx", ".doc"}
@@ -121,6 +124,15 @@ def upload_document(
         raise FileException("Failed to save document metadata", status_code=500)
 
     row = inserted.data[0]
+    log.info(
+        "Document uploaded",
+        document_id=row["id"],
+        user_id=user.id,
+        filename=row["filename"],
+        file_type=row["file_type"],
+        storage_path=row["storage_path"],
+        status=row["status"],
+    )
     return {
         "id": row["id"],
         "filename": row["filename"],
