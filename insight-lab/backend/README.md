@@ -80,6 +80,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | GET | `/health` | No | Liveness + correlation ID |
 | GET | `/ready` | No | Redis, Neo4j, Supabase readiness |
 | GET | `/me` | **Bearer JWT** | Current user profile (Step 1.5) |
+| POST | `/upload` | **Bearer JWT** | Upload Excel or document (Step 1.6) |
+| GET | `/documents` | **Bearer JWT** | List your uploaded files |
 | GET | `/docs` | No | OpenAPI UI |
 
 ### Calling `/me` from curl

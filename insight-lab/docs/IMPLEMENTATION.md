@@ -11,8 +11,8 @@ Living document updated as features land. See [ARCHITECTURE.md](ARCHITECTURE.md)
 | 1.2 | FastAPI health + `/ready` checks | Done | `GET /health`, `GET /ready` |
 | 1.3 | Supabase schema + Storage bucket | Done | [supabase/migrations](../supabase/migrations/001_initial.sql) |
 | 1.4 | Next.js auth (email + Google) | Done | [frontend/README](../frontend/README.md) |
-| **1.5** | **pycorekit + JWT + `GET /me`** | **Done** | `GET /me`, dashboard Backend connection card |
-| 1.6 | File upload API | Planned | `POST /upload` |
+| **1.5** | **pycorekit + JWT + `GET /me`** | **Done** | `GET /me`, dev-only Backend connection card |
+| **1.6** | **File upload API** | **Done** | `POST /upload`, `GET /documents`, dashboard upload UI |
 | 1.7 | Document summary + chat | Planned | `POST /ask`, `GET /summary` |
 | 1.8 | Excel charts pipeline | Planned | `POST /excel/analyze` |
 | 1.9 | Quiz generator | Planned | `POST /quiz/generate` |
@@ -90,8 +90,8 @@ Check token algorithm in [jwt.io](https://jwt.io): header `alg` is `HS256` or `E
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `SUPABASE_JWT_SECRET` | Yes | Verify user JWT on `/me` |
-| `SUPABASE_URL` | Yes | Readiness check |
+| `SUPABASE_URL` | Yes | JWKS fetch for ES256 tokens + readiness check |
+| `SUPABASE_JWT_SECRET` | HS256 only | Verify legacy HS256 tokens on `/me` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Readiness check |
 | `LOG_DIR` | No | Default `logs` |
 | `CORS_ALLOW_ORIGINS` | No | Default `localhost:3000` |
@@ -103,12 +103,46 @@ Check token algorithm in [jwt.io](https://jwt.io): header `alg` is `HS256` or `E
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Auth |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Auth |
 | `NEXT_PUBLIC_API_URL` | Yes | `http://localhost:8000` for `/me` |
+| `NEXT_PUBLIC_SHOW_DEV_PANEL` | No | `true` to show backend JWT debug card |
 
 ---
 
-## Next up — Step 1.6 Upload API
+## Step 1.6 — File upload (implemented)
 
-- `POST /upload` with `Depends(get_current_user)`
-- Supabase Storage `uploads` bucket
-- Insert `documents` row
-- Upload UI on dashboard
+### Backend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Supabase client | `app/core/supabase_client.py` | Service-role Storage + Postgres |
+| Upload service | `app/services/upload.py` | Validate, store blob, insert `documents` row |
+| Routes | `app/api/routes/upload.py` | `POST /upload`, `GET /documents` |
+
+### Frontend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| API helper | `lib/api.ts` | Bearer-authenticated fetch to FastAPI |
+| Upload UI | `components/documents/file-upload-card.tsx` | Choose file + list uploads |
+| Dev panel gate | `components/auth/dev-backend-me-card.tsx` | Shows `/me` card only when `NEXT_PUBLIC_SHOW_DEV_PANEL=true` |
+
+### Allowed file types
+
+- **Excel:** `.xlsx`, `.xls`, `.csv`
+- **Documents:** `.pdf`, `.txt`, `.docx`, `.doc`
+
+Max size: 20 MB (configurable via `UPLOAD_MAX_BYTES` in backend `.env`).
+
+### Verify
+
+1. Ensure Supabase Storage bucket **`uploads`** exists (private)
+2. `pip install -r requirements.txt` (adds `supabase`, `python-multipart`)
+3. Sign in → dashboard → **Upload files** → choose a PDF or Excel file
+4. File appears in the list with status `pending`
+
+---
+
+## Next up — Step 1.7 Document summary + chat
+
+- Parse uploaded documents
+- Generate summary
+- RAG chat with citations

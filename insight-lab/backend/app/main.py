@@ -10,6 +10,7 @@ from pycorekit.tracing.middleware import RequestTracingMiddleware
 
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
+from app.api.routes.upload import router as upload_router
 from app.core.config import settings
 from app.core.neo4j_client import neo4j_client
 from app.core.redis_client import redis_client
@@ -56,6 +57,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(health_router, tags=["health"])
 app.include_router(me_router, tags=["auth"])
+app.include_router(upload_router, tags=["documents"])
 
 
 @app.get("/")
@@ -66,4 +68,6 @@ async def root():
         "docs": "/docs",
         "health": "/health",
         "me": "/me",
+        "upload": "/upload",
+        "documents": "/documents",
     }
