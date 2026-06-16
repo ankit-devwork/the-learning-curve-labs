@@ -1,0 +1,26 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+neo4j>=5.25.0
+redis>=5.2.0
+tenacity>=9.0.0
+python-jose[cryptography]>=3.3.0
+PyJWT>=2.8.0
+cryptography>=42.0.0
+litellm>=1.52.0
+
+# pycorekit — install from the-learning-curve-labs (required for Step 1+)
+# pip install -e D:\path\to\the-learning-curve-labs\pycorekit
+# Or: pip install "git+https://github.com/ankit-devwork/the-learning-curve-labs.git@main#subdirectory=pycorekit"
+
+# Phase 1 additions (uncomment as features land)
+# langgraph>=0.2.0
+# langchain-core>=0.3.0
+# pandas>=2.2.0
+# openpyxl>=3.1.0
+# pypdf>=5.0.0
+# plotly>=5.24.0
+# supabase>=2.10.0
