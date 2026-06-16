@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_debug: bool = True
     app_name: str = "InsightLab API"
+    log_dir: str = "logs"
 
     supabase_url: str = ""
     supabase_service_role_key: str = ""

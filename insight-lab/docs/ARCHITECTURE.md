@@ -1,6 +1,6 @@
 # InsightLab — System Architecture
 
-Review document for the InsightLab platform. Lock this before feature implementation.
+Review document for the InsightLab platform. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for live progress.
 
 ## 1. System context
 
@@ -257,3 +257,28 @@ Local dev: `docker compose` for Redis + Neo4j; hosted Supabase project.
 | Cache | Upstash (prod), Redis (local) |
 | LLM gateway | LiteLLM |
 | Backend | FastAPI + LangGraph |
+| Observability | **pycorekit** (logging, tracing, exceptions) |
+
+## 11. Backend JWT auth (implemented — Step 1.5)
+
+```mermaid
+sequenceDiagram
+  participant UI as Next.js Dashboard
+  participant SB as Supabase Session
+  participant API as FastAPI
+  participant PK as pycorekit
+
+  UI->>SB: getSession()
+  SB-->>UI: access_token (JWT)
+  UI->>API: GET /me + Authorization Bearer
+  API->>PK: RequestTracingMiddleware
+  PK-->>API: correlation_id
+  API->>API: jwt.decode (SUPABASE_JWT_SECRET)
+  API-->>UI: user_id, email, correlation_id
+```
+
+Future protected routes (`/upload`, `/ask`, `/quiz`) use the same `Authorization: Bearer` header and `get_current_user` dependency.
+
+## 12. Implementation progress
+
+See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the live feature checklist.

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { BackendMeCard } from "@/components/auth/backend-me-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function DashboardPage() {
@@ -26,6 +27,7 @@ export default async function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 p-4 py-8">
+        <BackendMeCard />
         <Card>
           <CardHeader>
             <CardTitle>Dashboard</CardTitle>

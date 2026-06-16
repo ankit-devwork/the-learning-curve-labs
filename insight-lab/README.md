@@ -105,19 +105,21 @@ See `.env.example` and `backend/.env.example` for the full list.
 
 ## Development status
 
-This repository is in **initial scaffolding** phase:
+See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 
 - [x] Architecture documented
 - [x] Repo structure and MIT license
-- [x] Backend health-check skeleton
-- [ ] Supabase schema + RLS
-- [ ] Next.js auth and dashboard
+- [x] Backend health + `/ready` checks
+- [x] Supabase schema + Storage
+- [x] Next.js auth (email + Google) + dashboard
+- [x] **pycorekit + JWT auth + `GET /me`**
+- [ ] File upload API
 - [ ] Excel, document, and quiz pipelines
 
 ## Related projects
 
 - [genai-doc-assistant-capstone](https://github.com/ankit-devwork/the-learning-curve-labs/tree/main/genai-doc-assistant-capstone) — multi-agent RAG reference
-- [pycorekit](https://github.com/ankit-devwork/the-learning-curve-labs/tree/main/pycorekit) — shared logging, cache, tracing
+- [pycorekit](https://github.com/ankit-devwork/the-learning-curve-labs/tree/main/pycorekit) — shared logging, cache, tracing (**required by backend**)
 
 ## License
 
