@@ -12,10 +12,11 @@ from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.upload import router as upload_router
 from app.core.config import settings
+from app.core.yaml_config import get_yaml_config
 from app.core.neo4j_client import neo4j_client
 from app.core.redis_client import redis_client
 
-LOG_DIR = os.getenv("LOG_DIR", "logs")
+LOG_DIR = os.getenv("LOG_DIR", get_yaml_config().logging.dir)
 
 init_logger(
     log_dir=LOG_DIR,
@@ -33,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=settings.app_name,
+    title=get_yaml_config().app.name,
     description="InsightLab — Excel insights, document chat, and AI quizzes",
     version="0.2.0",
     lifespan=lifespan,

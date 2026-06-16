@@ -1,0 +1,45 @@
+app:
+  env: development
+  debug: true
+  name: InsightLab API
+
+logging:
+  dir: logs
+
+upload:
+  storage_bucket: uploads
+  max_bytes: 10485760
+  rate_limit_per_hour: 10
+  filename_max_length: 255
+  default_workspace_name: My Workspace
+  documents_list_default_limit: 20
+  excel:
+    extensions:
+      - .xlsx
+      - .xls
+      - .csv
+    mime_types:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/vnd.ms-excel
+      - text/csv
+      - application/csv
+    signatures:
+      .xlsx: "504b0304"
+      .xls: "d0cf11e0"
+      .csv: ""
+  document:
+    extensions:
+      - .pdf
+      - .txt
+      - .docx
+      - .doc
+    mime_types:
+      - application/pdf
+      - text/plain
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - application/msword
+    signatures:
+      .pdf: "25504446"
+      .docx: "504b0304"
+      .doc: "d0cf11e0"
+      .txt: ""

@@ -58,7 +58,20 @@ InsightLab uses [pycorekit](https://github.com/ankit-devwork/the-learning-curve-
 
 Protected routes use `Depends(get_current_user)` which verifies the Supabase JWT from the frontend.
 
-### Troubleshooting `/me` returns 401 while logged in
+### Upload settings (`config.yaml`)
+
+Upload limits, allowed extensions, MIME types, and file signatures live in `backend/config.yaml` (not hardcoded in Python).
+
+Override at runtime with env vars, e.g.:
+
+```env
+APP_UPLOAD__MAX_BYTES=10485760
+APP_UPLOAD__STORAGE_BUCKET=uploads
+```
+
+Validation runs **before** Supabase Storage upload: extension, size (10 MB default), MIME type, and magic-byte signature checks.
+
+---
 
 Supabase may sign access tokens with **ES256** (new signing keys) or **HS256** (legacy JWT secret). The backend picks the method from the token header `alg`:
 
@@ -81,6 +94,7 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | GET | `/ready` | No | Redis, Neo4j, Supabase readiness |
 | GET | `/me` | **Bearer JWT** | Current user profile (Step 1.5) |
 | POST | `/upload` | **Bearer JWT** | Upload Excel or document (Step 1.6) |
+| GET | `/upload/config` | No | Allowed extensions and max size from `config.yaml` |
 | GET | `/documents` | **Bearer JWT** | List your uploaded files |
 | GET | `/docs` | No | OpenAPI UI |
 

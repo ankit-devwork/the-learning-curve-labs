@@ -30,9 +30,5 @@ class Settings(BaseSettings):
 
     groq_api_key: str = ""
 
-    storage_bucket: str = "uploads"
-    upload_max_bytes: int = 20 * 1024 * 1024  # 20 MB
-    rate_limit_upload_per_hour: int = 10
-
 
 settings = Settings()

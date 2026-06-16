@@ -33,3 +33,20 @@ export type DocumentsResponse = {
   count: number;
   correlation_id?: string;
 };
+
+export type UploadConfigResponse = {
+  max_bytes: number;
+  max_mb: number;
+  accept: string;
+  allowed_extensions: string[];
+  excel_extensions: string[];
+  document_extensions: string[];
+};
+
+export async function fetchUploadConfig(): Promise<UploadConfigResponse> {
+  const response = await fetch(getApiUrl("/upload/config"));
+  if (!response.ok) {
+    throw new Error(`Failed to load upload config (${response.status})`);
+  }
+  return response.json();
+}
