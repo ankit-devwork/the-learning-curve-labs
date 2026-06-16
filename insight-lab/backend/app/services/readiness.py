@@ -45,23 +45,41 @@ async def check_supabase() -> dict[str, Any]:
     if not url:
         return {"status": "not_configured"}
 
-    if not settings.supabase_service_role_key.strip() or not settings.supabase_jwt_secret.strip():
+    api_key = settings.supabase_service_role_key.strip()
+    if not api_key or not settings.supabase_jwt_secret.strip():
         return {
             "status": "error",
             "error": "SUPABASE_URL set but service_role or JWT secret missing",
         }
 
+    # Auth routes require apikey header (anon or service_role)
+    headers = {
+        "apikey": api_key,
+        "Authorization": f"Bearer {api_key}",
+    }
     health_url = f"{url.rstrip('/')}/auth/v1/health"
     start = time.perf_counter()
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(health_url)
+            resp = await client.get(health_url, headers=headers)
             resp.raise_for_status()
             body = resp.json()
             latency_ms = round((time.perf_counter() - start) * 1000, 2)
-            if body.get("healthy") is True or resp.status_code == 200:
-                return {"status": "ok", "latency_ms": latency_ms}
+            # GoTrue returns { name, version, description } on success
+            if resp.status_code == 200 and (
+                body.get("healthy") is True
+                or body.get("name")
+                or body.get("version")
+            ):
+                return {"status": "ok", "latency_ms": latency_ms, "service": body.get("name")}
             return {"status": "error", "error": f"unexpected health response: {body}"}
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            return {
+                "status": "error",
+                "error": "401 Unauthorized — verify SUPABASE_SERVICE_ROLE_KEY matches Project Settings → API → service_role",
+            }
+        return {"status": "error", "error": str(exc)}
     except Exception as exc:
         return {"status": "error", "error": str(exc)}
 
