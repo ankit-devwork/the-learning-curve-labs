@@ -71,17 +71,21 @@ See [backend/README.md](backend/README.md) for Conda updates and troubleshooting
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
 
-### 4. Frontend
+### 4. Frontend (Next.js + Supabase Auth)
 
-```bash
+```powershell
 cd frontend
+copy .env.local.example .env.local
+# Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 npm install
 npm run dev
 ```
 
 - App: http://localhost:3000
+- Login: http://localhost:3000/login
 
-> Frontend scaffolding is in place; full UI implementation is tracked in project milestones.
+See [frontend/README.md](frontend/README.md) for Google OAuth setup in Supabase.
 
 ## Environment variables
 
