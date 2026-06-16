@@ -58,6 +58,19 @@ InsightLab uses [pycorekit](https://github.com/ankit-devwork/the-learning-curve-
 
 Protected routes use `Depends(get_current_user)` which verifies the Supabase JWT from the frontend.
 
+### Troubleshooting `/me` returns 401 while logged in
+
+Supabase may sign access tokens with **ES256** (new signing keys) or **HS256** (legacy JWT secret). The backend picks the method from the token header `alg`:
+
+| Token `alg` | Required in `backend/.env` |
+|-------------|----------------------------|
+| `ES256` / `RS256` | `SUPABASE_URL` (must match your frontend project URL) |
+| `HS256` | `SUPABASE_JWT_SECRET` from Supabase **Settings → API → JWT Secret** |
+
+After updating `.env`, restart uvicorn and refresh the dashboard. With `APP_DEBUG=true`, backend logs include the underlying JWT error.
+
+Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from the browser session.
+
 ---
 
 ## API endpoints
