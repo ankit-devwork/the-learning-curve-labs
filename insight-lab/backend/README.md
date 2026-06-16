@@ -89,7 +89,7 @@ pip install -r requirements.txt
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Liveness |
-| GET | `/ready` | Readiness (checks configured services) |
+| GET | `/ready` | Readiness — pings Redis, Neo4j, Supabase (503 if configured service fails) |
 | GET | `/docs` | OpenAPI UI |
 
 Feature routes (Excel, documents, quiz) will be added in Phase 1.

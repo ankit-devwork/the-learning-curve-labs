@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     redis_host: str = ""
     redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: str = ""
     upstash_redis_rest_url: str = ""
     upstash_redis_rest_token: str = ""
 

@@ -5,11 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.health import router as health_router
 from app.core.config import settings
+from app.core.neo4j_client import neo4j_client
+from app.core.redis_client import redis_client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
+    await redis_client.close()
+    await neo4j_client.close()
 
 
 app = FastAPI(

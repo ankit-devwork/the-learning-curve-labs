@@ -1,4 +1,7 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
+from app.services.readiness import run_readiness_checks
 
 router = APIRouter()
 
@@ -10,13 +13,5 @@ async def health():
 
 @router.get("/ready")
 async def ready():
-    # Phase 1: ping Redis, Neo4j, Supabase, LLM key presence
-    return {
-        "status": "ready",
-        "checks": {
-            "api": True,
-            "redis": "not_configured",
-            "neo4j": "not_configured",
-            "supabase": "not_configured",
-        },
-    }
+    payload, status_code = await run_readiness_checks()
+    return JSONResponse(content=payload, status_code=status_code)
