@@ -8,6 +8,8 @@ neo4j>=5.25.0
 redis>=5.2.0
 tenacity>=9.0.0
 python-jose[cryptography]>=3.3.0
+PyJWT>=2.8.0
+cryptography>=42.0.0
 litellm>=1.52.0
 
 # pycorekit — install from the-learning-curve-labs (required for Step 1+)

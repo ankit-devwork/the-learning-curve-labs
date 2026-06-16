@@ -53,7 +53,7 @@ sequenceDiagram
   Supabase-->>Dashboard: access_token (JWT)
   Dashboard->>API: Authorization: Bearer JWT
   API->>PyCore: RequestTracingMiddleware
-  API->>API: jwt.decode (SUPABASE_JWT_SECRET)
+  API->>API: jwt.decode (HS256 secret or ES256 JWKS)
   API-->>Dashboard: user_id, email, correlation_id
 ```
 
@@ -70,6 +70,17 @@ pip install -e D:\Mine\Learining\GenAI\python\the-learning-curve-labs\pycorekit
 1. Start backend: `uvicorn app.main:app --reload`
 2. Start frontend: `npm run dev`
 3. Sign in → dashboard → **Backend connection** card shows user ID + correlation ID
+
+### Troubleshooting `/me` returns 401
+
+| Cause | Fix |
+|-------|-----|
+| **New Supabase signing keys (ES256)** | Ensure `SUPABASE_URL` is set in `backend/.env` — backend auto-fetches JWKS |
+| **Legacy JWT secret (HS256)** | Ensure `SUPABASE_JWT_SECRET` matches **Settings → API → JWT Secret** |
+| Wrong secret pasted | Re-copy JWT Secret; no extra spaces or quotes |
+| Token expired | Sign out and sign in again |
+
+Check token algorithm in [jwt.io](https://jwt.io): header `alg` is `HS256` or `ES256`.
 
 ---
 
