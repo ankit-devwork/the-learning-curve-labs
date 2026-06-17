@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import config_diagnostics, settings
 from app.core.neo4j_client import neo4j_client
 from app.core.redis_client import redis_client
 
@@ -110,6 +110,7 @@ def aggregate_status(checks: dict[str, dict[str, Any]]) -> tuple[str, int]:
 async def run_readiness_checks() -> tuple[dict[str, Any], int]:
     checks = {
         "api": {"status": "ok"},
+        "config": config_diagnostics(),
         "redis": await check_redis(),
         "neo4j": await check_neo4j(),
         "supabase": await check_supabase(),

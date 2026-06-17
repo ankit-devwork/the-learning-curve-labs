@@ -1,15 +1,39 @@
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ENV_PATH = BACKEND_DIR / ".env"
+ROOT_ENV_PATH = BACKEND_DIR.parent / ".env"
+
+
+def _apply_env_file(path: Path) -> None:
+    """Load variables from a .env file when OS env is unset or blank."""
+    if not path.is_file():
+        return
+    try:
+        from dotenv import dotenv_values
+    except ImportError:
+        return
+
+    for key, value in dotenv_values(path, encoding="utf-8-sig").items():
+        if value is None or not str(value).strip():
+            continue
+        current = os.environ.get(key)
+        if current is None or not str(current).strip():
+            os.environ[key] = value
+
+
+# Fill gaps from backend/.env, then repo-root .env (common on Windows setups).
+_apply_env_file(ENV_PATH)
+_apply_env_file(ROOT_ENV_PATH)
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(ENV_PATH),
-        env_file_encoding="utf-8",
+        env_file_encoding="utf-8-sig",
         extra="ignore",
     )
 
@@ -37,3 +61,17 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def config_diagnostics() -> dict[str, object]:
+    """Non-secret startup hints for /ready and logs."""
+    url = settings.supabase_url.strip()
+    return {
+        "env_file": str(ENV_PATH),
+        "env_file_exists": ENV_PATH.is_file(),
+        "root_env_file": str(ROOT_ENV_PATH),
+        "root_env_file_exists": ROOT_ENV_PATH.is_file(),
+        "supabase_url_configured": bool(url),
+        "supabase_url_host": url.split("//")[1].split("/")[0] if "//" in url else None,
+        "supabase_service_role_configured": bool(settings.supabase_service_role_key.strip()),
+    }

@@ -114,10 +114,13 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 
 **Frontend sign-in works but API returns 401 with "SUPABASE_URL is not configured"?**
 
-1. Add `SUPABASE_URL` to **`backend/.env`** — the frontend `NEXT_PUBLIC_SUPABASE_URL` is separate and does not apply to FastAPI.
-2. Use the exact same project URL in both files.
-3. Restart uvicorn after editing `.env`.
-4. Confirm the file path: `backend/.env` (not repo root `.env` only).
+1. Add `SUPABASE_URL` to **`backend/.env`** — the frontend `NEXT_PUBLIC_SUPABASE_URL` is separate.
+2. Restart uvicorn after editing `.env`.
+3. Run `curl http://localhost:8000/ready` and check `checks.config`:
+   - `env_file_exists` should be `true`
+   - `supabase_url_configured` should be `true`
+4. **Blank Conda/shell override:** if `echo $env:SUPABASE_URL` (PowerShell) prints nothing but auth still fails, an empty variable in your Conda env can block `.env`. Run `conda env config vars unset SUPABASE_URL` or remove it from the env, then restart the terminal.
+5. **UTF-16 `.env` on Windows:** save `backend/.env` as **UTF-8** in VS Code (bottom-right encoding picker), not Notepad UTF-16.
 
 ---
 
