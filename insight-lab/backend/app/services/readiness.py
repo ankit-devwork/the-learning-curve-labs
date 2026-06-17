@@ -46,10 +46,10 @@ async def check_supabase() -> dict[str, Any]:
         return {"status": "not_configured"}
 
     api_key = settings.supabase_service_role_key.strip()
-    if not api_key or not settings.supabase_jwt_secret.strip():
+    if not api_key:
         return {
             "status": "error",
-            "error": "SUPABASE_URL set but service_role or JWT secret missing",
+            "error": "SUPABASE_URL set but SUPABASE_SERVICE_ROLE_KEY is missing",
         }
 
     # Auth routes require apikey header (anon or service_role)

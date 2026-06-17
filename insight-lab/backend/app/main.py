@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pycorekit.core_logging.logger import init_logger
+from pycorekit.core_logging.logger import get_logger, init_logger
 from pycorekit.exceptions.base import AppException
 from pycorekit.exceptions.handlers import app_exception_handler, generic_exception_handler
 from pycorekit.tracing.middleware import RequestTracingMiddleware
@@ -13,6 +13,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.upload import router as upload_router
 from app.core.cache import close_cache
+from app.core.config import ENV_PATH, settings
 from app.core.yaml_config import get_yaml_config
 from app.core.neo4j_client import neo4j_client
 from app.core.redis_client import redis_client
@@ -25,6 +26,12 @@ init_logger(
     retention="7 days",
     json_file=True,
 )
+
+if not settings.supabase_url.strip():
+    get_logger("startup").warning(
+        "SUPABASE_URL is not set — authenticated routes will return 401 for ES256 tokens. "
+        f"Add it to {ENV_PATH}",
+    )
 
 
 @asynccontextmanager

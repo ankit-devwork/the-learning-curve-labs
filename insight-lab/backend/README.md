@@ -112,6 +112,13 @@ After updating `.env`, restart uvicorn and refresh the dashboard. With `APP_DEBU
 
 Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from the browser session.
 
+**Frontend sign-in works but API returns 401 with "SUPABASE_URL is not configured"?**
+
+1. Add `SUPABASE_URL` to **`backend/.env`** — the frontend `NEXT_PUBLIC_SUPABASE_URL` is separate and does not apply to FastAPI.
+2. Use the exact same project URL in both files.
+3. Restart uvicorn after editing `.env`.
+4. Confirm the file path: `backend/.env` (not repo root `.env` only).
+
 ---
 
 ## API endpoints
