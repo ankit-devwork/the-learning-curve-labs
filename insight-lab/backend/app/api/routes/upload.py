@@ -6,9 +6,21 @@ from pycorekit.tracing.decorators import with_observability
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
-from app.services.upload import list_documents, upload_document
+from app.core.yaml_config import get_yaml_config
+from app.services.upload import get_upload_public_config, list_documents, upload_document
+from app.services.upload_validation import validate_upload
 
 router = APIRouter()
+
+
+@router.get("/upload/config")
+@with_observability("upload_config")
+async def upload_config(request: Request):
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {
+        **get_upload_public_config(),
+        "correlation_id": correlation_id,
+    }
 
 
 @router.post("/upload")
@@ -22,10 +34,16 @@ async def upload_file(
         raise FileException("Filename is required")
 
     content = await file.read()
+    validated = validate_upload(
+        filename=file.filename,
+        content=content,
+        mime_type=file.content_type,
+    )
+
     document = upload_document(
         get_supabase_client(),
         user,
-        filename=file.filename,
+        validated=validated,
         content=content,
         mime_type=file.content_type,
     )
@@ -41,9 +59,14 @@ async def upload_file(
 async def get_documents(
     request: Request,
     user: AuthUser = Depends(get_current_user),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int | None = Query(default=None, ge=1, le=100),
 ):
-    documents = list_documents(get_supabase_client(), user, limit=limit)
+    default_limit = get_yaml_config().upload.documents_list_default_limit
+    documents = list_documents(
+        get_supabase_client(),
+        user,
+        limit=limit if limit is not None else default_limit,
+    )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {
         "documents": documents,

@@ -7,6 +7,7 @@ from jose import JWTError, jwt as jose_jwt
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.yaml_config import get_yaml_config
 from app.core.exceptions import UnauthorizedException
 
 
@@ -67,7 +68,7 @@ def _payload_from_token(token: str) -> dict:
 
 
 def _jwt_error_message(exc: Exception) -> str:
-    if settings.app_debug:
+    if get_yaml_config().app.debug:
         return f"Invalid or expired token: {exc}"
     return "Invalid or expired token"
 

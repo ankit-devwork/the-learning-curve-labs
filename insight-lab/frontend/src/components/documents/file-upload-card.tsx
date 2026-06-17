@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   apiFetch,
+  fetchUploadConfig,
   type DocumentSummary,
   type DocumentsResponse,
+  type UploadConfigResponse,
   type UploadResponse,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-const ACCEPT = ".xlsx,.xls,.csv,.pdf,.txt,.docx,.doc";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -23,6 +23,7 @@ function statusLabel(status: string): string {
 
 export function FileUploadCard() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [uploadConfig, setUploadConfig] = useState<UploadConfigResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -56,10 +57,31 @@ export function FileUploadCard() {
   }, []);
 
   useEffect(() => {
-    loadDocuments();
+    async function init() {
+      try {
+        const config = await fetchUploadConfig();
+        setUploadConfig(config);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load upload settings");
+        setLoading(false);
+        return;
+      }
+      await loadDocuments();
+    }
+    void init();
   }, [loadDocuments]);
 
   async function handleUpload(file: File) {
+    if (!uploadConfig) {
+      setError("Upload settings not loaded yet");
+      return;
+    }
+
+    if (file.size > uploadConfig.max_bytes) {
+      setError(`File too large. Maximum size is ${uploadConfig.max_mb} MB`);
+      return;
+    }
+
     setUploading(true);
     setError(null);
     setSuccess(null);
@@ -119,25 +141,31 @@ export function FileUploadCard() {
     }
   }
 
+  const description = uploadConfig
+    ? `Allowed: ${uploadConfig.allowed_extensions.join(", ")} — up to ${uploadConfig.max_mb} MB`
+    : "Loading upload settings...";
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Upload files</CardTitle>
-        <CardDescription>
-          Excel (.xlsx, .csv) or documents (.pdf, .txt, .docx) — up to 20 MB
-        </CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <input
             ref={inputRef}
             type="file"
-            accept={ACCEPT}
+            accept={uploadConfig?.accept}
             className="hidden"
             onChange={onFileChange}
-            disabled={uploading}
+            disabled={uploading || !uploadConfig}
           />
-          <Button type="button" disabled={uploading} onClick={() => inputRef.current?.click()}>
+          <Button
+            type="button"
+            disabled={uploading || !uploadConfig}
+            onClick={() => inputRef.current?.click()}
+          >
             {uploading ? "Uploading..." : "Choose file"}
           </Button>
           <Button type="button" variant="outline" disabled={loading} onClick={() => loadDocuments()}>
