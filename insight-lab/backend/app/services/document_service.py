@@ -12,6 +12,12 @@ from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
 from app.services.chunking import chunk_text
 from app.services.document_text import extract_text_from_bytes
+from app.services.embeddings import (
+    embed_text,
+    embed_texts_batched,
+    search_similar_chunks,
+    vector_to_pgvector,
+)
 from app.services.llm_client import answer_question, generate_summary, question_cache_key
 
 log = get_logger("documents")
@@ -113,12 +119,14 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
             raise FileException("No text content found after extraction")
 
         client.table("document_chunks").delete().eq("document_id", document_id).execute()
+        vectors = embed_texts_batched(chunks)
         chunk_rows = [
             {
                 "document_id": document_id,
                 "chunk_index": index,
                 "content": chunk,
                 "token_count": len(chunk.split()),
+                "embedding": vector_to_pgvector(vectors[index]),
             }
             for index, chunk in enumerate(chunks)
         ]
@@ -154,11 +162,13 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
             document_id=document_id,
             user_id=user.id,
             chunk_count=len(chunks),
+            embedded_count=len(vectors),
         )
         return {
             "document_id": document_id,
             "status": row.get("status", "ready"),
             "chunk_count": len(chunks),
+            "embedded_count": len(vectors),
             "summary_preview": summary[:280],
         }
     except AppException as exc:
@@ -174,7 +184,7 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
         raise FileException(f"Document processing failed: {message}", status_code=500) from exc
 
 
-def _select_relevant_chunks(chunks: list[dict], question: str, *, limit: int) -> list[str]:
+def _select_relevant_chunks_keyword(chunks: list[dict], question: str, *, limit: int) -> list[str]:
     terms = {term.lower() for term in question.split() if len(term) > 2}
     scored: list[tuple[int, str]] = []
     for row in chunks:
@@ -187,6 +197,31 @@ def _select_relevant_chunks(chunks: list[dict], question: str, *, limit: int) ->
     if selected:
         return selected
     return [row["content"] for row in chunks[:limit]]
+
+
+def _select_relevant_chunks_vector(
+    client: Client,
+    *,
+    document_id: str,
+    question: str,
+    limit: int,
+) -> tuple[list[str], str, list[float]]:
+    cfg = get_yaml_config().embeddings
+    query_vector = embed_text(question)
+    matches = search_similar_chunks(
+        client,
+        document_id=document_id,
+        query_embedding=query_vector,
+        limit=limit,
+        threshold=cfg.similarity_threshold,
+    )
+    if matches:
+        return (
+            [row["content"] for row in matches],
+            "vector",
+            [float(row.get("similarity", 0)) for row in matches],
+        )
+    return [], "vector", []
 
 
 async def ask_document(
@@ -234,11 +269,18 @@ async def ask_document(
     if not chunks:
         raise FileException("No document chunks found; reprocess the document", status_code=409)
 
-    selected = _select_relevant_chunks(
-        chunks,
-        question,
-        limit=get_yaml_config().documents.max_context_chunks,
+    limit = get_yaml_config().documents.max_context_chunks
+    selected, retrieval_method, similarities = _select_relevant_chunks_vector(
+        client,
+        document_id=document_id,
+        question=question,
+        limit=limit,
     )
+    if not selected:
+        selected = _select_relevant_chunks_keyword(chunks, question, limit=limit)
+        retrieval_method = "keyword"
+        similarities = []
+
     llm_result = await answer_question(
         question=question,
         context_chunks=selected,
@@ -249,6 +291,8 @@ async def ask_document(
         "question": question,
         "answer": llm_result["answer"],
         "cited_chunks": llm_result["cited_chunks"],
+        "retrieval_method": retrieval_method,
+        "chunk_similarities": similarities,
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)

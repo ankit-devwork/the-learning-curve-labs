@@ -76,13 +76,28 @@ Validation runs **before** Supabase Storage upload: extension, size (10 MB defau
 Requires:
 
 1. Run migration `supabase/migrations/002_document_chunks.sql` in Supabase SQL Editor
-2. `GROQ_API_KEY` in `backend/.env`
-3. Redis running (`docker compose up -d`) for cache + rate limits
+2. Run migration `supabase/migrations/003_pgvector_embeddings.sql` for semantic RAG
+3. `GROQ_API_KEY` in `backend/.env`
+4. Redis running (`docker compose up -d`) for cache + rate limits
+5. `pip install -r requirements.txt` (`fastembed`, `pypdf`, `python-docx`)
 
 Cache keys (via pycorekit `CacheService` + Redis):
 
 - `insightlab:summary:document:{id}`
 - `insightlab:chat:document:{id}:{question_hash}`
+
+### Embeddings (`config.yaml` → `embeddings`)
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `provider` | `fastembed` | Local embeddings (no API key) |
+| `model` | `BAAI/bge-small-en-v1.5` | 384-dim English model |
+| `similarity_threshold` | `0.35` | Min cosine similarity for vector hits |
+| `batch_size` | `32` | Chunks embedded per batch on process |
+
+Documents uploaded **before** migration 003 must be **re-processed** to populate embeddings.
+
+Ask responses include `retrieval_method` (`vector` or `keyword`) — vector search is tried first; keyword matching is the fallback.
 
 ---
 
@@ -141,7 +156,11 @@ backend/
 │   │   ├── health.py
 │   │   └── me.py
 │   └── services/
-│       └── readiness.py
+│       ├── document_service.py
+│       ├── embeddings.py
+│       ├── document_text.py
+│       ├── llm_client.py
+│       └── upload.py
 ├── logs/                    # gitignored — pycorekit logs
 ├── environment.yml
 └── requirements.txt
