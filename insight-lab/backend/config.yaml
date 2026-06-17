@@ -43,3 +43,20 @@ upload:
       .docx: "504b0304"
       .doc: "d0cf11e0"
       .txt: ""
+
+cache:
+  key_prefix: insightlab
+  summary_ttl: 604800
+  chat_ttl: 86400
+
+documents:
+  chunk_size: 1200
+  chunk_overlap: 200
+  max_context_chunks: 6
+  process_rate_limit_per_hour: 10
+  chat_rate_limit_per_min: 20
+
+llm:
+  model: groq/llama-3.3-70b-versatile
+  summary_max_tokens: 800
+  chat_max_tokens: 600

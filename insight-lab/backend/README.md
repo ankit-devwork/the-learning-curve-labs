@@ -71,6 +71,19 @@ APP_UPLOAD__STORAGE_BUCKET=uploads
 
 Validation runs **before** Supabase Storage upload: extension, size (10 MB default), MIME type, and magic-byte signature checks.
 
+### Step 1.7 — Document summary + chat
+
+Requires:
+
+1. Run migration `supabase/migrations/002_document_chunks.sql` in Supabase SQL Editor
+2. `GROQ_API_KEY` in `backend/.env`
+3. Redis running (`docker compose up -d`) for cache + rate limits
+
+Cache keys (via pycorekit `CacheService` + Redis):
+
+- `insightlab:summary:document:{id}`
+- `insightlab:chat:document:{id}:{question_hash}`
+
 ---
 
 Supabase may sign access tokens with **ES256** (new signing keys) or **HS256** (legacy JWT secret). The backend picks the method from the token header `alg`:
@@ -96,6 +109,10 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/upload` | **Bearer JWT** | Upload Excel or document (Step 1.6) |
 | GET | `/upload/config` | No | Allowed extensions and max size from `config.yaml` |
 | GET | `/documents` | **Bearer JWT** | List your uploaded files |
+| GET | `/documents/{id}` | **Bearer JWT** | Document metadata + status |
+| POST | `/documents/{id}/process` | **Bearer JWT** | Parse, chunk, summarize (Step 1.7) |
+| GET | `/documents/{id}/summary` | **Bearer JWT** | Cached summary from Redis/Postgres |
+| POST | `/documents/{id}/ask` | **Bearer JWT** | RAG chat over document chunks |
 | GET | `/docs` | No | OpenAPI UI |
 
 ### Calling `/me` from curl

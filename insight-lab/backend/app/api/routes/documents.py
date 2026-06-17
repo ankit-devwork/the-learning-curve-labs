@@ -1,0 +1,74 @@
+from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Request
+
+from pycorekit.tracing.decorators import with_observability
+
+from app.core.auth import AuthUser
+from app.core.deps import get_current_user
+from app.core.supabase_client import get_supabase_client
+from app.services.document_service import (
+    ask_document,
+    get_document,
+    get_document_summary,
+    process_document,
+)
+
+router = APIRouter()
+
+
+class AskRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+
+
+@router.get("/documents/{document_id}")
+@with_observability("get_document")
+async def read_document(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    document = await get_document(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**document, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/process")
+@with_observability("process_document")
+async def process_document_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await process_document(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/summary")
+@with_observability("get_document_summary")
+async def read_document_summary(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    summary = await get_document_summary(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**summary, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/ask")
+@with_observability("ask_document")
+async def ask_document_route(
+    document_id: str,
+    body: AskRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    answer = await ask_document(
+        get_supabase_client(),
+        document_id,
+        user,
+        question=body.question,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**answer, "correlation_id": correlation_id}

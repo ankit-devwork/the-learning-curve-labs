@@ -23,6 +23,29 @@ export type DocumentSummary = {
   created_at: string;
 };
 
+export type DocumentDetail = DocumentSummary & {
+  summary?: string | null;
+  error_message?: string | null;
+  processed_at?: string | null;
+};
+
+export type SummaryResponse = {
+  document_id: string;
+  summary: string;
+  status: string;
+  cached?: boolean;
+  correlation_id?: string;
+};
+
+export type AskResponse = {
+  document_id: string;
+  question: string;
+  answer: string;
+  cited_chunks: number[];
+  cached?: boolean;
+  correlation_id?: string;
+};
+
 export type UploadResponse = DocumentSummary & {
   storage_path: string;
   correlation_id?: string;

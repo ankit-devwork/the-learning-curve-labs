@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -185,7 +186,16 @@ export function FileUploadCard() {
             {documents.map((doc) => (
               <li key={doc.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                 <div>
-                  <p className="font-medium">{doc.filename}</p>
+                  {doc.file_type === "document" ? (
+                    <Link
+                      href={`/dashboard/documents/${doc.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {doc.filename}
+                    </Link>
+                  ) : (
+                    <p className="font-medium">{doc.filename}</p>
+                  )}
                   <p className="text-muted-foreground">
                     {doc.file_type} · {formatDate(doc.created_at)}
                   </p>

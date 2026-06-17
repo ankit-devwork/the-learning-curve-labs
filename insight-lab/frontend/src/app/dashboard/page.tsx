@@ -34,7 +34,7 @@ export default async function DashboardPage() {
           <CardHeader>
             <CardTitle>Dashboard</CardTitle>
             <CardDescription>
-              Upload Excel or documents, chat, and generate quizzes — coming in Phase 1 features.
+              Upload documents to summarize and chat, or Excel files for charts in a later step.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
