@@ -1,0 +1,255 @@
+import hashlib
+from datetime import datetime, timezone
+
+from pycorekit.core_logging.logger import get_logger
+from pycorekit.exceptions.base import AppException
+from pycorekit.exceptions.file import FileException
+from supabase import Client
+
+from app.core.auth import AuthUser
+from app.core.cache import cache_get, cache_set, check_rate_limit
+from app.core.exceptions import NotFoundException, RateLimitException
+from app.core.yaml_config import get_yaml_config
+from app.services.chunking import chunk_text
+from app.services.document_text import extract_text_from_bytes
+from app.services.llm_client import answer_question, generate_summary, question_cache_key
+
+log = get_logger("documents")
+
+
+def _get_owned_document(client: Client, document_id: str, user: AuthUser) -> dict:
+    result = (
+        client.table("documents")
+        .select("*")
+        .eq("id", document_id)
+        .eq("owner_id", user.id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise NotFoundException("Document not found")
+    return result.data[0]
+
+
+def _download_document_bytes(client: Client, document: dict) -> bytes:
+    upload = get_yaml_config().upload
+    try:
+        return client.storage.from_(upload.storage_bucket).download(document["storage_path"])
+    except Exception as exc:
+        raise FileException(f"Failed to download document from storage: {exc}", status_code=502) from exc
+
+
+async def get_document(client: Client, document_id: str, user: AuthUser) -> dict:
+    doc = _get_owned_document(client, document_id, user)
+    return {
+        "id": doc["id"],
+        "filename": doc["filename"],
+        "file_type": doc["file_type"],
+        "mime_type": doc.get("mime_type"),
+        "status": doc["status"],
+        "summary": doc.get("summary"),
+        "error_message": doc.get("error_message"),
+        "created_at": doc["created_at"],
+        "processed_at": doc.get("processed_at"),
+    }
+
+
+async def get_document_summary(client: Client, document_id: str, user: AuthUser) -> dict:
+    cache_cfg = get_yaml_config().cache
+    cache_key = f"summary:document:{document_id}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return {**cached, "cached": True}
+
+    doc = _get_owned_document(client, document_id, user)
+    if doc["file_type"] != "document":
+        raise FileException("Summaries are only available for document uploads")
+
+    if doc["status"] != "ready" or not doc.get("summary"):
+        raise FileException("Document is not processed yet", status_code=409)
+
+    payload = {
+        "document_id": document_id,
+        "summary": doc["summary"],
+        "status": doc["status"],
+        "cached": False,
+    }
+    await cache_set(cache_key, payload, cache_cfg.summary_ttl)
+    return payload
+
+
+async def process_document(client: Client, document_id: str, user: AuthUser) -> dict:
+    cfg = get_yaml_config().documents
+    allowed, retry_after = await check_rate_limit(
+        key=f"process:{user.id}",
+        limit=cfg.process_rate_limit_per_hour,
+        window_seconds=3600,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Document processing limit reached ({cfg.process_rate_limit_per_hour}/hour)",
+            retry_after=retry_after,
+        )
+
+    doc = _get_owned_document(client, document_id, user)
+    if doc["file_type"] != "document":
+        raise FileException("Only document uploads can be processed in Step 1.7")
+    if doc["status"] == "processing":
+        raise FileException("Document is already processing", status_code=409)
+
+    client.table("documents").update(
+        {"status": "processing", "error_message": None}
+    ).eq("id", document_id).execute()
+
+    try:
+        raw_bytes = _download_document_bytes(client, doc)
+        text = extract_text_from_bytes(raw_bytes, doc["filename"])
+        chunks = chunk_text(
+            text,
+            chunk_size=cfg.chunk_size,
+            chunk_overlap=cfg.chunk_overlap,
+        )
+        if not chunks:
+            raise FileException("No text content found after extraction")
+
+        client.table("document_chunks").delete().eq("document_id", document_id).execute()
+        chunk_rows = [
+            {
+                "document_id": document_id,
+                "chunk_index": index,
+                "content": chunk,
+                "token_count": len(chunk.split()),
+            }
+            for index, chunk in enumerate(chunks)
+        ]
+        client.table("document_chunks").insert(chunk_rows).execute()
+
+        summary = await generate_summary(text, filename=doc["filename"])
+        updated = (
+            client.table("documents")
+            .update(
+                {
+                    "status": "ready",
+                    "summary": summary,
+                    "error_message": None,
+                    "processed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            .eq("id", document_id)
+            .execute()
+        )
+        row = updated.data[0] if updated.data else doc
+        cache_key = f"summary:document:{document_id}"
+        await cache_set(
+            cache_key,
+            {
+                "document_id": document_id,
+                "summary": summary,
+                "status": "ready",
+            },
+            get_yaml_config().cache.summary_ttl,
+        )
+        log.info(
+            "Document processed",
+            document_id=document_id,
+            user_id=user.id,
+            chunk_count=len(chunks),
+        )
+        return {
+            "document_id": document_id,
+            "status": row.get("status", "ready"),
+            "chunk_count": len(chunks),
+            "summary_preview": summary[:280],
+        }
+    except AppException as exc:
+        client.table("documents").update(
+            {"status": "failed", "error_message": exc.message}
+        ).eq("id", document_id).execute()
+        raise
+    except Exception as exc:
+        message = str(exc)
+        client.table("documents").update(
+            {"status": "failed", "error_message": message}
+        ).eq("id", document_id).execute()
+        raise FileException(f"Document processing failed: {message}", status_code=500) from exc
+
+
+def _select_relevant_chunks(chunks: list[dict], question: str, *, limit: int) -> list[str]:
+    terms = {term.lower() for term in question.split() if len(term) > 2}
+    scored: list[tuple[int, str]] = []
+    for row in chunks:
+        content = row["content"]
+        lower = content.lower()
+        score = sum(lower.count(term) for term in terms)
+        scored.append((score, content))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    selected = [content for score, content in scored if score > 0][:limit]
+    if selected:
+        return selected
+    return [row["content"] for row in chunks[:limit]]
+
+
+async def ask_document(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+    *,
+    question: str,
+) -> dict:
+    question = question.strip()
+    if not question:
+        raise FileException("Question is required")
+
+    cfg = get_yaml_config().documents
+    allowed, retry_after = await check_rate_limit(
+        key=f"chat:{user.id}",
+        limit=cfg.chat_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Chat rate limit reached ({cfg.chat_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    cache_key = question_cache_key(document_id, question)
+    cached = await cache_get(cache_key)
+    if cached:
+        return {**cached, "cached": True}
+
+    doc = _get_owned_document(client, document_id, user)
+    if doc["file_type"] != "document":
+        raise FileException("Chat is only available for document uploads")
+    if doc["status"] != "ready":
+        raise FileException("Document must be processed before asking questions", status_code=409)
+
+    chunks_result = (
+        client.table("document_chunks")
+        .select("chunk_index, content")
+        .eq("document_id", document_id)
+        .order("chunk_index")
+        .execute()
+    )
+    chunks = chunks_result.data or []
+    if not chunks:
+        raise FileException("No document chunks found; reprocess the document", status_code=409)
+
+    selected = _select_relevant_chunks(
+        chunks,
+        question,
+        limit=get_yaml_config().documents.max_context_chunks,
+    )
+    llm_result = await answer_question(
+        question=question,
+        context_chunks=selected,
+        filename=doc["filename"],
+    )
+    payload = {
+        "document_id": document_id,
+        "question": question,
+        "answer": llm_result["answer"],
+        "cited_chunks": llm_result["cited_chunks"],
+        "cached": False,
+    }
+    await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
+    return payload

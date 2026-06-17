@@ -57,10 +57,33 @@ class UploadSection(BaseModel):
         return ",".join(sorted(self.all_extensions()))
 
 
+class CacheSection(BaseModel):
+    key_prefix: str = "insightlab"
+    summary_ttl: int = 604800
+    chat_ttl: int = 86400
+
+
+class DocumentsSection(BaseModel):
+    chunk_size: int = 1200
+    chunk_overlap: int = 200
+    max_context_chunks: int = 6
+    process_rate_limit_per_hour: int = 10
+    chat_rate_limit_per_min: int = 20
+
+
+class LlmSection(BaseModel):
+    model: str = "groq/llama-3.3-70b-versatile"
+    summary_max_tokens: int = 800
+    chat_max_tokens: int = 600
+
+
 class YamlConfig(BaseModel):
     app: AppSection
     logging: LoggingSection
     upload: UploadSection
+    cache: CacheSection
+    documents: DocumentsSection
+    llm: LlmSection
 
 
 @lru_cache(maxsize=1)
