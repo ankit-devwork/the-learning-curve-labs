@@ -175,28 +175,53 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
             {document.file_type} · {document.status}
           </p>
         </div>
-        {document.status !== "ready" && (
-          <Button
-            type="button"
-            disabled={processing}
-            onClick={async () => {
-              const supabase = createClient();
-              const {
-                data: { session },
-              } = await supabase.auth.getSession();
-              if (!session?.access_token) {
-                return;
-              }
-              const ok = await processDocument(session.access_token);
-              if (ok) {
-                await loadDocument();
-                await loadSummary(session.access_token);
-              }
-            }}
-          >
-            {processing ? "Processing..." : "Process document"}
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {(document.status === "ready" || document.status === "failed") && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={processing}
+              onClick={async () => {
+                const supabase = createClient();
+                const {
+                  data: { session },
+                } = await supabase.auth.getSession();
+                if (!session?.access_token) {
+                  return;
+                }
+                const ok = await processDocument(session.access_token);
+                if (ok) {
+                  await loadDocument();
+                  await loadSummary(session.access_token);
+                }
+              }}
+            >
+              {processing ? "Re-processing..." : "Re-process (refresh embeddings)"}
+            </Button>
+          )}
+          {document.status !== "ready" && document.status !== "failed" && (
+            <Button
+              type="button"
+              disabled={processing}
+              onClick={async () => {
+                const supabase = createClient();
+                const {
+                  data: { session },
+                } = await supabase.auth.getSession();
+                if (!session?.access_token) {
+                  return;
+                }
+                const ok = await processDocument(session.access_token);
+                if (ok) {
+                  await loadDocument();
+                  await loadSummary(session.access_token);
+                }
+              }}
+            >
+              {processing ? "Processing..." : "Process document"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
