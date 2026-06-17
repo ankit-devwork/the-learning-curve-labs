@@ -11,7 +11,12 @@ from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.resilience import storage_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
-from app.services.excel_charts import build_charts_from_plan, parse_chart_plan
+from app.services.excel_charts import (
+    CustomChartRequest,
+    build_charts_from_plan,
+    build_custom_chart,
+    parse_chart_plan,
+)
 from app.services.excel_profiling import profile_dataframe, read_dataframe
 from app.services.llm_client import (
     excel_cache_key,
@@ -187,3 +192,34 @@ async def analyze_excel(client: Client, document_id: str, user: AuthUser) -> dic
             {"status": "failed", "error_message": message}
         ).eq("id", document_id).execute()
         raise FileException(f"Excel analysis failed: {message}", status_code=500) from exc
+
+
+async def create_custom_excel_chart(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+    request: CustomChartRequest,
+) -> dict:
+    doc = _get_owned_document(client, document_id, user)
+    if doc["file_type"] != "excel":
+        raise FileException("Custom charts are only available for spreadsheet uploads")
+    if doc["status"] != "ready" or not doc.get("excel_profile"):
+        raise FileException("Analyze the spreadsheet before building custom charts", status_code=409)
+
+    raw_bytes = await _download_document_bytes(client, doc)
+    df = read_dataframe(raw_bytes, doc["filename"])
+
+    try:
+        chart = build_custom_chart(df, request)
+    except ValueError as exc:
+        raise FileException(str(exc), status_code=400) from exc
+
+    log.info(
+        "Custom Excel chart built",
+        document_id=document_id,
+        user_id=user.id,
+        chart_type=request.chart_type,
+        x_column=request.x_column,
+        y_column=request.y_column,
+    )
+    return {"chart": chart}

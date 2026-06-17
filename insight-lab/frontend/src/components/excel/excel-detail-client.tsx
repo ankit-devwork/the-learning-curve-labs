@@ -3,18 +3,21 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch, type ExcelAnalysisResponse } from "@/lib/api";
+import { apiFetch, type ExcelAnalysisResponse, type ExcelChart } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExcelChartView } from "@/components/excel/excel-chart-view";
+import { ExcelChartBuilder } from "@/components/excel/excel-chart-builder";
 
 export function ExcelDetailClient({ documentId }: { documentId: string }) {
   const [analysis, setAnalysis] = useState<ExcelAnalysisResponse | null>(null);
+  const [customCharts, setCustomCharts] = useState<ExcelChart[]>([]);
   const [filename, setFilename] = useState<string>("");
   const [status, setStatus] = useState<string>("pending");
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const autoAnalyzed = useRef(false);
 
   const loadDocument = useCallback(async () => {
@@ -39,6 +42,7 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     const doc = await response.json();
     setFilename(doc.filename);
     setStatus(doc.status);
+    setAccessToken(session.access_token);
     setLoading(false);
     return { token: session.access_token, status: doc.status as string };
   }, [documentId]);
@@ -51,8 +55,16 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     const data = (await response.json()) as ExcelAnalysisResponse;
     setAnalysis(data);
     setStatus(data.status);
+    setCustomCharts([]);
     return true;
   }, [documentId]);
+
+  const handleCustomChartCreated = useCallback((chart: ExcelChart) => {
+    setCustomCharts((current) => {
+      const withoutDuplicate = current.filter((item) => item.id !== chart.id);
+      return [chart, ...withoutDuplicate];
+    });
+  }, []);
 
   const analyzeSpreadsheet = useCallback(async (token: string) => {
     setAnalyzing(true);
@@ -69,6 +81,7 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     const data = (await response.json()) as ExcelAnalysisResponse;
     setAnalysis(data);
     setStatus(data.status);
+    setCustomCharts([]);
     return true;
   }, [documentId]);
 
@@ -141,12 +154,40 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
         </Card>
       )}
 
+      {analysis?.profile?.columns && accessToken && (
+        <ExcelChartBuilder
+          documentId={documentId}
+          columns={analysis.profile.columns}
+          accessToken={accessToken}
+          onChartCreated={handleCustomChartCreated}
+        />
+      )}
+
+      {customCharts.map((chart) => (
+        <Card key={chart.id}>
+          <CardHeader>
+            <CardTitle>{chart.title}</CardTitle>
+            <CardDescription>
+              Custom · {chart.chart_type} · {chart.x_column}
+              {chart.y_column ? ` vs ${chart.y_column}` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ExcelChartView chart={chart} />
+          </CardContent>
+        </Card>
+      ))}
+
+      {analysis && analysis.charts.length > 0 && (
+        <h3 className="text-lg font-semibold">Suggested charts</h3>
+      )}
+
       {analysis?.charts.map((chart) => (
         <Card key={chart.id}>
           <CardHeader>
             <CardTitle>{chart.title}</CardTitle>
             <CardDescription>
-              {chart.chart_type} · {chart.x_column}
+              Suggested · {chart.chart_type} · {chart.x_column}
               {chart.y_column ? ` vs ${chart.y_column}` : ""}
             </CardDescription>
           </CardHeader>

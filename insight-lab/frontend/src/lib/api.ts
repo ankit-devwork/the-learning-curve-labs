@@ -57,6 +57,20 @@ export type ExcelChart = {
   aggregation?: string;
   labels: string[];
   values: number[];
+  custom?: boolean;
+};
+
+export type CustomChartRequest = {
+  chart_type: ExcelChart["chart_type"];
+  x_column: string;
+  y_column?: string | null;
+  aggregation?: "sum" | "mean" | "count" | "none";
+  title?: string | null;
+};
+
+export type CustomChartResponse = {
+  chart: ExcelChart;
+  correlation_id?: string;
 };
 
 export type ExcelAnalysisResponse = {

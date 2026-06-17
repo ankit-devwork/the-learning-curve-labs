@@ -5,7 +5,12 @@ import pandas as pd
 import pytest
 
 from app.core.resilience import CircuitBreaker, CircuitState
-from app.services.excel_charts import build_charts_from_plan, parse_chart_plan
+from app.services.excel_charts import (
+    CustomChartRequest,
+    build_charts_from_plan,
+    build_custom_chart,
+    parse_chart_plan,
+)
 from app.services.excel_profiling import profile_dataframe, read_dataframe
 
 
@@ -99,6 +104,37 @@ def test_build_line_chart_sorts_by_date():
     charts = build_charts_from_plan(df, plan)
     assert charts[0]["labels"] == ["2024-03-21", "2024-11-02", "2025-05-11"]
     assert charts[0]["values"] == [63.0, 75.0, 86.0]
+
+
+def test_build_custom_chart_bar():
+    df = pd.read_csv(io.StringIO("region,sales\nNorth,100\nSouth,80\nEast,120\n"))
+    request = CustomChartRequest(
+        chart_type="bar",
+        x_column="region",
+        y_column="sales",
+        aggregation="sum",
+        title="Regional sales",
+    )
+    chart = build_custom_chart(df, request)
+    assert chart["custom"] is True
+    assert chart["title"] == "Regional sales"
+    assert chart["chart_type"] == "bar"
+    assert len(chart["labels"]) == 3
+
+
+def test_build_custom_chart_requires_y_for_scatter():
+    df = pd.read_csv(io.StringIO("region,sales\nNorth,100\n"))
+    request = CustomChartRequest(chart_type="scatter", x_column="region")
+    with pytest.raises(ValueError, match="require a Y column"):
+        build_custom_chart(df, request)
+
+
+def test_build_custom_pie_without_y_column():
+    df = pd.read_csv(io.StringIO("product,qty\nChair,3\nDesk,2\nChair,1\n"))
+    request = CustomChartRequest(chart_type="pie", x_column="product")
+    chart = build_custom_chart(df, request)
+    assert chart["chart_type"] == "pie"
+    assert "Chair" in chart["labels"]
 
 
 def test_circuit_breaker_opens_after_failures():

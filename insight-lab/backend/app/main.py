@@ -90,4 +90,5 @@ async def root():
         "documents": "/documents",
         "excel_analyze": "/documents/{id}/analyze",
         "excel_charts": "/documents/{id}/charts",
+        "excel_custom_chart": "/documents/{id}/charts/custom",
     }

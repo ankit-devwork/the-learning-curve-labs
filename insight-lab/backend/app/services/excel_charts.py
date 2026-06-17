@@ -28,6 +28,19 @@ class ChartPlan(BaseModel):
     charts: list[ChartPlanItem]
 
 
+class CustomChartRequest(BaseModel):
+    chart_type: str = Field(pattern=r"^(bar|line|pie|scatter)$")
+    x_column: str
+    y_column: str | None = None
+    aggregation: str = Field(default="sum", pattern=r"^(sum|mean|count|none)$")
+    title: str | None = None
+
+    @field_validator("chart_type", "aggregation", mode="before")
+    @classmethod
+    def normalize_lowercase(cls, value: object) -> object:
+        return str(value).lower().strip() if value is not None else value
+
+
 def parse_chart_plan(raw: str, *, max_charts: int) -> list[dict[str, Any]]:
     text = raw.strip()
     if text.startswith("```"):
@@ -126,3 +139,36 @@ def build_charts_from_plan(df: pd.DataFrame, plan_items: list[dict[str, Any]]) -
             }
         )
     return charts
+
+
+def _default_chart_title(request: CustomChartRequest) -> str:
+    if request.y_column:
+        agg = "" if request.aggregation == "sum" else f" ({request.aggregation})"
+        return f"{request.y_column}{agg} by {request.x_column}"
+    return f"{request.x_column} distribution"
+
+
+def build_custom_chart(df: pd.DataFrame, request: CustomChartRequest) -> dict[str, Any]:
+    if request.chart_type in {"bar", "line", "scatter"} and not request.y_column:
+        raise ValueError(f"{request.chart_type} charts require a Y column")
+
+    if request.x_column not in df.columns:
+        raise ValueError(f"Column not found: {request.x_column}")
+    if request.y_column and request.y_column not in df.columns:
+        raise ValueError(f"Column not found: {request.y_column}")
+
+    plan_item = {
+        "id": "custom",
+        "title": request.title or _default_chart_title(request),
+        "chart_type": request.chart_type,
+        "x_column": request.x_column,
+        "y_column": request.y_column,
+        "aggregation": request.aggregation,
+    }
+    charts = build_charts_from_plan(df, [plan_item])
+    if not charts:
+        raise ValueError("Could not build chart with the selected columns")
+    chart = charts[0]
+    chart["id"] = f"custom-{request.chart_type}-{request.x_column}-{request.y_column or 'count'}"
+    chart["custom"] = True
+    return chart
