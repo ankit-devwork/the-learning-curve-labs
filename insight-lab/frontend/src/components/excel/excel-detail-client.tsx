@@ -6,42 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiFetch, type ExcelAnalysisResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-function SimpleBarChart({ labels, values }: { labels: string[]; values: number[] }) {
-  const max = Math.max(...values, 1);
-  return (
-    <div className="space-y-2">
-      {labels.map((label, index) => (
-        <div key={`${label}-${index}`} className="space-y-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span className="truncate pr-2">{label}</span>
-            <span>{values[index]}</span>
-          </div>
-          <div className="h-2 rounded bg-muted">
-            <div
-              className="h-2 rounded bg-primary"
-              style={{ width: `${(values[index] / max) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ChartRenderer({ chart }: { chart: ExcelAnalysisResponse["charts"][number] }) {
-  if (chart.chart_type === "pie") {
-    return <SimpleBarChart labels={chart.labels} values={chart.values} />;
-  }
-  if (chart.chart_type === "scatter") {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Scatter preview: {chart.labels.length} points ({chart.x_column} vs {chart.y_column})
-      </p>
-    );
-  }
-  return <SimpleBarChart labels={chart.labels} values={chart.values} />;
-}
+import { ExcelChartView } from "@/components/excel/excel-chart-view";
 
 export function ExcelDetailClient({ documentId }: { documentId: string }) {
   const [analysis, setAnalysis] = useState<ExcelAnalysisResponse | null>(null);
@@ -186,7 +151,7 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartRenderer chart={chart} />
+            <ExcelChartView chart={chart} />
           </CardContent>
         </Card>
       ))}
