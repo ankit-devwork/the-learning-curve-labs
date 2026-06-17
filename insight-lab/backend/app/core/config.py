@@ -59,6 +59,12 @@ class Settings(BaseSettings):
 
     groq_api_key: str = ""
 
+    retry_max_attempts: int = 4
+    retry_base_delay_sec: float = 1.0
+    retry_max_delay_sec: float = 30.0
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_recovery_sec: float = 60.0
+
 
 settings = Settings()
 

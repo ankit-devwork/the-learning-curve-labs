@@ -48,6 +48,37 @@ export type AskResponse = {
   correlation_id?: string;
 };
 
+export type ExcelChart = {
+  id: string;
+  title: string;
+  chart_type: "bar" | "line" | "pie" | "scatter";
+  x_column: string;
+  y_column?: string | null;
+  aggregation?: string;
+  labels: string[];
+  values: number[];
+};
+
+export type ExcelAnalysisResponse = {
+  document_id: string;
+  status: string;
+  profile: {
+    row_count: number;
+    column_count: number;
+    columns: Array<{
+      name: string;
+      dtype: string;
+      null_pct: number;
+      unique_count: number;
+      sample_values?: string[];
+    }>;
+  };
+  charts: ExcelChart[];
+  summary: string;
+  cached?: boolean;
+  correlation_id?: string;
+};
+
 export type UploadResponse = DocumentSummary & {
   storage_path: string;
   correlation_id?: string;

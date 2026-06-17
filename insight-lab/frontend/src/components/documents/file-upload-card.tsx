@@ -194,7 +194,12 @@ export function FileUploadCard() {
                       {doc.filename}
                     </Link>
                   ) : (
-                    <p className="font-medium">{doc.filename}</p>
+                    <Link
+                      href={`/dashboard/excel/${doc.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {doc.filename}
+                    </Link>
                   )}
                   <p className="text-muted-foreground">
                     {doc.file_type} · {formatDate(doc.created_at)}

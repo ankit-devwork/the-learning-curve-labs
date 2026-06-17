@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import re
 
@@ -6,6 +7,7 @@ import litellm
 
 from app.core.config import settings
 from app.core.exceptions import ServiceUnavailableException
+from app.core.resilience import llm_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
 
 
@@ -18,8 +20,25 @@ def _ensure_llm_configured() -> None:
         raise ServiceUnavailableException("GROQ_API_KEY is not configured on the backend")
 
 
-async def generate_summary(document_text: str, *, filename: str) -> str:
+async def _acompletion_with_resilience(*, messages: list[dict], max_tokens: int) -> str:
     _ensure_llm_configured()
+
+    async def _call() -> str:
+        async def _invoke() -> str:
+            response = await litellm.acompletion(
+                model=_llm_model(),
+                messages=messages,
+                max_tokens=max_tokens,
+                api_key=settings.groq_api_key,
+            )
+            return response.choices[0].message.content.strip()
+
+        return await with_retry(_invoke, operation="llm.acompletion")
+
+    return await llm_circuit.call(_call)
+
+
+async def generate_summary(document_text: str, *, filename: str) -> str:
     llm = get_yaml_config().llm
     prompt = (
         "Summarize the following document clearly and concisely for a learner. "
@@ -27,16 +46,13 @@ async def generate_summary(document_text: str, *, filename: str) -> str:
         f"Filename: {filename}\n\n"
         f"Document:\n{document_text[:12000]}"
     )
-    response = await litellm.acompletion(
-        model=_llm_model(),
+    return await _acompletion_with_resilience(
         messages=[
             {"role": "system", "content": "You are a helpful document analyst."},
             {"role": "user", "content": prompt},
         ],
         max_tokens=llm.summary_max_tokens,
-        api_key=settings.groq_api_key,
     )
-    return response.choices[0].message.content.strip()
 
 
 async def answer_question(
@@ -45,7 +61,6 @@ async def answer_question(
     context_chunks: list[str],
     filename: str,
 ) -> dict:
-    _ensure_llm_configured()
     llm = get_yaml_config().llm
     context = "\n\n---\n\n".join(
         f"[Chunk {index + 1}]\n{chunk}" for index, chunk in enumerate(context_chunks)
@@ -58,20 +73,60 @@ async def answer_question(
         f"Excerpts:\n{context}\n\n"
         f"Question: {question}"
     )
-    response = await litellm.acompletion(
-        model=_llm_model(),
+    answer = await _acompletion_with_resilience(
         messages=[
             {"role": "system", "content": "You are a grounded document Q&A assistant."},
             {"role": "user", "content": prompt},
         ],
         max_tokens=llm.chat_max_tokens,
-        api_key=settings.groq_api_key,
     )
-    answer = response.choices[0].message.content.strip()
     cited = sorted({int(n) for n in re.findall(r"\[Chunk (\d+)\]", answer)})
     return {"answer": answer, "cited_chunks": cited}
+
+
+async def generate_excel_chart_plan(*, profile: dict, filename: str) -> str:
+    cfg = get_yaml_config().excel
+    prompt = (
+        "You are a data analyst. Given spreadsheet metadata, return ONLY valid JSON "
+        "with a 'charts' array (max "
+        f"{cfg.max_charts} items). Each chart object must include: "
+        "id, title, chart_type (bar|line|pie|scatter), x_column, y_column (optional), "
+        "aggregation (sum|mean|count|none). Pick meaningful charts for the data.\n\n"
+        f"Filename: {filename}\n\n"
+        f"Profile:\n{json.dumps(profile, indent=2)[:12000]}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {"role": "system", "content": "Return JSON only. No markdown."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.chart_plan_max_tokens,
+    )
+
+
+async def generate_excel_summary(*, profile: dict, charts: list[dict], filename: str) -> str:
+    cfg = get_yaml_config().excel
+    prompt = (
+        "Write a concise narrative summary of insights from this spreadsheet analysis. "
+        "Reference the charts by title. Use bullet points for key findings.\n\n"
+        f"Filename: {filename}\n\n"
+        f"Profile:\n{json.dumps(profile, indent=2)[:6000]}\n\n"
+        f"Charts:\n{json.dumps(charts, indent=2)[:6000]}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {"role": "system", "content": "You are a helpful data analyst."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.summary_max_tokens,
+    )
 
 
 def question_cache_key(document_id: str, question: str) -> str:
     digest = hashlib.sha256(question.strip().lower().encode("utf-8")).hexdigest()[:16]
     return f"chat:document:{document_id}:{digest}"
+
+
+def excel_cache_key(document_id: str, file_hash: str | None) -> str:
+    digest = file_hash or "unknown"
+    return f"excel:charts:{document_id}:{digest}"

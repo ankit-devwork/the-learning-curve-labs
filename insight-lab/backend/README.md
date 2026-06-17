@@ -159,6 +159,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/process` | **Bearer JWT** | Parse, chunk, summarize (Step 1.7) |
 | GET | `/documents/{id}/summary` | **Bearer JWT** | Cached summary from Redis/Postgres |
 | POST | `/documents/{id}/ask` | **Bearer JWT** | RAG chat over document chunks |
+| POST | `/documents/{id}/analyze` | **Bearer JWT** | Excel profile + charts + insights (Step 1.8) |
+| GET | `/documents/{id}/charts` | **Bearer JWT** | Cached Excel analysis |
 | GET | `/docs` | No | OpenAPI UI |
 
 ### Calling `/me` from curl
