@@ -9,7 +9,12 @@ from app.core.yaml_config import get_yaml_config
 
 
 def vector_to_pgvector(values: list[float]) -> str:
-    return "[" + ",".join(f"{value:.8f}" for value in values) + "]"
+    return "[" + ",".join(f"{float(value):.8f}" for value in values) + "]"
+
+
+def _as_float_list(values) -> list[float]:
+    """Convert numpy/onnx float32 vectors to JSON-serializable Python floats."""
+    return [float(value) for value in values]
 
 
 @lru_cache(maxsize=1)
@@ -27,7 +32,7 @@ def _get_fastembed_model():
 
 def _embed_with_fastembed(texts: list[str]) -> list[list[float]]:
     model = _get_fastembed_model()
-    return [list(vector) for vector in model.embed(texts)]
+    return [_as_float_list(vector) for vector in model.embed(texts)]
 
 
 def _embed_with_litellm(texts: list[str]) -> list[list[float]]:
