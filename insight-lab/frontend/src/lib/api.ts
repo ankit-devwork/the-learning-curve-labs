@@ -42,6 +42,8 @@ export type AskResponse = {
   question: string;
   answer: string;
   cited_chunks: number[];
+  retrieval_method?: "vector" | "keyword";
+  chunk_similarities?: number[];
   cached?: boolean;
   correlation_id?: string;
 };

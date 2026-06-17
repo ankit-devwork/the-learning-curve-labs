@@ -17,6 +17,7 @@ type ChatMessage = {
   question: string;
   answer: string;
   cached?: boolean;
+  retrievalMethod?: string;
 };
 
 export function DocumentDetailClient({ documentId }: { documentId: string }) {
@@ -141,7 +142,12 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
       const data = (await response.json()) as AskResponse;
       setMessages((prev) => [
         ...prev,
-        { question: trimmed, answer: data.answer, cached: data.cached },
+        {
+          question: trimmed,
+          answer: data.answer,
+          cached: data.cached,
+          retrievalMethod: data.retrieval_method,
+        },
       ]);
       setQuestion("");
     } finally {
@@ -217,7 +223,9 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
       <Card>
         <CardHeader>
           <CardTitle>Ask this document</CardTitle>
-          <CardDescription>Answers use stored text chunks; repeated questions hit the Redis cache</CardDescription>
+          <CardDescription>
+            Answers use pgvector semantic search over embedded chunks (keyword fallback if needed)
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleAsk} className="flex gap-2">
@@ -239,6 +247,11 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
                 <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{message.answer}</p>
                 {message.cached && (
                   <p className="mt-2 text-xs text-muted-foreground">Cached response</p>
+                )}
+                {message.retrievalMethod && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Retrieval: {message.retrievalMethod}
+                  </p>
                 )}
               </div>
             ))}

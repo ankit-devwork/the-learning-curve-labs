@@ -113,8 +113,11 @@ See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 - [x] Supabase schema + Storage
 - [x] Next.js auth (email + Google) + dashboard
 - [x] **pycorekit + JWT auth + `GET /me`**
-- [ ] File upload API
-- [ ] Excel, document, and quiz pipelines
+- [x] File upload API (`POST /upload`, dashboard UI)
+- [x] Document summary + chat (Step 1.7)
+- [x] pgvector embeddings for semantic RAG (Step 1.7b)
+- [ ] Excel charts pipeline
+- [ ] Quiz generator
 
 ## Related projects
 

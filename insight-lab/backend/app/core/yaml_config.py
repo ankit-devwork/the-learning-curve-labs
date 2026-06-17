@@ -77,6 +77,14 @@ class LlmSection(BaseModel):
     chat_max_tokens: int = 600
 
 
+class EmbeddingsSection(BaseModel):
+    provider: str = "fastembed"
+    model: str = "BAAI/bge-small-en-v1.5"
+    dimensions: int = 384
+    batch_size: int = 32
+    similarity_threshold: float = 0.35
+
+
 class YamlConfig(BaseModel):
     app: AppSection
     logging: LoggingSection
@@ -84,6 +92,7 @@ class YamlConfig(BaseModel):
     cache: CacheSection
     documents: DocumentsSection
     llm: LlmSection
+    embeddings: EmbeddingsSection
 
 
 @lru_cache(maxsize=1)

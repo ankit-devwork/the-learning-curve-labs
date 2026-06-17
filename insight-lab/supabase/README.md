@@ -6,8 +6,10 @@ SQL migrations and RLS policies for InsightLab.
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run `001_initial.sql` in the SQL Editor (or use Supabase CLI).
-3. Create a Storage bucket named `uploads` (private).
-4. Copy project URL and keys to `.env` files.
+3. Run `002_document_chunks.sql` for document summary + chat (Step 1.7).
+4. Run `003_pgvector_embeddings.sql` for semantic chunk search (Step 1.7b).
+5. Create a Storage bucket named `uploads` (private).
+6. Copy project URL and keys to `.env` files.
 
 ## Local CLI (optional)
 

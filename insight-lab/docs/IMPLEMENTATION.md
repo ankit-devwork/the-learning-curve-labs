@@ -13,7 +13,8 @@ Living document updated as features land. See [ARCHITECTURE.md](ARCHITECTURE.md)
 | 1.4 | Next.js auth (email + Google) | Done | [frontend/README](../frontend/README.md) |
 | **1.5** | **pycorekit + JWT + `GET /me`** | **Done** | `GET /me`, dev-only Backend connection card |
 | **1.6** | **File upload API** | **Done** | `POST /upload`, `GET /documents`, dashboard upload UI |
-| 1.7 | Document summary + chat | Planned | `POST /ask`, `GET /summary` |
+| **1.7** | **Document summary + chat** | **Done** | `POST /process`, `GET /summary`, `POST /ask`, Redis cache |
+| **1.7b** | **pgvector embeddings (RAG)** | **Done** | fastembed + `match_document_chunks` RPC, vector retrieval |
 | 1.8 | Excel charts pipeline | Planned | `POST /excel/analyze` |
 | 1.9 | Quiz generator | Planned | `POST /quiz/generate` |
 
@@ -141,8 +142,104 @@ Max size: 20 MB (configurable via `UPLOAD_MAX_BYTES` in backend `.env`).
 
 ---
 
-## Next up — Step 1.7 Document summary + chat
+## Step 1.7 — Document summary + chat (implemented)
 
-- Parse uploaded documents
-- Generate summary
-- RAG chat with citations
+### Backend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Cache | `app/core/cache.py` | pycorekit `CacheService` + rate limits |
+| Document service | `app/services/document_service.py` | Parse, chunk, summarize, ask |
+| Text extraction | `app/services/document_text.py` | PDF, txt, docx parsers |
+| LLM client | `app/services/llm_client.py` | LiteLLM / Groq for summary + chat |
+| Routes | `app/api/routes/documents.py` | Process, summary, ask endpoints |
+
+### Frontend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Document detail | `app/dashboard/documents/[id]/page.tsx` | Auto-process + summary + chat |
+| Detail UI | `components/documents/document-detail-client.tsx` | Summary, chat, retrieval method badge |
+
+### Database
+
+Run `supabase/migrations/002_document_chunks.sql` — adds `summary`, `processed_at`, `document_chunks` table.
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/documents/{id}` | Document metadata + status |
+| POST | `/documents/{id}/process` | Extract text, chunk, embed, summarize |
+| GET | `/documents/{id}/summary` | Cached summary (Redis → Postgres) |
+| POST | `/documents/{id}/ask` | RAG chat with cited chunks |
+
+### Verify
+
+1. Run migration `002_document_chunks.sql`
+2. Set `GROQ_API_KEY` in `backend/.env`
+3. Start Redis (`docker compose up -d`)
+4. Upload a PDF → open document detail → auto-process → ask a question
+
+---
+
+## Step 1.7b — pgvector embeddings (implemented)
+
+Semantic chunk retrieval replaces keyword-only matching when embeddings are present.
+
+### Backend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Embeddings | `app/services/embeddings.py` | fastembed (default) or LiteLLM provider |
+| Vector search | Supabase RPC | `match_document_chunks` cosine similarity |
+| Config | `config.yaml` → `embeddings` | Model, dimensions, batch size, threshold |
+
+Default model: **BAAI/bge-small-en-v1.5** (384 dimensions, local via fastembed — no extra API key).
+
+### Database
+
+Run `supabase/migrations/003_pgvector_embeddings.sql`:
+
+- Enables `vector` extension
+- Adds `document_chunks.embedding vector(384)` + HNSW index
+- Creates `match_document_chunks(filter_document_id, query_embedding, match_count)` RPC
+
+### Retrieval flow
+
+```mermaid
+flowchart LR
+  Q[User question] --> E[Embed query]
+  E --> V[Vector search RPC]
+  V -->|matches above threshold| LLM[LLM answer]
+  V -->|no matches| K[Keyword fallback]
+  K --> LLM
+```
+
+Ask responses include `retrieval_method` (`vector` or `keyword`) and `chunk_similarities` when vector search succeeds.
+
+### Verify
+
+1. Run migration `003_pgvector_embeddings.sql`
+2. `pip install -r requirements.txt` (adds `fastembed`)
+3. **Re-process** documents uploaded before this migration (old chunks have no embeddings)
+4. Ask a question — UI shows retrieval method; API returns `"retrieval_method": "vector"`
+
+### Config overrides
+
+```yaml
+embeddings:
+  provider: fastembed
+  model: BAAI/bge-small-en-v1.5
+  dimensions: 384
+  similarity_threshold: 0.35
+```
+
+Env prefix: `APP_EMBEDDINGS__*` (e.g. `APP_EMBEDDINGS__SIMILARITY_THRESHOLD=0.4`).
+
+---
+
+## Next up — Step 1.8 Excel charts pipeline
+
+- Parse uploaded spreadsheets
+- Auto-generate charts and narrative insights
