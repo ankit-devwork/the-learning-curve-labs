@@ -54,6 +54,23 @@ def _aggregate(series: pd.Series, aggregation: str) -> float:
     return float(series.iloc[0]) if len(series) else 0.0
 
 
+def _sort_chart_stats(stats: pd.Series, chart_type: str) -> pd.Series:
+    if chart_type == "line":
+        parsed_dates = pd.to_datetime(stats.index, errors="coerce")
+        if parsed_dates.notna().all():
+            ordered = stats.copy()
+            ordered.index = parsed_dates
+            return ordered.sort_index().head(12)
+        return stats.sort_index().head(12)
+    return stats.sort_values(ascending=False).head(12)
+
+
+def _format_chart_label(index: object) -> str:
+    if isinstance(index, pd.Timestamp):
+        return index.strftime("%Y-%m-%d")
+    return str(index)
+
+
 def build_charts_from_plan(df: pd.DataFrame, plan_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     charts: list[dict[str, Any]] = []
     for item in plan_items:
@@ -85,8 +102,8 @@ def build_charts_from_plan(df: pd.DataFrame, plan_items: list[dict[str, Any]]) -
                 stats = grouped.mean()
             else:
                 stats = grouped.sum()
-            stats = stats.sort_values(ascending=False).head(12)
-            labels = [str(index) for index in stats.index.tolist()]
+            stats = _sort_chart_stats(stats, chart_type)
+            labels = [_format_chart_label(index) for index in stats.index.tolist()]
             values = [round(float(value), 4) for value in stats.tolist()]
         else:
             counts = working[x_col].astype(str).value_counts().head(12)

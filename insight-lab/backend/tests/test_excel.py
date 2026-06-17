@@ -77,6 +77,30 @@ def test_build_charts_from_plan():
     assert charts[0]["values"][0] == 120.0
 
 
+def test_build_line_chart_sorts_by_date():
+    df = pd.read_csv(
+        io.StringIO(
+            "Date,Quantity\n"
+            "2025-05-11,86\n"
+            "2024-03-21,63\n"
+            "2024-11-02,75\n"
+        )
+    )
+    plan = [
+        {
+            "id": "c2",
+            "title": "Quantity by date",
+            "chart_type": "line",
+            "x_column": "Date",
+            "y_column": "Quantity",
+            "aggregation": "sum",
+        }
+    ]
+    charts = build_charts_from_plan(df, plan)
+    assert charts[0]["labels"] == ["2024-03-21", "2024-11-02", "2025-05-11"]
+    assert charts[0]["values"] == [63.0, 75.0, 86.0]
+
+
 def test_circuit_breaker_opens_after_failures():
     breaker = CircuitBreaker(name="test", failure_threshold=2, recovery_seconds=60)
 
