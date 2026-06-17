@@ -38,6 +38,27 @@ def test_parse_chart_plan_json():
     assert items[0]["chart_type"] == "bar"
 
 
+def test_parse_chart_plan_coerces_numeric_ids():
+    raw = """
+    {
+      "charts": [
+        {
+          "id": 1,
+          "title": "Sales by region",
+          "chart_type": "BAR",
+          "x_column": "region",
+          "y_column": "sales",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+    """
+    items = parse_chart_plan(raw, max_charts=3)
+    assert items[0]["id"] == "1"
+    assert items[0]["chart_type"] == "bar"
+    assert items[0]["aggregation"] == "sum"
+
+
 def test_build_charts_from_plan():
     df = pd.read_csv(io.StringIO("region,sales\nNorth,100\nSouth,80\nEast,120\n"))
     plan = [

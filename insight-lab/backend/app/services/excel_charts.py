@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, field_validator
 
 
 class ChartPlanItem(BaseModel):
@@ -12,6 +12,16 @@ class ChartPlanItem(BaseModel):
     x_column: str
     y_column: str | None = None
     aggregation: str = Field(default="sum", pattern=r"^(sum|mean|count|none)$")
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id_to_string(cls, value: object) -> str:
+        return str(value)
+
+    @field_validator("chart_type", "aggregation", mode="before")
+    @classmethod
+    def normalize_lowercase(cls, value: object) -> object:
+        return str(value).lower().strip() if value is not None else value
 
 
 class ChartPlan(BaseModel):
