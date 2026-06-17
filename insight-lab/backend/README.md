@@ -99,6 +99,27 @@ Documents uploaded **before** migration 003 must be **re-processed** to populate
 
 Ask responses include `retrieval_method` (`vector` or `keyword`) — vector search is tried first; keyword matching is the fallback.
 
+### Troubleshooting null embeddings
+
+If `document_chunks.embedding` is `NULL` for all rows:
+
+| Cause | Fix |
+|-------|-----|
+| **Old Step 1.7 backend (main without PR #19)** | Sync the pgvector embeddings code — main only inserts `content`, not `embedding` |
+| **Migration 003 not run** | Run `003_pgvector_embeddings.sql` in Supabase SQL Editor |
+| **`fastembed` not installed** | `pip install fastembed` then restart uvicorn |
+| **Processed before embeddings landed** | Re-process each document (`POST /documents/{id}/process` or open detail page) |
+
+Verify after re-process:
+
+```sql
+select document_id, count(*) as chunks, count(embedding) as with_embeddings
+from document_chunks
+group by document_id;
+```
+
+Process API response should include `"embedded_count": N` matching `chunk_count`.
+
 ---
 
 Supabase may sign access tokens with **ES256** (new signing keys) or **HS256** (legacy JWT secret). The backend picks the method from the token header `alg`:

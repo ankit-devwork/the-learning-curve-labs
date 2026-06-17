@@ -16,7 +16,6 @@ from app.services.embeddings import (
     embed_text,
     embed_texts_batched,
     search_similar_chunks,
-    vector_to_pgvector,
 )
 from app.services.llm_client import answer_question, generate_summary, question_cache_key
 
@@ -120,13 +119,19 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
 
         client.table("document_chunks").delete().eq("document_id", document_id).execute()
         vectors = embed_texts_batched(chunks)
+        if len(vectors) != len(chunks):
+            raise FileException(
+                f"Embedding count mismatch: {len(vectors)} vectors for {len(chunks)} chunks",
+                status_code=500,
+            )
         chunk_rows = [
             {
                 "document_id": document_id,
                 "chunk_index": index,
                 "content": chunk,
                 "token_count": len(chunk.split()),
-                "embedding": vector_to_pgvector(vectors[index]),
+                # PostgREST expects a JSON array of floats for pgvector columns.
+                "embedding": vectors[index],
             }
             for index, chunk in enumerate(chunks)
         ]
