@@ -48,6 +48,7 @@ cache:
   key_prefix: insightlab
   summary_ttl: 604800
   chat_ttl: 86400
+  excel_ttl: 86400
 
 documents:
   chunk_size: 1200
@@ -71,3 +72,19 @@ embeddings:
   # provider: litellm
   # model: openai/text-embedding-3-small
   # dimensions: 1536
+
+excel:
+  analyze_rate_limit_per_min: 10
+  max_rows: 50000
+  max_columns: 100
+  sample_rows_for_llm: 50
+  max_charts: 6
+  chart_plan_max_tokens: 1200
+  summary_max_tokens: 800
+
+resilience:
+  retry_max_attempts: 4
+  retry_base_delay_sec: 1.0
+  retry_max_delay_sec: 30.0
+  circuit_breaker_failure_threshold: 5
+  circuit_breaker_recovery_sec: 60.0

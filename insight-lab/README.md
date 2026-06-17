@@ -116,7 +116,7 @@ See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 - [x] File upload API (`POST /upload`, dashboard UI)
 - [x] Document summary + chat (Step 1.7)
 - [x] pgvector embeddings for semantic RAG (Step 1.7b)
-- [ ] Excel charts pipeline
+- [x] Excel charts pipeline + retry/circuit breaker (Step 1.8)
 - [ ] Quiz generator
 
 ## Related projects

@@ -61,6 +61,25 @@ class CacheSection(BaseModel):
     key_prefix: str = "insightlab"
     summary_ttl: int = 604800
     chat_ttl: int = 86400
+    excel_ttl: int = 86400
+
+
+class ExcelSection(BaseModel):
+    analyze_rate_limit_per_min: int = 10
+    max_rows: int = 50000
+    max_columns: int = 100
+    sample_rows_for_llm: int = 50
+    max_charts: int = 6
+    chart_plan_max_tokens: int = 1200
+    summary_max_tokens: int = 800
+
+
+class ResilienceSection(BaseModel):
+    retry_max_attempts: int = 4
+    retry_base_delay_sec: float = 1.0
+    retry_max_delay_sec: float = 30.0
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_recovery_sec: float = 60.0
 
 
 class DocumentsSection(BaseModel):
@@ -93,6 +112,8 @@ class YamlConfig(BaseModel):
     documents: DocumentsSection
     llm: LlmSection
     embeddings: EmbeddingsSection
+    excel: ExcelSection
+    resilience: ResilienceSection
 
 
 @lru_cache(maxsize=1)

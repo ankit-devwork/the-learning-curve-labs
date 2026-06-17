@@ -9,6 +9,7 @@ from pycorekit.exceptions.handlers import app_exception_handler, generic_excepti
 from pycorekit.tracing.middleware import RequestTracingMiddleware
 
 from app.api.routes.documents import router as documents_router
+from app.api.routes.excel import router as excel_router
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.upload import router as upload_router
@@ -73,6 +74,7 @@ app.include_router(health_router, tags=["health"])
 app.include_router(me_router, tags=["auth"])
 app.include_router(upload_router, tags=["documents"])
 app.include_router(documents_router, tags=["documents"])
+app.include_router(excel_router, tags=["excel"])
 
 
 @app.get("/")
@@ -86,4 +88,6 @@ async def root():
         "upload": "/upload",
         "upload_config": "/upload/config",
         "documents": "/documents",
+        "excel_analyze": "/documents/{id}/analyze",
+        "excel_charts": "/documents/{id}/charts",
     }

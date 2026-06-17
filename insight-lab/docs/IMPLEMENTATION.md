@@ -15,7 +15,7 @@ Living document updated as features land. See [ARCHITECTURE.md](ARCHITECTURE.md)
 | **1.6** | **File upload API** | **Done** | `POST /upload`, `GET /documents`, dashboard upload UI |
 | **1.7** | **Document summary + chat** | **Done** | `POST /process`, `GET /summary`, `POST /ask`, Redis cache |
 | **1.7b** | **pgvector embeddings (RAG)** | **Done** | fastembed + `match_document_chunks` RPC, vector retrieval |
-| 1.8 | Excel charts pipeline | Planned | `POST /excel/analyze` |
+| **1.8** | **Excel charts pipeline** | **Done** | `POST /analyze`, `GET /charts`, retry + circuit breaker |
 | 1.9 | Quiz generator | Planned | `POST /quiz/generate` |
 
 ---
@@ -239,7 +239,51 @@ Env prefix: `APP_EMBEDDINGS__*` (e.g. `APP_EMBEDDINGS__SIMILARITY_THRESHOLD=0.4`
 
 ---
 
-## Next up — Step 1.8 Excel charts pipeline
+## Step 1.8 — Excel charts pipeline (implemented)
 
-- Parse uploaded spreadsheets
-- Auto-generate charts and narrative insights
+### Backend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Resilience | `app/core/resilience.py` | Retry + exponential backoff + circuit breaker |
+| Profiling | `app/services/excel_profiling.py` | pandas read + column profiling |
+| Charts | `app/services/excel_charts.py` | LLM chart plan → chart data |
+| Service | `app/services/excel_service.py` | Analyze orchestration + cache |
+| Routes | `app/api/routes/excel.py` | Analyze + charts endpoints |
+| LLM | `app/services/llm_client.py` | Chart plan + summary (with retry) |
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/documents/{id}/analyze` | Profile, chart plan, insights (Excel only) |
+| GET | `/documents/{id}/charts` | Cached analysis results |
+
+### Resilience
+
+Configured in `config.yaml` → `resilience` and `backend/.env` (`RETRY_*`):
+
+- **Retry:** up to 4 attempts, exponential backoff with jitter (LLM + Storage)
+- **Circuit breaker:** opens after 5 failures, recovers after 60s
+
+### Database
+
+Run `supabase/migrations/004_excel_charts.sql` — adds `excel_profile`, `excel_charts`, `excel_summary`.
+
+### Frontend
+
+`/dashboard/excel/[id]` — auto-analyze on upload, bar chart previews, narrative summary.
+
+### Verify
+
+1. Run migration `004_excel_charts.sql`
+2. `pip install pandas openpyxl`
+3. Upload `.xlsx` or `.csv` → open from dashboard list
+4. Charts + insights appear after analysis
+
+---
+
+## Next up — Step 1.9 Quiz generator
+
+- Generate SCQ/MCQ from ingested documents
+- Score attempts and store results
