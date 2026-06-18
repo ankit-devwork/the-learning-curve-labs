@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   apiFetch,
+  type AskResponse,
   type DocumentSummary,
   type MultiAskResponse,
   type MultiRetrieveResponse,
@@ -40,6 +41,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
     () => new Set(pendingSources.map((source) => source.document_id)).size,
     [pendingSources],
   );
+  const hitlMode = selectedIds.length > 1;
 
   useEffect(() => {
     async function loadSession() {
@@ -75,6 +77,44 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       return next;
     });
   }, []);
+
+  async function handleAskSingle(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = question.trim();
+    const documentId = selectedIds[0];
+    if (!trimmed || !documentId || !accessToken) {
+      return;
+    }
+
+    setAsking(true);
+    setError(null);
+    try {
+      const response = await apiFetch(`/documents/${documentId}/ask`, accessToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(body.error || `Ask failed (${response.status})`);
+        return;
+      }
+
+      const data = (await response.json()) as AskResponse;
+      setMessages((prev) => [
+        ...prev,
+        {
+          question: trimmed,
+          answer: data.answer,
+          sources: data.sources,
+          cached: data.cached,
+        },
+      ]);
+      setQuestion("");
+    } finally {
+      setAsking(false);
+    }
+  }
 
   async function handleFindSources(event: React.FormEvent) {
     event.preventDefault();
@@ -164,7 +204,9 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       <CardHeader>
         <CardTitle>Multi-document chat</CardTitle>
         <CardDescription>
-          Step 1: find relevant passages. Step 2: review them, then generate an answer.
+          {hitlMode
+            ? "Step 1: find relevant passages. Step 2: review them, then generate an answer."
+            : "Select one document to ask directly, or select two or more to compare with source review."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -194,19 +236,34 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
               </div>
             </div>
 
-            <form onSubmit={handleFindSources} className="flex gap-2">
+            <form
+              onSubmit={(event) =>
+                void (hitlMode ? handleFindSources(event) : handleAskSingle(event))
+              }
+              className="flex gap-2"
+            >
               <Input
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Ask across selected documents..."
+                placeholder={
+                  hitlMode
+                    ? "Ask across selected documents..."
+                    : "Ask a question about the selected document..."
+                }
                 disabled={retrieving || asking || selectedIds.length === 0}
               />
               <Button type="submit" disabled={retrieving || asking || selectedIds.length === 0}>
-                {retrieving ? "Searching..." : "Find passages"}
+                {hitlMode
+                  ? retrieving
+                    ? "Searching..."
+                    : "Find passages"
+                  : asking
+                    ? "Thinking..."
+                    : "Ask"}
               </Button>
             </form>
 
-            {pendingSources.length > 0 && (
+            {hitlMode && pendingSources.length > 0 && (
               <div className="space-y-3 rounded-md border border-dashed p-4">
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Review passages before generating an answer</p>

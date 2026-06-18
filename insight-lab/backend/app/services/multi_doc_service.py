@@ -268,7 +268,7 @@ async def retrieve_multiple_documents(
         "question": question,
         "sources": sources,
         "retrieval_method": retrieval_method,
-        "hitl_required": True,
+        "hitl_required": len(sorted_ids) > 1,
     }
 
 
