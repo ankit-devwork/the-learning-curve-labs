@@ -94,7 +94,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        setError(body.error || `Could not find sources (${response.status})`);
+        setError(body.error || `Could not find passages (${response.status})`);
         return;
       }
 
@@ -164,7 +164,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       <CardHeader>
         <CardTitle>Multi-document chat</CardTitle>
         <CardDescription>
-          Step 1: find relevant passages. Step 2: review sources, then generate an answer.
+          Step 1: find relevant passages. Step 2: review them, then generate an answer.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -202,14 +202,14 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
                 disabled={retrieving || asking || selectedIds.length === 0}
               />
               <Button type="submit" disabled={retrieving || asking || selectedIds.length === 0}>
-                {retrieving ? "Finding..." : "Find sources"}
+                {retrieving ? "Searching..." : "Find passages"}
               </Button>
             </form>
 
             {pendingSources.length > 0 && (
               <div className="space-y-3 rounded-md border border-dashed p-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Review sources before generating an answer</p>
+                  <p className="text-sm font-medium">Review passages before generating an answer</p>
                   <p className="text-xs text-muted-foreground">
                     {pendingSources.length} passage{pendingSources.length === 1 ? "" : "s"} from{" "}
                     {pendingDocumentCount} document{pendingDocumentCount === 1 ? "" : "s"}. Uncheck
