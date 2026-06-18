@@ -2,6 +2,7 @@ import pytest
 
 from app.services.citations import (
     build_source_citations,
+    hash_document_ids,
     hash_source_refs,
     make_source_preview,
     strip_excerpt_markers,
@@ -35,6 +36,10 @@ def test_build_source_citations_uses_filename_not_chunk_label():
     assert sources[0]["chunk_index"] == 7
     assert "Retrieval augmented" in sources[0]["preview"]
     assert "chunk" not in sources[0]["preview"].lower()
+
+
+def test_hash_document_ids_stable():
+    assert hash_document_ids(["b", "a"]) == hash_document_ids(["a", "b"])
 
 
 def test_hash_source_refs_stable():

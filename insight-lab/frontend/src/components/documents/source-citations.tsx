@@ -152,7 +152,7 @@ export function SourceCitations({
                     )}
                     <span className="truncate">{filename}</span>
                     <span className="shrink-0 text-xs font-normal text-muted-foreground">
-                      {docSources.length} passage{docSources.length === 1 ? "" : "s"}
+                      {docSources.length} result{docSources.length === 1 ? "" : "s"}
                       {selectable && ` · ${selectedInGroup} selected`}
                     </span>
                   </button>

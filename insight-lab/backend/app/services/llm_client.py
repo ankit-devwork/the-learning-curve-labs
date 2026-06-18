@@ -283,6 +283,40 @@ async def extract_concepts_from_chunks(
     )
 
 
+async def generate_document_relevance_summary(
+    *,
+    question: str,
+    context_chunks: list[str],
+    filename: str,
+) -> str:
+    llm = get_yaml_config().llm
+    context = "\n\n".join(
+        tag_block(f"excerpt_{index + 1}", chunk) for index, chunk in enumerate(context_chunks)
+    )
+    prompt = (
+        "A user is choosing between documents to answer their question. "
+        f"Write 2-3 short paragraphs in plain language summarizing what the document "
+        f'"{filename}" says that is relevant to their question. '
+        "Help them decide if this document is the right one. "
+        "If the excerpts are not relevant, say that briefly. "
+        "Do not mention excerpt numbers or technical retrieval details.\n\n"
+        f"{tag_block('question', question)}\n\n"
+        f"{tag_block('excerpts', context[:8000])}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt(
+                    "You write clear, user-friendly document summaries for non-experts."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=min(llm.summary_max_tokens, 500),
+    )
+
+
 async def answer_multi_document_question(
     *,
     question: str,

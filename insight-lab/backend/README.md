@@ -159,8 +159,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/process` | **Bearer JWT** | Parse, chunk, summarize (Step 1.7) |
 | GET | `/documents/{id}/summary` | **Bearer JWT** | Cached summary from Redis/Postgres |
 | POST | `/documents/{id}/ask` | **Bearer JWT** | RAG chat over document chunks |
-| POST | `/documents/multi/retrieve` | **Bearer JWT** | HITL step 1 — find source passages for review |
-| POST | `/documents/multi/ask` | **Bearer JWT** | HITL step 2 — answer from approved sources |
+| POST | `/documents/multi/retrieve` | **Bearer JWT** | HITL step 1 — question-focused summary per document |
+| POST | `/documents/multi/ask` | **Bearer JWT** | HITL step 2 — answer from approved document IDs |
 | POST | `/documents/{id}/graph/sync` | **Bearer JWT** | Extract concepts + Neo4j sync |
 | GET | `/documents/{id}/graph` | **Bearer JWT** | Concept graph nodes/edges |
 | POST | `/documents/{id}/analyze` | **Bearer JWT** | Excel profile + charts + insights (Step 1.8) |

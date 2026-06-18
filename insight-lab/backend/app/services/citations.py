@@ -49,3 +49,10 @@ def hash_source_refs(refs: list[dict]) -> str:
     parts = sorted(f"{row['document_id']}:{row['chunk_index']}" for row in refs)
     joined = ",".join(parts)
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
+
+
+def hash_document_ids(document_ids: list[str]) -> str:
+    import hashlib
+
+    joined = ",".join(sorted(document_ids))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]

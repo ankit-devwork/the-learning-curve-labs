@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from typing import Any
 
@@ -9,9 +10,13 @@ from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
-from app.services.citations import build_source_citations, hash_source_refs, source_ref_key
+from app.services.citations import build_source_citations, hash_document_ids
 from app.services.embeddings import embed_text, search_workspace_chunks
-from app.services.llm_client import answer_multi_document_question, multi_chat_cache_key
+from app.services.llm_client import (
+    answer_multi_document_question,
+    generate_document_relevance_summary,
+    multi_chat_cache_key,
+)
 
 log = get_logger("multi_doc")
 
@@ -31,7 +36,7 @@ def _validate_owned_documents(
 
     result = (
         client.table("documents")
-        .select("id, filename, file_type, status")
+        .select("id, filename, file_type, status, summary")
         .in_("id", unique_ids)
         .eq("owner_id", user.id)
         .execute()
@@ -166,55 +171,61 @@ def _select_chunks_keyword(
     return chunks[:limit]
 
 
-def _load_approved_rows(
+def _fallback_document_summary(doc: dict[str, Any]) -> str:
+    stored = (doc.get("summary") or "").strip()
+    if stored:
+        return stored[:1200]
+    return "No summary is available for this document yet."
+
+
+async def _build_document_review_option(
     client: Client,
     *,
-    approved_sources: list[dict[str, Any]],
-    allowed_document_ids: set[str],
-) -> list[dict[str, Any]]:
-    if not approved_sources:
-        raise FileException("Select at least one source passage to generate an answer", status_code=400)
-
-    rows: list[dict[str, Any]] = []
-    for ref in approved_sources:
-        document_id = ref["document_id"]
-        chunk_index = ref["chunk_index"]
-        if document_id not in allowed_document_ids:
-            raise FileException("One or more approved sources are not in the selected documents", status_code=400)
-
-        result = (
-            client.table("document_chunks")
-            .select("document_id, chunk_index, content")
-            .eq("document_id", document_id)
-            .eq("chunk_index", chunk_index)
-            .limit(1)
-            .execute()
-        )
-        if not result.data:
-            raise FileException(
-                f"Source passage not found for document {document_id}",
-                status_code=400,
-            )
-        rows.append(result.data[0])
-
-    doc_result = (
-        client.table("documents")
-        .select("id, filename")
-        .in_("id", list({row["document_id"] for row in rows}))
-        .execute()
+    doc: dict[str, Any],
+    question: str,
+) -> dict[str, Any]:
+    doc_id = doc["id"]
+    filename = doc["filename"]
+    rows, _ = _retrieve_context_rows(
+        client,
+        document_ids=[doc_id],
+        question=question,
+        doc_map={doc_id: filename},
     )
-    doc_map = {row["id"]: row["filename"] for row in (doc_result.data or [])}
+    if rows:
+        summary = await generate_document_relevance_summary(
+            question=question,
+            context_chunks=[row["content"] for row in rows],
+            filename=filename,
+        )
+    else:
+        summary = _fallback_document_summary(doc)
 
-    return [
-        {
-            "document_id": row["document_id"],
-            "filename": doc_map.get(row["document_id"], "Document"),
-            "chunk_index": row["chunk_index"],
-            "content": row["content"],
-            "similarity": ref.get("similarity"),
-        }
-        for row, ref in zip(rows, approved_sources, strict=True)
-    ]
+    return {
+        "document_id": doc_id,
+        "filename": filename,
+        "summary": summary.strip(),
+        "selected": True,
+    }
+
+
+def _retrieve_rows_for_documents(
+    client: Client,
+    *,
+    document_ids: list[str],
+    question: str,
+    doc_map: dict[str, str],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for document_id in document_ids:
+        doc_rows, _ = _retrieve_context_rows(
+            client,
+            document_ids=[document_id],
+            question=question,
+            doc_map=doc_map,
+        )
+        rows.extend(doc_rows)
+    return rows
 
 
 async def retrieve_multiple_documents(
@@ -244,31 +255,29 @@ async def retrieve_multiple_documents(
     doc_map = {row["id"]: row["filename"] for row in docs}
     sorted_ids = sorted(doc_map.keys())
 
-    rows, retrieval_method = _retrieve_context_rows(
-        client,
-        document_ids=sorted_ids,
-        question=question,
-        doc_map=doc_map,
-    )
-    if not rows:
-        raise FileException("No document passages found for the selected documents", status_code=409)
+    if len(sorted_ids) == 1:
+        raise FileException(
+            "Document review is only needed when multiple documents are selected",
+            status_code=400,
+        )
 
-    sources = build_source_citations(rows)
-    for source in sources:
-        source["selected"] = True
+    review_options = await asyncio.gather(
+        *[
+            _build_document_review_option(client, doc=doc, question=question)
+            for doc in sorted(docs, key=lambda row: row["filename"].lower())
+        ]
+    )
 
     log.info(
-        "Multi-doc sources retrieved for review",
+        "Multi-doc document review prepared",
         user_id=user.id,
         document_count=len(sorted_ids),
-        source_count=len(sources),
     )
     return {
         "document_ids": sorted_ids,
         "question": question,
-        "sources": sources,
-        "retrieval_method": retrieval_method,
-        "hitl_required": len(sorted_ids) > 1,
+        "documents": list(review_options),
+        "hitl_required": True,
     }
 
 
@@ -278,11 +287,13 @@ async def ask_multiple_documents(
     *,
     document_ids: list[str],
     question: str,
-    approved_sources: list[dict[str, Any]],
+    approved_document_ids: list[str],
 ) -> dict[str, Any]:
     question = question.strip()
     if not question:
         raise FileException("Question is required")
+    if not approved_document_ids:
+        raise FileException("Select at least one document to continue", status_code=400)
 
     cfg = get_yaml_config().multi_doc
     allowed, retry_after = await check_rate_limit(
@@ -301,17 +312,27 @@ async def ask_multiple_documents(
     sorted_ids = sorted(doc_map.keys())
     allowed_ids = set(sorted_ids)
 
-    refs_hash = hash_source_refs(approved_sources)
-    cache_key = multi_chat_cache_key(user.id, sorted_ids, question, refs_hash)
+    unique_approved = list(dict.fromkeys(approved_document_ids))
+    for document_id in unique_approved:
+        if document_id not in allowed_ids:
+            raise FileException("One or more selected documents are not in the original selection", status_code=400)
+
+    approved_sorted = sorted(unique_approved)
+    docs_hash = hash_document_ids(approved_sorted)
+    cache_key = multi_chat_cache_key(user.id, sorted_ids, question, docs_hash)
     cached = await cache_get(cache_key)
     if cached:
         return {**cached, "cached": True}
 
-    context_rows = _load_approved_rows(
+    context_rows = _retrieve_rows_for_documents(
         client,
-        approved_sources=approved_sources,
-        allowed_document_ids=allowed_ids,
+        document_ids=approved_sorted,
+        question=question,
+        doc_map=doc_map,
     )
+    if not context_rows:
+        raise FileException("No document passages found for the selected documents", status_code=409)
+
     sources = build_source_citations(context_rows)
 
     llm_result = await answer_multi_document_question(
@@ -319,7 +340,7 @@ async def ask_multiple_documents(
         context_chunks=context_rows,
     )
     payload = {
-        "document_ids": sorted_ids,
+        "document_ids": approved_sorted,
         "question": question,
         "answer": llm_result["answer"],
         "sources": sources,
@@ -327,9 +348,9 @@ async def ask_multiple_documents(
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
     log.info(
-        "Multi-doc chat answered after HITL approval",
+        "Multi-doc chat answered after document selection",
         user_id=user.id,
-        document_count=len(sorted_ids),
+        document_count=len(approved_sorted),
         source_count=len(sources),
     )
     return payload
