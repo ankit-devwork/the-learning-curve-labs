@@ -107,14 +107,21 @@ def aggregate_status(checks: dict[str, dict[str, Any]]) -> tuple[str, int]:
     return "ready", 200
 
 
-async def run_readiness_checks() -> tuple[dict[str, Any], int]:
-    checks = {
-        "api": {"status": "ok"},
-        "config": config_diagnostics(),
-        "redis": await check_redis(),
-        "neo4j": await check_neo4j(),
-        "supabase": await check_supabase(),
-        "llm": check_llm(),
-    }
+async def run_readiness_checks(*, detailed: bool = True) -> tuple[dict[str, Any], int]:
+    if detailed:
+        checks = {
+            "api": {"status": "ok"},
+            "config": config_diagnostics(),
+            "redis": await check_redis(),
+            "neo4j": await check_neo4j(),
+            "supabase": await check_supabase(),
+            "llm": check_llm(),
+        }
+    else:
+        checks = {
+            "api": {"status": "ok"},
+            "redis": await check_redis(),
+            "supabase": await check_supabase(),
+        }
     overall, status_code = aggregate_status(checks)
     return {"status": overall, "checks": checks}, status_code

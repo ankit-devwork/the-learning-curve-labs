@@ -44,3 +44,19 @@ def test_rejects_bad_pdf_signature():
 
 def test_sanitize_filename():
     assert sanitize_filename("My File (1).pdf", max_length=255) == "My File _1_.pdf"
+
+
+def test_validate_csv_upload():
+    content = b"region,sales\nNorth,100\n"
+    result = validate_upload(
+        filename="sales.csv",
+        content=content,
+        mime_type="text/csv",
+    )
+    assert result.file_type == "excel"
+    assert result.extension == ".csv"
+
+
+def test_rejects_invalid_csv_content():
+    with pytest.raises(FileException, match="UTF-8"):
+        validate_upload(filename="sales.csv", content=b"\xff\xfe", mime_type="text/csv")

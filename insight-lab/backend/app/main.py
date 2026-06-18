@@ -53,6 +53,9 @@ app = FastAPI(
     description="InsightLab — Excel insights, document chat, and AI quizzes",
     version="0.2.0",
     lifespan=lifespan,
+    docs_url="/docs" if get_yaml_config().app.env.lower() in {"development", "dev", "local"} else None,
+    redoc_url="/redoc" if get_yaml_config().app.env.lower() in {"development", "dev", "local"} else None,
+    openapi_url="/openapi.json" if get_yaml_config().app.env.lower() in {"development", "dev", "local"} else None,
 )
 
 _cors_origins = os.getenv(
@@ -63,8 +66,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in _cors_origins.split(",") if origin.strip()],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 app.add_middleware(RequestTracingMiddleware)
 

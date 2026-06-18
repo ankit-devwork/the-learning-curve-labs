@@ -116,7 +116,7 @@ async def generate_document_quiz(
         difficulty=difficulty,
         num_questions=num_questions,
     )
-    cache_key = quiz_cache_key(document_id, settings)
+    cache_key = quiz_cache_key(user.id, document_id, settings)
     cached = await cache_get(cache_key)
     if cached and cached.get("quiz_id"):
         quiz = _get_owned_quiz(client, cached["quiz_id"], user)

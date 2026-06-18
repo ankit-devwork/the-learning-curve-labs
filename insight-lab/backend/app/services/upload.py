@@ -108,7 +108,6 @@ def upload_document(
         "file_type": row["file_type"],
         "mime_type": row.get("mime_type"),
         "status": row["status"],
-        "storage_path": row["storage_path"],
         "created_at": row["created_at"],
     }
 

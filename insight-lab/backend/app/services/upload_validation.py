@@ -76,7 +76,23 @@ def _validate_mime_type(
         )
 
 
+def _validate_csv_content(content: bytes) -> None:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise FileException("CSV files must be UTF-8 encoded") from exc
+    lines = [line for line in text.splitlines() if line.strip()]
+    if len(lines) < 1:
+        raise FileException("CSV file has no readable rows")
+    if len(lines[0].split(",")) < 1:
+        raise FileException("CSV file must contain comma-separated values")
+
+
 def _validate_signature(content: bytes, extension: str, file_type: str, upload: UploadSection) -> None:
+    if extension == ".csv" and file_type == "excel":
+        _validate_csv_content(content)
+        return
+
     type_config = upload.type_config(file_type)
     signature_hex = type_config.signatures.get(extension, "")
     if not signature_hex:

@@ -17,7 +17,13 @@ from app.services.embeddings import (
     embed_texts_batched,
     search_similar_chunks,
 )
-from app.services.llm_client import answer_question, generate_summary, question_cache_key
+from app.core.safe_errors import GENERIC_PROCESSING_ERROR, sanitize_stored_error
+from app.services.llm_client import (
+    answer_question,
+    generate_summary,
+    question_cache_key,
+    summary_cache_key,
+)
 
 log = get_logger("documents")
 
@@ -53,22 +59,22 @@ async def get_document(client: Client, document_id: str, user: AuthUser) -> dict
         "mime_type": doc.get("mime_type"),
         "status": doc["status"],
         "summary": doc.get("summary"),
-        "error_message": doc.get("error_message"),
+        "error_message": sanitize_stored_error(doc.get("error_message")),
         "created_at": doc["created_at"],
         "processed_at": doc.get("processed_at"),
     }
 
 
 async def get_document_summary(client: Client, document_id: str, user: AuthUser) -> dict:
-    cache_cfg = get_yaml_config().cache
-    cache_key = f"summary:document:{document_id}"
-    cached = await cache_get(cache_key)
-    if cached:
-        return {**cached, "cached": True}
-
     doc = _get_owned_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Summaries are only available for document uploads")
+
+    cache_cfg = get_yaml_config().cache
+    cache_key = summary_cache_key(user.id, document_id)
+    cached = await cache_get(cache_key)
+    if cached:
+        return {**cached, "cached": True}
 
     if doc["status"] != "ready" or not doc.get("summary"):
         raise FileException("Document is not processed yet", status_code=409)
@@ -152,7 +158,7 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
             .execute()
         )
         row = updated.data[0] if updated.data else doc
-        cache_key = f"summary:document:{document_id}"
+        cache_key = summary_cache_key(user.id, document_id)
         await cache_set(
             cache_key,
             {
@@ -182,11 +188,11 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
         ).eq("id", document_id).execute()
         raise
     except Exception as exc:
-        message = str(exc)
+        log.exception("Document processing failed", document_id=document_id, user_id=user.id)
         client.table("documents").update(
-            {"status": "failed", "error_message": message}
+            {"status": "failed", "error_message": GENERIC_PROCESSING_ERROR}
         ).eq("id", document_id).execute()
-        raise FileException(f"Document processing failed: {message}", status_code=500) from exc
+        raise FileException(GENERIC_PROCESSING_ERROR, status_code=500) from exc
 
 
 def _select_relevant_chunks_keyword(chunks: list[dict], question: str, *, limit: int) -> list[str]:
@@ -252,16 +258,16 @@ async def ask_document(
             retry_after=retry_after,
         )
 
-    cache_key = question_cache_key(document_id, question)
-    cached = await cache_get(cache_key)
-    if cached:
-        return {**cached, "cached": True}
-
     doc = _get_owned_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Chat is only available for document uploads")
     if doc["status"] != "ready":
         raise FileException("Document must be processed before asking questions", status_code=409)
+
+    cache_key = question_cache_key(user.id, document_id, question)
+    cached = await cache_get(cache_key)
+    if cached:
+        return {**cached, "cached": True}
 
     chunks_result = (
         client.table("document_chunks")
