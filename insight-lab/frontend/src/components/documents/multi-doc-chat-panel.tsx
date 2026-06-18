@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   apiFetch,
@@ -35,6 +35,10 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
 
   const readyDocuments = documents.filter(
     (doc) => doc.file_type === "document" && doc.status === "ready",
+  );
+  const pendingDocumentCount = useMemo(
+    () => new Set(pendingSources.map((source) => source.document_id)).size,
+    [pendingSources],
   );
 
   useEffect(() => {
@@ -204,12 +208,20 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
 
             {pendingSources.length > 0 && (
               <div className="space-y-3 rounded-md border border-dashed p-4">
-                <p className="text-sm font-medium">Review sources before generating an answer</p>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Review sources before generating an answer</p>
+                  <p className="text-xs text-muted-foreground">
+                    {pendingSources.length} passage{pendingSources.length === 1 ? "" : "s"} from{" "}
+                    {pendingDocumentCount} document{pendingDocumentCount === 1 ? "" : "s"}. Uncheck
+                    any you do not need.
+                  </p>
+                </div>
                 <SourceCitations
                   sources={pendingSources}
                   selectable
                   selectedKeys={selectedSourceKeys}
                   onToggle={toggleSource}
+                  groupByDocument
                 />
                 <Button type="button" disabled={asking} onClick={() => void handleGenerateAnswer()}>
                   {asking ? "Generating..." : "Generate answer"}

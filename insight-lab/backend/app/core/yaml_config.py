@@ -103,7 +103,8 @@ class AdaptiveQuizSection(BaseModel):
 class MultiDocSection(BaseModel):
     chat_rate_limit_per_min: int = 20
     max_documents: int = 10
-    max_context_chunks: int = 10
+    max_context_chunks: int = 6
+    max_chunks_per_document: int = 3
     chat_max_tokens: int = 800
 
 
