@@ -23,7 +23,7 @@ Part of [The Learning Curve Labs](https://github.com/ankit-devwork/the-learning-
 | Backend | FastAPI, LangGraph, LiteLLM |
 | Observability | pycorekit, Langfuse |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design. For production on AWS, see [docs/DEPLOY-EC2.md](docs/DEPLOY-EC2.md).
 
 ## Repository structure
 
@@ -86,6 +86,12 @@ npm run dev
 - Login: http://localhost:3000/login
 
 See [frontend/README.md](frontend/README.md) for Google OAuth setup in Supabase.
+
+## Deploy (EC2 pilot)
+
+Minimal production setup: API on EC2 (nginx + uvicorn), frontend on Vercel, Supabase hosted.
+
+See **[docs/DEPLOY-EC2.md](docs/DEPLOY-EC2.md)** for step-by-step instructions (systemd, nginx, env template, Supabase Auth URLs, smoke tests).
 
 ## Environment variables
 
