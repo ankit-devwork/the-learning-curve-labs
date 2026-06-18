@@ -19,6 +19,30 @@ function sourceKey(source: SourceCitation): string {
   return `${source.document_id}:${source.chunk_index ?? source.id}`;
 }
 
+function collapseSourcesByDocument(sources: SourceCitation[]): SourceCitation[] {
+  const bestByDocument = new Map<string, SourceCitation>();
+  for (const source of sources) {
+    const existing = bestByDocument.get(source.document_id);
+    if (!existing || (source.similarity ?? 0) > (existing.similarity ?? 0)) {
+      bestByDocument.set(source.document_id, source);
+    }
+  }
+
+  const ordered: SourceCitation[] = [];
+  const seen = new Set<string>();
+  for (const source of sources) {
+    if (seen.has(source.document_id)) {
+      continue;
+    }
+    seen.add(source.document_id);
+    const best = bestByDocument.get(source.document_id);
+    if (best) {
+      ordered.push(best);
+    }
+  }
+  return ordered;
+}
+
 function SourceCard({
   source,
   selectable,
@@ -44,7 +68,7 @@ function SourceCard({
             className="mt-1"
             checked={checked}
             onChange={() => onToggle(source)}
-                    aria-label={`Include source from ${source.filename}`}
+            aria-label={`Include source from ${source.filename}`}
           />
         )}
         <div className="min-w-0 flex-1">
@@ -52,11 +76,6 @@ function SourceCard({
           <p className={cn("whitespace-pre-wrap text-muted-foreground", !selectable && "mt-1")}>
             {source.preview}
           </p>
-          {source.similarity != null && source.similarity > 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Match strength: {Math.round(source.similarity * 100)}%
-            </p>
-          )}
         </div>
       </div>
     </div>
@@ -73,9 +92,14 @@ export function SourceCitations({
 }: SourceCitationsProps) {
   const [collapsedDocs, setCollapsedDocs] = useState<Set<string>>(new Set());
 
+  const displaySources = useMemo(
+    () => (selectable ? sources : collapseSourcesByDocument(sources)),
+    [selectable, sources],
+  );
+
   const groups = useMemo(() => {
     const byDocument = new Map<string, { filename: string; sources: SourceCitation[] }>();
-    for (const source of sources) {
+    for (const source of displaySources) {
       const existing = byDocument.get(source.document_id);
       if (existing) {
         existing.sources.push(source);
@@ -84,13 +108,29 @@ export function SourceCitations({
       }
     }
     return Array.from(byDocument.entries());
-  }, [sources]);
+  }, [displaySources]);
 
-  const shouldGroup =
-    groupByDocument ?? (selectable && groups.length > 1);
+  const shouldGroup = groupByDocument ?? (selectable && groups.length > 1);
 
   if (sources.length === 0) {
     return null;
+  }
+
+  if (!selectable) {
+    return (
+      <div className={cn("space-y-2", className)}>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Based on
+        </p>
+        <ul className="space-y-1">
+          {displaySources.map((source) => (
+            <li key={source.document_id} className="text-sm text-muted-foreground">
+              {source.filename}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   }
 
   function toggleGroup(documentId: string) {
@@ -201,7 +241,7 @@ export function SourceCitations({
               </div>
             );
           })
-        : sources.map((source) => {
+        : displaySources.map((source) => {
             const key = sourceKey(source);
             const checked = selectable
               ? (selectedKeys?.has(key) ?? source.selected ?? true)

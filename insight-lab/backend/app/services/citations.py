@@ -1,13 +1,49 @@
 import re
 
-SOURCE_PREVIEW_MAX = 280
+SOURCE_PREVIEW_MAX = 420
 
 
 def make_source_preview(content: str, *, max_len: int = SOURCE_PREVIEW_MAX) -> str:
     collapsed = " ".join(content.split())
     if len(collapsed) <= max_len:
         return collapsed
-    return collapsed[: max_len - 1].rstrip() + "…"
+
+    excerpt = collapsed[:max_len]
+    for separator in (". ", "? ", "! ", "; "):
+        boundary = excerpt.rfind(separator)
+        if boundary >= int(max_len * 0.55):
+            return excerpt[: boundary + len(separator)].strip()
+
+    word_boundary = excerpt.rfind(" ")
+    if word_boundary >= int(max_len * 0.65):
+        return excerpt[:word_boundary].rstrip() + "…"
+
+    return excerpt.rstrip() + "…"
+
+
+def collapse_sources_by_document(sources: list[dict]) -> list[dict]:
+    """Keep one display row per document, preferring the strongest match."""
+    best_by_document: dict[str, dict] = {}
+    for source in sources:
+        document_id = source["document_id"]
+        existing = best_by_document.get(document_id)
+        if existing is None:
+            best_by_document[document_id] = source
+            continue
+        current_score = source.get("similarity") or 0
+        existing_score = existing.get("similarity") or 0
+        if current_score > existing_score:
+            best_by_document[document_id] = source
+
+    ordered: list[dict] = []
+    seen: set[str] = set()
+    for source in sources:
+        document_id = source["document_id"]
+        if document_id in seen:
+            continue
+        seen.add(document_id)
+        ordered.append(best_by_document[document_id])
+    return ordered
 
 
 def strip_excerpt_markers(answer: str) -> str:

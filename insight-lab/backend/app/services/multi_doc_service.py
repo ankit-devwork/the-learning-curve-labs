@@ -10,7 +10,7 @@ from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
-from app.services.citations import build_source_citations, hash_document_ids
+from app.services.citations import build_source_citations, collapse_sources_by_document, hash_document_ids
 from app.services.embeddings import embed_text, search_workspace_chunks
 from app.services.llm_client import (
     answer_multi_document_question,
@@ -333,7 +333,7 @@ async def ask_multiple_documents(
     if not context_rows:
         raise FileException("No document passages found for the selected documents", status_code=409)
 
-    sources = build_source_citations(context_rows)
+    sources = collapse_sources_by_document(build_source_citations(context_rows))
 
     llm_result = await answer_multi_document_question(
         question=question,
