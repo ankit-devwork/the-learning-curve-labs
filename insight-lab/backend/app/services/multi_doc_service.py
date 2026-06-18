@@ -52,6 +52,44 @@ def _validate_owned_documents(
     return rows
 
 
+def _similarity_score(row: dict[str, Any]) -> float:
+    value = row.get("similarity")
+    return float(value) if value is not None else 0.0
+
+
+def _diversify_context_rows(
+    rows: list[dict[str, Any]],
+    *,
+    limit: int,
+    max_per_document: int,
+) -> list[dict[str, Any]]:
+    """Spread results across documents so one large file does not dominate HITL review."""
+    if not rows or limit <= 0:
+        return []
+
+    per_doc_cap = max(1, max_per_document)
+    sorted_rows = sorted(rows, key=_similarity_score, reverse=True)
+    per_doc: dict[str, int] = {}
+    selected: list[dict[str, Any]] = []
+
+    for row in sorted_rows:
+        doc_id = row["document_id"]
+        if per_doc.get(doc_id, 0) >= per_doc_cap:
+            continue
+        selected.append(row)
+        per_doc[doc_id] = per_doc.get(doc_id, 0) + 1
+        if len(selected) >= limit:
+            break
+
+    return selected
+
+
+def _retrieve_candidate_limit(cfg: Any, document_count: int) -> int:
+    """Fetch extra candidates so per-document caps can still fill the review list."""
+    per_doc_cap = max(1, cfg.max_chunks_per_document)
+    return min(cfg.max_context_chunks * max(document_count, 1), per_doc_cap * document_count * 4)
+
+
 def _retrieve_context_rows(
     client: Client,
     *,
@@ -61,13 +99,14 @@ def _retrieve_context_rows(
 ) -> tuple[list[dict[str, Any]], str]:
     cfg = get_yaml_config().multi_doc
     sorted_ids = sorted(document_ids)
+    candidate_limit = _retrieve_candidate_limit(cfg, len(sorted_ids))
 
     query_embedding = embed_text(question)
     matches = search_workspace_chunks(
         client,
         document_ids=sorted_ids,
         query_embedding=query_embedding,
-        limit=cfg.max_context_chunks,
+        limit=candidate_limit,
         threshold=get_yaml_config().embeddings.similarity_threshold,
     )
     retrieval_method = "vector"
@@ -76,11 +115,11 @@ def _retrieve_context_rows(
             client,
             document_ids=sorted_ids,
             question=question,
-            limit=cfg.max_context_chunks,
+            limit=candidate_limit,
         )
         retrieval_method = "keyword"
 
-    rows = [
+    raw_rows = [
         {
             "document_id": row["document_id"],
             "filename": doc_map[row["document_id"]],
@@ -90,6 +129,11 @@ def _retrieve_context_rows(
         }
         for row in matches
     ]
+    rows = _diversify_context_rows(
+        raw_rows,
+        limit=cfg.max_context_chunks,
+        max_per_document=cfg.max_chunks_per_document,
+    )
     return rows, retrieval_method
 
 
@@ -224,7 +268,7 @@ async def retrieve_multiple_documents(
         "question": question,
         "sources": sources,
         "retrieval_method": retrieval_method,
-        "hitl_required": True,
+        "hitl_required": len(sorted_ids) > 1,
     }
 
 

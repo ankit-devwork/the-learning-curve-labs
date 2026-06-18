@@ -108,7 +108,8 @@ adaptive_quiz:
 multi_doc:
   chat_rate_limit_per_min: 20
   max_documents: 10
-  max_context_chunks: 10
+  max_context_chunks: 6
+  max_chunks_per_document: 3
   chat_max_tokens: 800
 
 resilience:

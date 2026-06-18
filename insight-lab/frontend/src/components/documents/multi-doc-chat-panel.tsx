@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   apiFetch,
+  type AskResponse,
   type DocumentSummary,
   type MultiAskResponse,
   type MultiRetrieveResponse,
@@ -36,6 +37,11 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   const readyDocuments = documents.filter(
     (doc) => doc.file_type === "document" && doc.status === "ready",
   );
+  const pendingDocumentCount = useMemo(
+    () => new Set(pendingSources.map((source) => source.document_id)).size,
+    [pendingSources],
+  );
+  const hitlMode = selectedIds.length > 1;
 
   useEffect(() => {
     async function loadSession() {
@@ -72,6 +78,44 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
     });
   }, []);
 
+  async function handleAskSingle(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = question.trim();
+    const documentId = selectedIds[0];
+    if (!trimmed || !documentId || !accessToken) {
+      return;
+    }
+
+    setAsking(true);
+    setError(null);
+    try {
+      const response = await apiFetch(`/documents/${documentId}/ask`, accessToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(body.error || `Ask failed (${response.status})`);
+        return;
+      }
+
+      const data = (await response.json()) as AskResponse;
+      setMessages((prev) => [
+        ...prev,
+        {
+          question: trimmed,
+          answer: data.answer,
+          sources: data.sources,
+          cached: data.cached,
+        },
+      ]);
+      setQuestion("");
+    } finally {
+      setAsking(false);
+    }
+  }
+
   async function handleFindSources(event: React.FormEvent) {
     event.preventDefault();
     const trimmed = question.trim();
@@ -90,7 +134,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        setError(body.error || `Could not find sources (${response.status})`);
+        setError(body.error || `Could not search documents (${response.status})`);
         return;
       }
 
@@ -110,7 +154,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
 
     const approved = pendingSources.filter((source) => selectedSourceKeys.has(sourceKey(source)));
     if (approved.length === 0) {
-      setError("Select at least one source passage to generate an answer.");
+      setError("Select at least one source to continue.");
       return;
     }
 
@@ -158,15 +202,16 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Multi-document chat</CardTitle>
+        <CardTitle>Document chat</CardTitle>
         <CardDescription>
-          Step 1: find relevant passages. Step 2: review sources, then generate an answer.
+          Select one or more documents and ask a question. With multiple documents selected, you
+          can review sources before the answer is generated.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {readyDocuments.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Upload and process at least one document to use multi-doc chat.
+            Upload and process at least one document to use document chat.
           </p>
         ) : (
           <>
@@ -190,29 +235,42 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
               </div>
             </div>
 
-            <form onSubmit={handleFindSources} className="flex gap-2">
+            <form
+              onSubmit={(event) =>
+                void (hitlMode ? handleFindSources(event) : handleAskSingle(event))
+              }
+              className="flex gap-2"
+            >
               <Input
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Ask across selected documents..."
+                placeholder="Ask a question..."
                 disabled={retrieving || asking || selectedIds.length === 0}
               />
               <Button type="submit" disabled={retrieving || asking || selectedIds.length === 0}>
-                {retrieving ? "Finding..." : "Find sources"}
+                {retrieving || asking ? "Thinking..." : "Ask"}
               </Button>
             </form>
 
-            {pendingSources.length > 0 && (
+            {hitlMode && pendingSources.length > 0 && (
               <div className="space-y-3 rounded-md border border-dashed p-4">
-                <p className="text-sm font-medium">Review sources before generating an answer</p>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Review sources</p>
+                  <p className="text-xs text-muted-foreground">
+                    {pendingSources.length} result{pendingSources.length === 1 ? "" : "s"} from{" "}
+                    {pendingDocumentCount} document{pendingDocumentCount === 1 ? "" : "s"}. Uncheck
+                    any you do not need.
+                  </p>
+                </div>
                 <SourceCitations
                   sources={pendingSources}
                   selectable
                   selectedKeys={selectedSourceKeys}
                   onToggle={toggleSource}
+                  groupByDocument
                 />
                 <Button type="button" disabled={asking} onClick={() => void handleGenerateAnswer()}>
-                  {asking ? "Generating..." : "Generate answer"}
+                  {asking ? "Thinking..." : "Continue"}
                 </Button>
               </div>
             )}
