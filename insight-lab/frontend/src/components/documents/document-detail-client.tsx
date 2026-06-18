@@ -263,12 +263,6 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
         </CardContent>
       </Card>
 
-      <ConceptGraphPanel
-        documentId={documentId}
-        ready={document.status === "ready"}
-        accessToken={accessToken}
-      />
-
       <DocumentQuizPanel
         documentId={documentId}
         ready={document.status === "ready"}
