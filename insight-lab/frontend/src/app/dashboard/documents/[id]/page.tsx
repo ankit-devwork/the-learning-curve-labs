@@ -19,7 +19,7 @@ export default async function DocumentDetailPage({
 
   return (
     <div className="min-h-screen bg-muted/40">
-      <main className="mx-auto max-w-5xl p-4 py-8">
+      <main className="mx-auto max-w-6xl p-4 py-6">
         <DocumentDetailClient documentId={id} />
       </main>
     </div>
