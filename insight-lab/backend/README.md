@@ -167,6 +167,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/charts/custom` | **Bearer JWT** | Custom chart from selected columns |
 | POST | `/documents/{id}/excel/ask` | **Bearer JWT** | Grounded Q&A over spreadsheet profile + charts (Phase 2) |
 | POST | `/documents/{id}/quiz/generate` | **Bearer JWT** | Generate quiz from document chunks (Step 1.9) |
+| POST | `/documents/{id}/quiz/adaptive/generate` | **Bearer JWT** | Adaptive quiz targeting weak concepts |
+| GET | `/documents/{id}/concepts/mastery` | **Bearer JWT** | Per-concept mastery scores |
 | GET | `/documents/{id}/quiz` | **Bearer JWT** | Latest quiz for document |
 | POST | `/quizzes/{id}/submit` | **Bearer JWT** | Submit quiz answers and get score |
 | GET | `/docs` | No | OpenAPI UI (development only) |
