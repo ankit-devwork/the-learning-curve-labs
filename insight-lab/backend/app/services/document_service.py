@@ -19,7 +19,7 @@ from app.services.embeddings import (
 )
 from app.core.safe_errors import GENERIC_PROCESSING_ERROR, sanitize_stored_error
 from app.services.graph_service import sync_document_graph
-from app.services.citations import build_source_citations
+from app.services.citations import build_source_citations, collapse_sources_by_document
 from app.services.llm_client import (
     answer_question,
     generate_summary,
@@ -310,10 +310,12 @@ async def ask_document(
         selected_rows = _select_relevant_chunks_keyword(chunks, question, limit=limit)
         retrieval_method = "keyword"
 
-    sources = build_source_citations(
-        selected_rows,
-        filename=doc["filename"],
-        document_id=document_id,
+    sources = collapse_sources_by_document(
+        build_source_citations(
+            selected_rows,
+            filename=doc["filename"],
+            document_id=document_id,
+        )
     )
     context_chunks = [row["content"] for row in selected_rows]
 
