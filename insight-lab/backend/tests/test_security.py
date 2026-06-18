@@ -58,11 +58,13 @@ def test_graph_cache_key_scoped_to_user():
 
 
 def test_multi_chat_cache_key_scoped_to_user_and_docs():
-    key_a = multi_chat_cache_key("user-a", ["doc-1", "doc-2"], "What is RAG?")
-    key_b = multi_chat_cache_key("user-b", ["doc-1", "doc-2"], "What is RAG?")
-    key_c = multi_chat_cache_key("user-a", ["doc-2"], "What is RAG?")
+    key_a = multi_chat_cache_key("user-a", ["doc-1", "doc-2"], "What is RAG?", "refs-1")
+    key_b = multi_chat_cache_key("user-b", ["doc-1", "doc-2"], "What is RAG?", "refs-1")
+    key_c = multi_chat_cache_key("user-a", ["doc-2"], "What is RAG?", "refs-1")
+    key_d = multi_chat_cache_key("user-a", ["doc-1", "doc-2"], "What is RAG?", "refs-2")
     assert key_a != key_b
     assert key_a != key_c
+    assert key_a != key_d
 
 
 def test_tag_block_strips_nested_tags():

@@ -19,6 +19,7 @@ from app.services.embeddings import (
 )
 from app.core.safe_errors import GENERIC_PROCESSING_ERROR, sanitize_stored_error
 from app.services.graph_service import sync_document_graph
+from app.services.citations import build_source_citations
 from app.services.llm_client import (
     answer_question,
     generate_summary,
@@ -209,19 +210,19 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
         raise FileException(GENERIC_PROCESSING_ERROR, status_code=500) from exc
 
 
-def _select_relevant_chunks_keyword(chunks: list[dict], question: str, *, limit: int) -> list[str]:
+def _select_relevant_chunks_keyword(chunks: list[dict], question: str, *, limit: int) -> list[dict]:
     terms = {term.lower() for term in question.split() if len(term) > 2}
-    scored: list[tuple[int, str]] = []
+    scored: list[tuple[int, dict]] = []
     for row in chunks:
         content = row["content"]
         lower = content.lower()
         score = sum(lower.count(term) for term in terms)
-        scored.append((score, content))
+        scored.append((score, row))
     scored.sort(key=lambda item: item[0], reverse=True)
-    selected = [content for score, content in scored if score > 0][:limit]
+    selected = [row for score, row in scored if score > 0][:limit]
     if selected:
         return selected
-    return [row["content"] for row in chunks[:limit]]
+    return chunks[:limit]
 
 
 def _select_relevant_chunks_vector(
@@ -230,7 +231,7 @@ def _select_relevant_chunks_vector(
     document_id: str,
     question: str,
     limit: int,
-) -> tuple[list[str], str, list[float]]:
+) -> tuple[list[dict], str]:
     cfg = get_yaml_config().embeddings
     query_vector = embed_text(question)
     matches = search_similar_chunks(
@@ -241,12 +242,16 @@ def _select_relevant_chunks_vector(
         threshold=cfg.similarity_threshold,
     )
     if matches:
-        return (
-            [row["content"] for row in matches],
-            "vector",
-            [float(row.get("similarity", 0)) for row in matches],
-        )
-    return [], "vector", []
+        rows = [
+            {
+                "chunk_index": row["chunk_index"],
+                "content": row["content"],
+                "similarity": float(row.get("similarity", 0)),
+            }
+            for row in matches
+        ]
+        return rows, "vector"
+    return [], "vector"
 
 
 async def ask_document(
@@ -295,29 +300,34 @@ async def ask_document(
         raise FileException("No document chunks found; reprocess the document", status_code=409)
 
     limit = get_yaml_config().documents.max_context_chunks
-    selected, retrieval_method, similarities = _select_relevant_chunks_vector(
+    selected_rows, retrieval_method = _select_relevant_chunks_vector(
         client,
         document_id=document_id,
         question=question,
         limit=limit,
     )
-    if not selected:
-        selected = _select_relevant_chunks_keyword(chunks, question, limit=limit)
+    if not selected_rows:
+        selected_rows = _select_relevant_chunks_keyword(chunks, question, limit=limit)
         retrieval_method = "keyword"
-        similarities = []
+
+    sources = build_source_citations(
+        selected_rows,
+        filename=doc["filename"],
+        document_id=document_id,
+    )
+    context_chunks = [row["content"] for row in selected_rows]
 
     llm_result = await answer_question(
         question=question,
-        context_chunks=selected,
+        context_chunks=context_chunks,
         filename=doc["filename"],
     )
     payload = {
         "document_id": document_id,
         "question": question,
         "answer": llm_result["answer"],
-        "cited_chunks": llm_result["cited_chunks"],
+        "sources": sources,
         "retrieval_method": retrieval_method,
-        "chunk_similarities": similarities,
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)

@@ -99,6 +99,7 @@ async def root():
         "excel_charts": "/documents/{id}/charts",
         "excel_custom_chart": "/documents/{id}/charts/custom",
         "excel_ask": "/documents/{id}/excel/ask",
+        "multi_doc_retrieve": "/documents/multi/retrieve",
         "multi_doc_ask": "/documents/multi/ask",
         "graph_sync": "/documents/{id}/graph/sync",
         "graph_get": "/documents/{id}/graph",

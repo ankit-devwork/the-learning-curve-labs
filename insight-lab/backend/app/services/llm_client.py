@@ -10,6 +10,7 @@ from app.core.exceptions import ServiceUnavailableException
 from app.core.llm_prompts import grounded_system_prompt, tag_block
 from app.core.resilience import llm_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
+from app.services.citations import strip_excerpt_markers
 
 
 def _llm_model() -> str:
@@ -72,12 +73,15 @@ async def answer_question(
     prompt = (
         "Answer the question using ONLY the provided document excerpts. "
         "If the answer is not in the excerpts, say you don't know based on this document. "
-        "Keep the answer concise and cite excerpt numbers like [excerpt_2] when relevant.\n\n"
+        "Write a clear, concise answer in plain language. "
+        f"You may refer to the document as \"{filename}\" but do NOT use excerpt numbers, "
+        "chunk numbers, or bracket citations like [excerpt_1] in your answer. "
+        "Source passages are shown separately to the user.\n\n"
         f"{tag_block('filename', filename)}\n\n"
         f"{tag_block('excerpts', context)}\n\n"
         f"{tag_block('question', question)}"
     )
-    answer = await _acompletion_with_resilience(
+    raw_answer = await _acompletion_with_resilience(
         messages=[
             {
                 "role": "system",
@@ -91,10 +95,7 @@ async def answer_question(
         ],
         max_tokens=llm.chat_max_tokens,
     )
-    cited = sorted({int(n) for n in re.findall(r"\[excerpt_(\d+)\]", answer, flags=re.IGNORECASE)})
-    if not cited:
-        cited = sorted({int(n) for n in re.findall(r"\[Chunk (\d+)\]", answer)})
-    return {"answer": answer, "cited_chunks": cited}
+    return {"answer": strip_excerpt_markers(raw_answer)}
 
 
 async def generate_excel_chart_plan(*, profile: dict, filename: str) -> str:
@@ -291,18 +292,22 @@ async def answer_multi_document_question(
     context = "\n\n".join(
         tag_block(
             f"excerpt_{index + 1}",
-            f"Document: {chunk['filename']} (chunk {chunk['chunk_index']})\n{chunk['content']}",
+            f"Document: {chunk['filename']}\n{chunk['content']}",
         )
         for index, chunk in enumerate(context_chunks)
     )
+    filenames = ", ".join(sorted({chunk["filename"] for chunk in context_chunks}))
     prompt = (
         "Answer the question using ONLY the provided excerpts from multiple documents. "
         "If the answer is not in the excerpts, say you don't know based on these documents. "
-        "Cite sources like [excerpt_2] and mention document filenames when relevant.\n\n"
+        "Write a clear answer in plain language. "
+        f"You may name source documents ({filenames}) naturally but do NOT use excerpt numbers, "
+        "chunk numbers, or bracket citations like [excerpt_1] in your answer. "
+        "Source passages are shown separately to the user.\n\n"
         f"{tag_block('excerpts', context)}\n\n"
         f"{tag_block('question', question)}"
     )
-    answer = await _acompletion_with_resilience(
+    raw_answer = await _acompletion_with_resilience(
         messages=[
             {
                 "role": "system",
@@ -315,15 +320,7 @@ async def answer_multi_document_question(
         ],
         max_tokens=cfg.chat_max_tokens,
     )
-    cited = sorted({int(n) for n in re.findall(r"\[excerpt_(\d+)\]", answer, flags=re.IGNORECASE)})
-    cited_documents = sorted(
-        {
-            context_chunks[index - 1]["document_id"]
-            for index in cited
-            if 0 < index <= len(context_chunks)
-        }
-    )
-    return {"answer": answer, "cited_documents": cited_documents}
+    return {"answer": strip_excerpt_markers(raw_answer)}
 
 
 def summary_cache_key(user_id: str, document_id: str) -> str:
@@ -363,8 +360,14 @@ def graph_cache_key(user_id: str, document_id: str) -> str:
     return f"graph:{user_id}:{document_id}"
 
 
-def multi_chat_cache_key(user_id: str, document_ids: list[str], question: str) -> str:
+def multi_chat_cache_key(
+    user_id: str,
+    document_ids: list[str],
+    question: str,
+    source_refs_hash: str | None = None,
+) -> str:
     joined = ",".join(sorted(document_ids))
     docs_digest = hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
     question_digest = hashlib.sha256(question.strip().lower().encode("utf-8")).hexdigest()[:16]
-    return f"multi_chat:{user_id}:{docs_digest}:{question_digest}"
+    refs_part = source_refs_hash or "auto"
+    return f"multi_chat:{user_id}:{docs_digest}:{refs_part}:{question_digest}"

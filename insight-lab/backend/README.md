@@ -159,7 +159,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/process` | **Bearer JWT** | Parse, chunk, summarize (Step 1.7) |
 | GET | `/documents/{id}/summary` | **Bearer JWT** | Cached summary from Redis/Postgres |
 | POST | `/documents/{id}/ask` | **Bearer JWT** | RAG chat over document chunks |
-| POST | `/documents/multi/ask` | **Bearer JWT** | Multi-doc RAG chat (Phase 2) |
+| POST | `/documents/multi/retrieve` | **Bearer JWT** | HITL step 1 — find source passages for review |
+| POST | `/documents/multi/ask` | **Bearer JWT** | HITL step 2 — answer from approved sources |
 | POST | `/documents/{id}/graph/sync` | **Bearer JWT** | Extract concepts + Neo4j sync |
 | GET | `/documents/{id}/graph` | **Bearer JWT** | Concept graph nodes/edges |
 | POST | `/documents/{id}/analyze` | **Bearer JWT** | Excel profile + charts + insights (Step 1.8) |
@@ -167,6 +168,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/charts/custom` | **Bearer JWT** | Custom chart from selected columns |
 | POST | `/documents/{id}/excel/ask` | **Bearer JWT** | Grounded Q&A over spreadsheet profile + charts (Phase 2) |
 | POST | `/documents/{id}/quiz/generate` | **Bearer JWT** | Generate quiz from document chunks (Step 1.9) |
+| POST | `/documents/{id}/quiz/adaptive/generate` | **Bearer JWT** | Adaptive quiz targeting weak concepts |
+| GET | `/documents/{id}/concepts/mastery` | **Bearer JWT** | Per-concept mastery scores |
 | GET | `/documents/{id}/quiz` | **Bearer JWT** | Latest quiz for document |
 | POST | `/quizzes/{id}/submit` | **Bearer JWT** | Submit quiz answers and get score |
 | GET | `/docs` | No | OpenAPI UI (development only) |

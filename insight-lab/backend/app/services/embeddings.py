@@ -6,6 +6,7 @@ import litellm
 from app.core.config import settings
 from app.core.exceptions import ServiceUnavailableException
 from app.core.yaml_config import get_yaml_config
+from app.core.migration_guard import is_missing_phase2_schema, run_or_raise_phase2
 
 
 def vector_to_pgvector(values: list[float]) -> str:
@@ -104,15 +105,20 @@ def search_workspace_chunks(
 ) -> list[dict]:
     if not document_ids:
         return []
-    result = (
-        client.rpc(
-            "match_workspace_chunks",
-            {
-                "filter_document_ids": document_ids,
-                "query_embedding": vector_to_pgvector(query_embedding),
-                "match_count": limit,
-            },
-        ).execute()
-    )
+    try:
+        result = (
+            client.rpc(
+                "match_workspace_chunks",
+                {
+                    "filter_document_ids": document_ids,
+                    "query_embedding": vector_to_pgvector(query_embedding),
+                    "match_count": limit,
+                },
+            ).execute()
+        )
+    except Exception as exc:
+        if is_missing_phase2_schema(exc):
+            return []
+        raise
     rows = result.data or []
     return [row for row in rows if float(row.get("similarity", 0)) >= threshold]
