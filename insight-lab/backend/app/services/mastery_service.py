@@ -6,6 +6,7 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.exceptions import NotFoundException
+from app.core.migration_guard import is_missing_phase2_schema, run_or_raise_phase2
 from app.core.yaml_config import get_yaml_config
 
 log = get_logger("mastery")
@@ -33,6 +34,33 @@ def record_quiz_mastery(
     questions: list[dict[str, Any]],
     results: list[dict[str, Any]],
 ) -> None:
+    try:
+        _record_quiz_mastery_rows(
+            client,
+            user=user,
+            document_id=document_id,
+            questions=questions,
+            results=results,
+        )
+    except Exception as exc:
+        if is_missing_phase2_schema(exc):
+            log.warning(
+                "Skipping concept mastery update; Phase 2 migration not applied",
+                document_id=document_id,
+                user_id=user.id,
+            )
+            return
+        raise
+
+
+def _record_quiz_mastery_rows(
+    client: Client,
+    *,
+    user: AuthUser,
+    document_id: str,
+    questions: list[dict[str, Any]],
+    results: list[dict[str, Any]],
+) -> None:
     result_by_question = {row["question_id"]: row for row in results}
     now = datetime.now(timezone.utc).isoformat()
 
@@ -44,8 +72,8 @@ def record_quiz_mastery(
         if not result:
             continue
 
-        existing = (
-            client.table("concept_mastery")
+        existing = run_or_raise_phase2(
+            lambda: client.table("concept_mastery")
             .select("attempts, correct")
             .eq("user_id", user.id)
             .eq("document_id", document_id)
@@ -57,26 +85,35 @@ def record_quiz_mastery(
             row = existing.data[0]
             attempts = int(row["attempts"]) + 1
             correct = int(row["correct"]) + (1 if result["correct"] else 0)
-            client.table("concept_mastery").update(
-                {
-                    "attempts": attempts,
-                    "correct": correct,
-                    "last_attempt_at": now,
-                }
-            ).eq("user_id", user.id).eq("document_id", document_id).eq(
-                "concept_id", concept_id
-            ).execute()
+            run_or_raise_phase2(
+                lambda: client.table("concept_mastery")
+                .update(
+                    {
+                        "attempts": attempts,
+                        "correct": correct,
+                        "last_attempt_at": now,
+                    }
+                )
+                .eq("user_id", user.id)
+                .eq("document_id", document_id)
+                .eq("concept_id", concept_id)
+                .execute()
+            )
         else:
-            client.table("concept_mastery").insert(
-                {
-                    "user_id": user.id,
-                    "document_id": document_id,
-                    "concept_id": concept_id,
-                    "attempts": 1,
-                    "correct": 1 if result["correct"] else 0,
-                    "last_attempt_at": now,
-                }
-            ).execute()
+            run_or_raise_phase2(
+                lambda: client.table("concept_mastery")
+                .insert(
+                    {
+                        "user_id": user.id,
+                        "document_id": document_id,
+                        "concept_id": concept_id,
+                        "attempts": 1,
+                        "correct": 1 if result["correct"] else 0,
+                        "last_attempt_at": now,
+                    }
+                )
+                .execute()
+            )
 
 
 async def get_concept_mastery(
@@ -85,8 +122,8 @@ async def get_concept_mastery(
     user: AuthUser,
 ) -> dict[str, Any]:
     _get_owned_document(client, document_id, user)
-    concepts = (
-        client.table("document_concepts")
+    concepts = run_or_raise_phase2(
+        lambda: client.table("document_concepts")
         .select("concept_id, name, topic")
         .eq("document_id", document_id)
         .order("name")
@@ -94,8 +131,8 @@ async def get_concept_mastery(
         .data
         or []
     )
-    mastery_rows = (
-        client.table("concept_mastery")
+    mastery_rows = run_or_raise_phase2(
+        lambda: client.table("concept_mastery")
         .select("concept_id, attempts, correct, last_attempt_at")
         .eq("document_id", document_id)
         .eq("user_id", user.id)

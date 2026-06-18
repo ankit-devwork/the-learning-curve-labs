@@ -8,6 +8,11 @@ from supabase import Client
 from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
+from app.core.migration_guard import (
+    PHASE2_MIGRATION_NOTICE,
+    is_missing_phase2_schema,
+    run_or_raise_phase2,
+)
 from app.core.neo4j_client import neo4j_client
 from app.core.yaml_config import get_yaml_config
 from app.services.concept_extraction import draft_to_rows, parse_concept_extraction
@@ -172,12 +177,18 @@ async def sync_document_graph(
 
     concept_rows, relationship_rows = draft_to_rows(draft, document_id=document_id)
 
-    client.table("document_concepts").delete().eq("document_id", document_id).execute()
-    client.table("concept_relationships").delete().eq("document_id", document_id).execute()
+    run_or_raise_phase2(
+        lambda: client.table("document_concepts").delete().eq("document_id", document_id).execute()
+    )
+    run_or_raise_phase2(
+        lambda: client.table("concept_relationships").delete().eq("document_id", document_id).execute()
+    )
     if concept_rows:
-        client.table("document_concepts").insert(concept_rows).execute()
+        run_or_raise_phase2(lambda: client.table("document_concepts").insert(concept_rows).execute())
     if relationship_rows:
-        client.table("concept_relationships").insert(relationship_rows).execute()
+        run_or_raise_phase2(
+            lambda: client.table("concept_relationships").insert(relationship_rows).execute()
+        )
 
     neo4j_synced = await _sync_to_neo4j(
         user_id=user.id,
@@ -212,23 +223,37 @@ async def sync_document_graph(
 
 async def get_document_graph(client: Client, document_id: str, user: AuthUser) -> dict[str, Any]:
     doc = _get_owned_document(client, document_id, user)
-    concepts = (
-        client.table("document_concepts")
-        .select("concept_id, name, topic, chunk_indexes")
-        .eq("document_id", document_id)
-        .order("name")
-        .execute()
-        .data
-        or []
-    )
-    relationships = (
-        client.table("concept_relationships")
-        .select("source_concept_id, target_concept_id, relationship_type")
-        .eq("document_id", document_id)
-        .execute()
-        .data
-        or []
-    )
+    try:
+        concepts = (
+            client.table("document_concepts")
+            .select("concept_id, name, topic, chunk_indexes")
+            .eq("document_id", document_id)
+            .order("name")
+            .execute()
+            .data
+            or []
+        )
+        relationships = (
+            client.table("concept_relationships")
+            .select("source_concept_id, target_concept_id, relationship_type")
+            .eq("document_id", document_id)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        if is_missing_phase2_schema(exc):
+            return {
+                "document_id": document_id,
+                "filename": doc["filename"],
+                "neo4j_synced_at": doc.get("neo4j_synced_at"),
+                "nodes": [],
+                "edges": [],
+                "migration_required": True,
+                "notice": PHASE2_MIGRATION_NOTICE,
+            }
+        raise
+
     return {
         "document_id": document_id,
         "filename": doc["filename"],

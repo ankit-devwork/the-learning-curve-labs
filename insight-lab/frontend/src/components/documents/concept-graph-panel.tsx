@@ -78,7 +78,13 @@ export function ConceptGraphPanel({ documentId, ready, accessToken }: ConceptGra
         {error && <p className="text-sm text-destructive">{error}</p>}
         {loading && <p className="text-sm text-muted-foreground">Loading concept graph...</p>}
 
-        {graph && graph.nodes.length === 0 && !loading && (
+        {graph?.migration_required && graph.notice && (
+          <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {graph.notice}
+          </p>
+        )}
+
+        {graph && graph.nodes.length === 0 && !loading && !graph.migration_required && (
           <p className="text-sm text-muted-foreground">
             No concepts yet. Processing auto-syncs concepts; use Sync if needed.
           </p>

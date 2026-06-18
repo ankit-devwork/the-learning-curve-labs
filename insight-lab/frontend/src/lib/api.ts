@@ -122,6 +122,8 @@ export type DocumentGraphResponse = {
   neo4j_synced_at?: string | null;
   nodes: GraphNode[];
   edges: GraphEdge[];
+  migration_required?: boolean;
+  notice?: string;
   correlation_id?: string;
 };
 
