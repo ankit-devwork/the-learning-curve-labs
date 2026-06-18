@@ -13,6 +13,7 @@ from app.api.routes.excel import router as excel_router
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.upload import router as upload_router
+from app.api.routes.quiz import router as quiz_router
 from app.core.cache import close_cache
 from app.core.config import ENV_PATH, config_diagnostics, settings
 from app.core.yaml_config import get_yaml_config
@@ -75,6 +76,7 @@ app.include_router(me_router, tags=["auth"])
 app.include_router(upload_router, tags=["documents"])
 app.include_router(documents_router, tags=["documents"])
 app.include_router(excel_router, tags=["excel"])
+app.include_router(quiz_router, tags=["quiz"])
 
 
 @app.get("/")
@@ -91,4 +93,7 @@ async def root():
         "excel_analyze": "/documents/{id}/analyze",
         "excel_charts": "/documents/{id}/charts",
         "excel_custom_chart": "/documents/{id}/charts/custom",
+        "quiz_generate": "/documents/{id}/quiz/generate",
+        "quiz_get": "/documents/{id}/quiz",
+        "quiz_submit": "/quizzes/{id}/submit",
     }

@@ -48,6 +48,50 @@ export type AskResponse = {
   correlation_id?: string;
 };
 
+export type QuizQuestion = {
+  id: string;
+  question_text: string;
+  options: string[];
+  sort_order: number;
+};
+
+export type QuizResponse = {
+  quiz_id: string;
+  document_id: string;
+  title: string;
+  question_type: "scq" | "mcq" | "true_false";
+  difficulty: string;
+  questions: QuizQuestion[];
+  cached?: boolean;
+  correlation_id?: string;
+};
+
+export type QuizResultItem = {
+  question_id: string;
+  question_text: string;
+  selected_option_index: number;
+  correct_option_index: number;
+  correct: boolean;
+  explanation?: string | null;
+};
+
+export type QuizSubmitResponse = {
+  attempt_id?: string | null;
+  quiz_id: string;
+  document_id: string;
+  score: number;
+  total: number;
+  percent: number;
+  results: QuizResultItem[];
+  correlation_id?: string;
+};
+
+export type GenerateQuizRequest = {
+  question_type?: "scq" | "mcq" | "true_false";
+  difficulty?: "easy" | "medium" | "hard";
+  num_questions?: number;
+};
+
 export type ExcelChart = {
   id: string;
   title: string;

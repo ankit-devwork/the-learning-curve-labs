@@ -7,11 +7,13 @@ import {
   apiFetch,
   type AskResponse,
   type DocumentDetail,
+  type QuizResponse,
   type SummaryResponse,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
 
 type ChatMessage = {
   question: string;
@@ -29,6 +31,8 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
   const [processing, setProcessing] = useState(false);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [existingQuiz, setExistingQuiz] = useState<QuizResponse | null>(null);
   const autoProcessed = useRef(false);
 
   const loadDocument = useCallback(async () => {
@@ -52,8 +56,18 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
 
     const data = (await response.json()) as DocumentDetail;
     setDocument(data);
+    setAccessToken(session.access_token);
     setLoading(false);
     return { data, token: session.access_token };
+  }, [documentId]);
+
+  const loadQuiz = useCallback(async (token: string) => {
+    const response = await apiFetch(`/documents/${documentId}/quiz`, token);
+    if (!response.ok) {
+      return;
+    }
+    const data = (await response.json()) as QuizResponse;
+    setExistingQuiz(data);
   }, [documentId]);
 
   const loadSummary = useCallback(async (token: string) => {
@@ -92,7 +106,7 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
         return;
       }
       if (data.status === "ready") {
-        await loadSummary(token);
+        await Promise.all([loadSummary(token), loadQuiz(token)]);
         return;
       }
       if (data.status === "pending" && !autoProcessed.current) {
@@ -107,7 +121,7 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
       }
     }
     void init();
-  }, [documentId, loadDocument, loadSummary, processDocument]);
+  }, [documentId, loadDocument, loadSummary, loadQuiz, processDocument]);
 
   async function handleAsk(event: React.FormEvent) {
     event.preventDefault();
@@ -244,6 +258,13 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
           )}
         </CardContent>
       </Card>
+
+      <DocumentQuizPanel
+        documentId={documentId}
+        ready={document.status === "ready"}
+        accessToken={accessToken}
+        initialQuiz={existingQuiz}
+      />
 
       <Card>
         <CardHeader>
