@@ -21,12 +21,6 @@ class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
 
 
-class ApprovedSourceRef(BaseModel):
-    document_id: str
-    chunk_index: int = Field(ge=0)
-    similarity: float | None = None
-
-
 class MultiRetrieveRequest(BaseModel):
     document_ids: list[str] = Field(..., min_length=1, max_length=10)
     question: str = Field(..., min_length=1, max_length=2000)
@@ -35,7 +29,7 @@ class MultiRetrieveRequest(BaseModel):
 class MultiAskRequest(BaseModel):
     document_ids: list[str] = Field(..., min_length=1, max_length=10)
     question: str = Field(..., min_length=1, max_length=2000)
-    approved_sources: list[ApprovedSourceRef] = Field(..., min_length=1, max_length=20)
+    approved_document_ids: list[str] = Field(..., min_length=1, max_length=10)
 
 
 @router.post("/documents/multi/retrieve")
@@ -67,7 +61,7 @@ async def ask_multiple_documents_route(
         user,
         document_ids=body.document_ids,
         question=body.question,
-        approved_sources=[ref.model_dump() for ref in body.approved_sources],
+        approved_document_ids=body.approved_document_ids,
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}

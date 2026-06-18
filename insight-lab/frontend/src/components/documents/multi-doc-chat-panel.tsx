@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   apiFetch,
   type AskResponse,
+  type DocumentReviewOption,
   type DocumentSummary,
   type MultiAskResponse,
   type MultiRetrieveResponse,
@@ -13,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { SourceCitations, sourceKey } from "@/components/documents/source-citations";
+import { DocumentReviewPicker } from "@/components/documents/document-review-picker";
+import { SourceCitations } from "@/components/documents/source-citations";
 
 type ChatMessage = {
   question: string;
@@ -25,9 +27,9 @@ type ChatMessage = {
 export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
-  const [pendingSources, setPendingSources] = useState<SourceCitation[]>([]);
+  const [pendingDocuments, setPendingDocuments] = useState<DocumentReviewOption[]>([]);
   const [pendingQuestion, setPendingQuestion] = useState("");
-  const [selectedSourceKeys, setSelectedSourceKeys] = useState<Set<string>>(new Set());
+  const [approvedDocumentIds, setApprovedDocumentIds] = useState<Set<string>>(new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [retrieving, setRetrieving] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -36,10 +38,6 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
 
   const readyDocuments = documents.filter(
     (doc) => doc.file_type === "document" && doc.status === "ready",
-  );
-  const pendingDocumentCount = useMemo(
-    () => new Set(pendingSources.map((source) => source.document_id)).size,
-    [pendingSources],
   );
   const hitlMode = selectedIds.length > 1;
 
@@ -55,9 +53,9 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   }, []);
 
   const toggleDocument = useCallback((documentId: string) => {
-    setPendingSources([]);
+    setPendingDocuments([]);
     setPendingQuestion("");
-    setSelectedSourceKeys(new Set());
+    setApprovedDocumentIds(new Set());
     setSelectedIds((current) =>
       current.includes(documentId)
         ? current.filter((id) => id !== documentId)
@@ -65,14 +63,13 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
     );
   }, []);
 
-  const toggleSource = useCallback((source: SourceCitation) => {
-    const key = sourceKey(source);
-    setSelectedSourceKeys((current) => {
+  const toggleReviewDocument = useCallback((documentId: string) => {
+    setApprovedDocumentIds((current) => {
       const next = new Set(current);
-      if (next.has(key)) {
-        next.delete(key);
+      if (next.has(documentId)) {
+        next.delete(documentId);
       } else {
-        next.add(key);
+        next.add(documentId);
       }
       return next;
     });
@@ -116,16 +113,16 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
     }
   }
 
-  async function handleFindSources(event: React.FormEvent) {
+  async function handlePrepareReview(event: React.FormEvent) {
     event.preventDefault();
     const trimmed = question.trim();
-    if (!trimmed || selectedIds.length === 0 || !accessToken) {
+    if (!trimmed || selectedIds.length < 2 || !accessToken) {
       return;
     }
 
     setRetrieving(true);
     setError(null);
-    setPendingSources([]);
+    setPendingDocuments([]);
     try {
       const response = await apiFetch("/documents/multi/retrieve", accessToken, {
         method: "POST",
@@ -134,27 +131,29 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        setError(body.error || `Could not search documents (${response.status})`);
+        setError(body.error || `Could not prepare document summaries (${response.status})`);
         return;
       }
 
       const data = (await response.json()) as MultiRetrieveResponse;
       setPendingQuestion(trimmed);
-      setPendingSources(data.sources);
-      setSelectedSourceKeys(new Set(data.sources.map((source) => sourceKey(source))));
+      setPendingDocuments(data.documents);
+      setApprovedDocumentIds(
+        new Set(data.documents.map((document) => document.document_id)),
+      );
     } finally {
       setRetrieving(false);
     }
   }
 
-  async function handleGenerateAnswer() {
-    if (!accessToken || !pendingQuestion || pendingSources.length === 0) {
+  async function handleContinue() {
+    if (!accessToken || !pendingQuestion || pendingDocuments.length === 0) {
       return;
     }
 
-    const approved = pendingSources.filter((source) => selectedSourceKeys.has(sourceKey(source)));
+    const approved = [...approvedDocumentIds];
     if (approved.length === 0) {
-      setError("Select at least one source to continue.");
+      setError("Select at least one document to continue.");
       return;
     }
 
@@ -167,11 +166,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
         body: JSON.stringify({
           document_ids: selectedIds,
           question: pendingQuestion,
-          approved_sources: approved.map((source) => ({
-            document_id: source.document_id,
-            chunk_index: source.chunk_index,
-            similarity: source.similarity,
-          })),
+          approved_document_ids: approved,
         }),
       });
       if (!response.ok) {
@@ -192,8 +187,8 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       ]);
       setQuestion("");
       setPendingQuestion("");
-      setPendingSources([]);
-      setSelectedSourceKeys(new Set());
+      setPendingDocuments([]);
+      setApprovedDocumentIds(new Set());
     } finally {
       setAsking(false);
     }
@@ -204,8 +199,8 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       <CardHeader>
         <CardTitle>Document chat</CardTitle>
         <CardDescription>
-          Select one or more documents and ask a question. With multiple documents selected, you
-          can review sources before the answer is generated.
+          Select one or more documents and ask a question. When multiple documents are selected,
+          each document is summarized so you can choose which to answer from.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -237,7 +232,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
 
             <form
               onSubmit={(event) =>
-                void (hitlMode ? handleFindSources(event) : handleAskSingle(event))
+                void (hitlMode ? handlePrepareReview(event) : handleAskSingle(event))
               }
               className="flex gap-2"
             >
@@ -252,24 +247,20 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
               </Button>
             </form>
 
-            {hitlMode && pendingSources.length > 0 && (
+            {hitlMode && pendingDocuments.length > 0 && (
               <div className="space-y-3 rounded-md border border-dashed p-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Review sources</p>
+                  <p className="text-sm font-medium">Which document should we answer from?</p>
                   <p className="text-xs text-muted-foreground">
-                    {pendingSources.length} result{pendingSources.length === 1 ? "" : "s"} from{" "}
-                    {pendingDocumentCount} document{pendingDocumentCount === 1 ? "" : "s"}. Uncheck
-                    any you do not need.
+                    Read the summaries below and select one or more documents for your answer.
                   </p>
                 </div>
-                <SourceCitations
-                  sources={pendingSources}
-                  selectable
-                  selectedKeys={selectedSourceKeys}
-                  onToggle={toggleSource}
-                  groupByDocument
+                <DocumentReviewPicker
+                  documents={pendingDocuments}
+                  selectedIds={approvedDocumentIds}
+                  onToggle={toggleReviewDocument}
                 />
-                <Button type="button" disabled={asking} onClick={() => void handleGenerateAnswer()}>
+                <Button type="button" disabled={asking} onClick={() => void handleContinue()}>
                   {asking ? "Thinking..." : "Continue"}
                 </Button>
               </div>

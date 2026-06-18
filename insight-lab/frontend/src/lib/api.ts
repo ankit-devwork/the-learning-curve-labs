@@ -148,11 +148,17 @@ export type GraphSyncResponse = {
   correlation_id?: string;
 };
 
+export type DocumentReviewOption = {
+  document_id: string;
+  filename: string;
+  summary: string;
+  selected?: boolean;
+};
+
 export type MultiRetrieveResponse = {
   document_ids: string[];
   question: string;
-  sources: SourceCitation[];
-  retrieval_method?: "vector" | "keyword";
+  documents: DocumentReviewOption[];
   hitl_required?: boolean;
   correlation_id?: string;
 };
