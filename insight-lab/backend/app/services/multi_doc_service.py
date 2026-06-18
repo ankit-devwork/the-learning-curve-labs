@@ -9,6 +9,7 @@ from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
+from app.services.citations import build_source_citations, hash_source_refs, source_ref_key
 from app.services.embeddings import embed_text, search_workspace_chunks
 from app.services.llm_client import answer_multi_document_question, multi_chat_cache_key
 
@@ -51,6 +52,47 @@ def _validate_owned_documents(
     return rows
 
 
+def _retrieve_context_rows(
+    client: Client,
+    *,
+    document_ids: list[str],
+    question: str,
+    doc_map: dict[str, str],
+) -> tuple[list[dict[str, Any]], str]:
+    cfg = get_yaml_config().multi_doc
+    sorted_ids = sorted(document_ids)
+
+    query_embedding = embed_text(question)
+    matches = search_workspace_chunks(
+        client,
+        document_ids=sorted_ids,
+        query_embedding=query_embedding,
+        limit=cfg.max_context_chunks,
+        threshold=get_yaml_config().embeddings.similarity_threshold,
+    )
+    retrieval_method = "vector"
+    if not matches:
+        matches = _select_chunks_keyword(
+            client,
+            document_ids=sorted_ids,
+            question=question,
+            limit=cfg.max_context_chunks,
+        )
+        retrieval_method = "keyword"
+
+    rows = [
+        {
+            "document_id": row["document_id"],
+            "filename": doc_map[row["document_id"]],
+            "chunk_index": row["chunk_index"],
+            "content": row["content"],
+            "similarity": float(row.get("similarity", 0)) if row.get("similarity") is not None else None,
+        }
+        for row in matches
+    ]
+    return rows, retrieval_method
+
+
 def _select_chunks_keyword(
     client: Client,
     *,
@@ -77,7 +119,113 @@ def _select_chunks_keyword(
     selected = [row for score, row in scored if score > 0][:limit]
     if selected:
         return selected
-    return [row for _, row in scored[:limit]]
+    return chunks[:limit]
+
+
+def _load_approved_rows(
+    client: Client,
+    *,
+    approved_sources: list[dict[str, Any]],
+    allowed_document_ids: set[str],
+) -> list[dict[str, Any]]:
+    if not approved_sources:
+        raise FileException("Select at least one source passage to generate an answer", status_code=400)
+
+    rows: list[dict[str, Any]] = []
+    for ref in approved_sources:
+        document_id = ref["document_id"]
+        chunk_index = ref["chunk_index"]
+        if document_id not in allowed_document_ids:
+            raise FileException("One or more approved sources are not in the selected documents", status_code=400)
+
+        result = (
+            client.table("document_chunks")
+            .select("document_id, chunk_index, content")
+            .eq("document_id", document_id)
+            .eq("chunk_index", chunk_index)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            raise FileException(
+                f"Source passage not found for document {document_id}",
+                status_code=400,
+            )
+        rows.append(result.data[0])
+
+    doc_result = (
+        client.table("documents")
+        .select("id, filename")
+        .in_("id", list({row["document_id"] for row in rows}))
+        .execute()
+    )
+    doc_map = {row["id"]: row["filename"] for row in (doc_result.data or [])}
+
+    return [
+        {
+            "document_id": row["document_id"],
+            "filename": doc_map.get(row["document_id"], "Document"),
+            "chunk_index": row["chunk_index"],
+            "content": row["content"],
+            "similarity": ref.get("similarity"),
+        }
+        for row, ref in zip(rows, approved_sources, strict=True)
+    ]
+
+
+async def retrieve_multiple_documents(
+    client: Client,
+    user: AuthUser,
+    *,
+    document_ids: list[str],
+    question: str,
+) -> dict[str, Any]:
+    question = question.strip()
+    if not question:
+        raise FileException("Question is required")
+
+    cfg = get_yaml_config().multi_doc
+    allowed, retry_after = await check_rate_limit(
+        key=f"multi_retrieve:{user.id}",
+        limit=cfg.chat_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Multi-doc retrieve rate limit reached ({cfg.chat_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    docs = _validate_owned_documents(client, document_ids, user)
+    doc_map = {row["id"]: row["filename"] for row in docs}
+    sorted_ids = sorted(doc_map.keys())
+
+    rows, retrieval_method = _retrieve_context_rows(
+        client,
+        document_ids=sorted_ids,
+        question=question,
+        doc_map=doc_map,
+    )
+    if not rows:
+        raise FileException("No document passages found for the selected documents", status_code=409)
+
+    sources = build_source_citations(rows)
+    for source in sources:
+        source["selected"] = True
+
+    log.info(
+        "Multi-doc sources retrieved for review",
+        user_id=user.id,
+        document_count=len(sorted_ids),
+        source_count=len(sources),
+    )
+    return {
+        "document_ids": sorted_ids,
+        "question": question,
+        "sources": sources,
+        "retrieval_method": retrieval_method,
+        "hitl_required": True,
+    }
 
 
 async def ask_multiple_documents(
@@ -86,6 +234,7 @@ async def ask_multiple_documents(
     *,
     document_ids: list[str],
     question: str,
+    approved_sources: list[dict[str, Any]],
 ) -> dict[str, Any]:
     question = question.strip()
     if not question:
@@ -106,62 +255,38 @@ async def ask_multiple_documents(
     docs = _validate_owned_documents(client, document_ids, user)
     doc_map = {row["id"]: row["filename"] for row in docs}
     sorted_ids = sorted(doc_map.keys())
+    allowed_ids = set(sorted_ids)
 
-    cache_key = multi_chat_cache_key(user.id, sorted_ids, question)
+    refs_hash = hash_source_refs(approved_sources)
+    cache_key = multi_chat_cache_key(user.id, sorted_ids, question, refs_hash)
     cached = await cache_get(cache_key)
     if cached:
         return {**cached, "cached": True}
 
-    query_embedding = embed_text(question)
-    matches = search_workspace_chunks(
+    context_rows = _load_approved_rows(
         client,
-        document_ids=sorted_ids,
-        query_embedding=query_embedding,
-        limit=cfg.max_context_chunks,
-        threshold=get_yaml_config().embeddings.similarity_threshold,
+        approved_sources=approved_sources,
+        allowed_document_ids=allowed_ids,
     )
-    retrieval_method = "vector"
-    if not matches:
-        matches = _select_chunks_keyword(
-            client,
-            document_ids=sorted_ids,
-            question=question,
-            limit=cfg.max_context_chunks,
-        )
-        retrieval_method = "keyword"
-
-    if not matches:
-        raise FileException("No document chunks found for the selected documents", status_code=409)
-
-    context_chunks = [
-        {
-            "document_id": row["document_id"],
-            "filename": doc_map[row["document_id"]],
-            "chunk_index": row["chunk_index"],
-            "content": row["content"],
-            "similarity": float(row.get("similarity", 0)),
-        }
-        for row in matches
-    ]
+    sources = build_source_citations(context_rows)
 
     llm_result = await answer_multi_document_question(
         question=question,
-        context_chunks=context_chunks,
+        context_chunks=context_rows,
     )
     payload = {
         "document_ids": sorted_ids,
         "question": question,
         "answer": llm_result["answer"],
-        "cited_documents": llm_result["cited_documents"],
-        "retrieval_method": retrieval_method,
+        "sources": sources,
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
     log.info(
-        "Multi-doc chat answered",
+        "Multi-doc chat answered after HITL approval",
         user_id=user.id,
         document_count=len(sorted_ids),
-        retrieval_method=retrieval_method,
+        source_count=len(sources),
     )
     return payload
 

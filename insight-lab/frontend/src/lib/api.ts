@@ -41,11 +41,22 @@ export type AskResponse = {
   document_id: string;
   question: string;
   answer: string;
-  cited_chunks: number[];
+  sources?: SourceCitation[];
+  cited_chunks?: number[];
   retrieval_method?: "vector" | "keyword";
   chunk_similarities?: number[];
   cached?: boolean;
   correlation_id?: string;
+};
+
+export type SourceCitation = {
+  id: number;
+  document_id: string;
+  filename: string;
+  chunk_index?: number;
+  preview: string;
+  similarity?: number | null;
+  selected?: boolean;
 };
 
 export type QuizQuestion = {
@@ -137,10 +148,20 @@ export type GraphSyncResponse = {
   correlation_id?: string;
 };
 
+export type MultiRetrieveResponse = {
+  document_ids: string[];
+  question: string;
+  sources: SourceCitation[];
+  retrieval_method?: "vector" | "keyword";
+  hitl_required?: boolean;
+  correlation_id?: string;
+};
+
 export type MultiAskResponse = {
   document_ids: string[];
   question: string;
   answer: string;
+  sources?: SourceCitation[];
   cited_documents?: string[];
   retrieval_method?: "vector" | "keyword";
   cached?: boolean;
