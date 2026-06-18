@@ -9,6 +9,7 @@ from supabase import Client
 from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
+from app.core.safe_errors import GENERIC_EXCEL_ERROR
 from app.core.resilience import storage_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
 from app.services.excel_charts import (
@@ -85,7 +86,7 @@ async def get_excel_analysis(client: Client, document_id: str, user: AuthUser) -
     if doc["file_type"] != "excel":
         raise FileException("Excel analysis is only available for spreadsheet uploads")
 
-    cache_key = excel_cache_key(document_id, doc.get("file_hash"))
+    cache_key = excel_cache_key(user.id, document_id, doc.get("file_hash"))
     cached = await cache_get(cache_key)
     if cached:
         return {**cached, "cached": True}
@@ -124,7 +125,7 @@ async def analyze_excel(client: Client, document_id: str, user: AuthUser) -> dic
     if doc["status"] == "processing":
         raise FileException("Spreadsheet is already being analyzed", status_code=409)
 
-    cache_key = excel_cache_key(document_id, doc.get("file_hash"))
+    cache_key = excel_cache_key(user.id, document_id, doc.get("file_hash"))
     cached = await cache_get(cache_key)
     if cached:
         return {**cached, "cached": True}
@@ -187,11 +188,11 @@ async def analyze_excel(client: Client, document_id: str, user: AuthUser) -> dic
         ).eq("id", document_id).execute()
         raise
     except Exception as exc:
-        message = str(exc)
+        log.exception("Excel analysis failed", document_id=document_id, user_id=user.id)
         client.table("documents").update(
-            {"status": "failed", "error_message": message}
+            {"status": "failed", "error_message": GENERIC_EXCEL_ERROR}
         ).eq("id", document_id).execute()
-        raise FileException(f"Excel analysis failed: {message}", status_code=500) from exc
+        raise FileException(GENERIC_EXCEL_ERROR, status_code=500) from exc
 
 
 async def create_custom_excel_chart(

@@ -165,7 +165,15 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/quiz/generate` | **Bearer JWT** | Generate quiz from document chunks (Step 1.9) |
 | GET | `/documents/{id}/quiz` | **Bearer JWT** | Latest quiz for document |
 | POST | `/quizzes/{id}/submit` | **Bearer JWT** | Submit quiz answers and get score |
-| GET | `/docs` | No | OpenAPI UI |
+| GET | `/docs` | No | OpenAPI UI (development only) |
+
+### Security notes
+
+- Cache keys are scoped per user to prevent cross-user cache reads.
+- LLM prompts wrap untrusted document/user content in XML tags with explicit untrusted-data rules.
+- Upload rate limit enforced (`rate_limit_per_hour` in `config.yaml`).
+- Run Supabase migrations `005_rls_policies.sql` and `006_storage_and_rpc_security.sql` in production.
+- Set `APP_APP__ENV=production` to disable OpenAPI docs and reduce `/ready` detail.
 
 ### Calling `/me` from curl
 

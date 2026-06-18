@@ -9,8 +9,10 @@ SQL migrations and RLS policies for InsightLab.
 3. Run `002_document_chunks.sql` for document summary + chat (Step 1.7).
 4. Run `003_pgvector_embeddings.sql` for semantic chunk search (Step 1.7b).
 5. Run `004_excel_charts.sql` for Excel analysis results (Step 1.8).
-6. Create a Storage bucket named `uploads` (private).
-7. Copy project URL and keys to `.env` files.
+6. Run `005_rls_policies.sql` for table RLS policies.
+7. Run `006_storage_and_rpc_security.sql` for Storage policies and RPC lockdown.
+8. Create a Storage bucket named `uploads` (private).
+9. Copy project URL and keys to `.env` files.
 
 ## Local CLI (optional)
 
@@ -20,4 +22,5 @@ npx supabase link --project-ref your-project-ref
 npx supabase db push
 ```
 
-RLS policies will be added in Phase 1 when auth flows are implemented.
+RLS policies are defined in `005_rls_policies.sql` and `006_storage_and_rpc_security.sql`.
+The backend uses the service role key and enforces ownership in application code.

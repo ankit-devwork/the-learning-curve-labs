@@ -30,31 +30,40 @@ async def cache_delete(key: str) -> None:
         await _unified_redis.delete_pattern(_prefix(key))
 
 
+async def _incr(key: str, ttl: int) -> int:
+    full_key = _prefix(key)
+    if _unified_redis.use_upstash:
+        response = await _unified_redis.client.post(
+            _unified_redis.upstash_url,
+            headers={"Authorization": f"Bearer {_unified_redis.upstash_token}"},
+            json=["INCR", full_key],
+        )
+        count = int(response.json().get("result") or 0)
+        if count == 1:
+            await _unified_redis.client.post(
+                _unified_redis.upstash_url,
+                headers={"Authorization": f"Bearer {_unified_redis.upstash_token}"},
+                json=["EXPIRE", full_key, ttl],
+            )
+        return count
+
+    count = int(await _unified_redis.client.incr(full_key))
+    if count == 1:
+        await _unified_redis.client.expire(full_key, ttl)
+    return count
+
+
 async def check_rate_limit(*, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
     """
-    Fixed-window rate limit using Redis get/set.
+    Fixed-window rate limit using atomic Redis INCR.
     Returns (allowed, retry_after_seconds).
     """
-    full_key = _prefix(f"ratelimit:{key}")
     now = int(time.time())
     window_start = now - (now % window_seconds)
+    window_key = f"ratelimit:{key}:{window_start}"
+    count = await _incr(window_key, window_seconds)
 
-    raw = await _unified_redis.get(full_key)
-    if raw:
-        try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError:
-            payload = {"count": 0, "window_start": window_start}
-    else:
-        payload = {"count": 0, "window_start": window_start}
-
-    if payload.get("window_start") != window_start:
-        payload = {"count": 0, "window_start": window_start}
-
-    payload["count"] = int(payload.get("count", 0)) + 1
-    await _unified_redis.set(full_key, json.dumps(payload), window_seconds)
-
-    if payload["count"] > limit:
+    if count > limit:
         retry_after = window_seconds - (now - window_start)
         return False, max(retry_after, 1)
     return True, 0

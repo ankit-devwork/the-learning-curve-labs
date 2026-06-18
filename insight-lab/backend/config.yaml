@@ -1,6 +1,6 @@
 app:
   env: development
-  debug: true
+  debug: false
   name: InsightLab API
 
 logging:

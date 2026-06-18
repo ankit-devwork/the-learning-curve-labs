@@ -138,7 +138,6 @@ export type ExcelAnalysisResponse = {
 };
 
 export type UploadResponse = DocumentSummary & {
-  storage_path: string;
   correlation_id?: string;
 };
 

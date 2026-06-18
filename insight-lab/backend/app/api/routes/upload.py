@@ -4,7 +4,9 @@ from pycorekit.exceptions.file import FileException
 from pycorekit.tracing.decorators import with_observability
 
 from app.core.auth import AuthUser
+from app.core.cache import check_rate_limit
 from app.core.deps import get_current_user
+from app.core.exceptions import RateLimitException
 from app.core.supabase_client import get_supabase_client
 from app.core.yaml_config import get_yaml_config
 from app.services.upload import get_upload_public_config, list_documents, upload_document
@@ -32,6 +34,18 @@ async def upload_file(
 ):
     if not file.filename:
         raise FileException("Filename is required")
+
+    upload_cfg = get_yaml_config().upload
+    allowed, retry_after = await check_rate_limit(
+        key=f"upload:{user.id}",
+        limit=upload_cfg.rate_limit_per_hour,
+        window_seconds=3600,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Upload rate limit reached ({upload_cfg.rate_limit_per_hour}/hour)",
+            retry_after=retry_after,
+        )
 
     content = await file.read()
     validated = validate_upload(
