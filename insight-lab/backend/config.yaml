@@ -93,6 +93,24 @@ quizzes:
   max_context_chunks: 8
   quiz_max_tokens: 2000
 
+graph:
+  sync_rate_limit_per_hour: 10
+  max_concepts_per_document: 40
+  concept_extract_max_tokens: 1500
+  cache_ttl: 604800
+
+adaptive_quiz:
+  generate_rate_limit_per_min: 5
+  weak_threshold_percent: 60
+  min_attempts_before_adaptive: 1
+  max_weak_concepts: 5
+
+multi_doc:
+  chat_rate_limit_per_min: 20
+  max_documents: 10
+  max_context_chunks: 10
+  chat_max_tokens: 800
+
 resilience:
   retry_max_attempts: 4
   retry_base_delay_sec: 1.0

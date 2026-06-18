@@ -18,6 +18,7 @@ from app.services.embeddings import (
     search_similar_chunks,
 )
 from app.core.safe_errors import GENERIC_PROCESSING_ERROR, sanitize_stored_error
+from app.services.graph_service import sync_document_graph
 from app.services.llm_client import (
     answer_question,
     generate_summary,
@@ -175,6 +176,19 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
             chunk_count=len(chunks),
             embedded_count=len(vectors),
         )
+        try:
+            await sync_document_graph(
+                client,
+                document_id,
+                user,
+                skip_rate_limit=True,
+            )
+        except Exception as exc:
+            log.warning(
+                "Concept graph sync skipped after processing",
+                document_id=document_id,
+                error=str(exc),
+            )
         return {
             "document_id": document_id,
             "status": row.get("status", "ready"),

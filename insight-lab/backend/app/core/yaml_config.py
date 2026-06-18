@@ -86,6 +86,27 @@ class QuizzesSection(BaseModel):
     quiz_max_tokens: int = 2000
 
 
+class GraphSection(BaseModel):
+    sync_rate_limit_per_hour: int = 10
+    max_concepts_per_document: int = 40
+    concept_extract_max_tokens: int = 1500
+    cache_ttl: int = 604800
+
+
+class AdaptiveQuizSection(BaseModel):
+    generate_rate_limit_per_min: int = 5
+    weak_threshold_percent: int = 60
+    min_attempts_before_adaptive: int = 1
+    max_weak_concepts: int = 5
+
+
+class MultiDocSection(BaseModel):
+    chat_rate_limit_per_min: int = 20
+    max_documents: int = 10
+    max_context_chunks: int = 10
+    chat_max_tokens: int = 800
+
+
 class ResilienceSection(BaseModel):
     retry_max_attempts: int = 4
     retry_base_delay_sec: float = 1.0
@@ -126,6 +147,9 @@ class YamlConfig(BaseModel):
     embeddings: EmbeddingsSection
     excel: ExcelSection
     quizzes: QuizzesSection
+    graph: GraphSection
+    adaptive_quiz: AdaptiveQuizSection
+    multi_doc: MultiDocSection
     resilience: ResilienceSection
 
 

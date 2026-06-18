@@ -3,6 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.services.concept_extraction import normalize_concept_id
+
 
 class QuizQuestionDraft(BaseModel):
     question_text: str
@@ -10,6 +12,7 @@ class QuizQuestionDraft(BaseModel):
     correct_option_index: int = Field(ge=0)
     explanation: str | None = None
     source_chunk_index: int | None = Field(default=None, ge=0)
+    concept_id: str | None = None
 
     @field_validator("options")
     @classmethod
@@ -68,6 +71,9 @@ def draft_to_rows(
                 "correct_option_index": question.correct_option_index,
                 "explanation": question.explanation,
                 "source_chunk_id": source_chunk_id,
+                "concept_id": normalize_concept_id(question.concept_id)
+                if question.concept_id
+                else None,
                 "sort_order": index,
             }
         )

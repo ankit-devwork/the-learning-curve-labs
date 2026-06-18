@@ -12,12 +12,35 @@ from app.services.document_service import (
     get_document_summary,
     process_document,
 )
+from app.services.multi_doc_service import ask_multiple_documents
 
 router = APIRouter()
 
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
+
+
+class MultiAskRequest(BaseModel):
+    document_ids: list[str] = Field(..., min_length=1, max_length=10)
+    question: str = Field(..., min_length=1, max_length=2000)
+
+
+@router.post("/documents/multi/ask")
+@with_observability("ask_multiple_documents")
+async def ask_multiple_documents_route(
+    body: MultiAskRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await ask_multiple_documents(
+        get_supabase_client(),
+        user,
+        document_ids=body.document_ids,
+        question=body.question,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
 
 
 @router.get("/documents/{document_id}")
