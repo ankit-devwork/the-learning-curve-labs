@@ -68,8 +68,10 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
     if (!response.ok) {
       return;
     }
-    const data = (await response.json()) as QuizResponse;
-    setExistingQuiz(data);
+    const data = (await response.json()) as QuizResponse & { quiz?: null };
+    if (data.quiz_id) {
+      setExistingQuiz(data);
+    }
   }, [documentId]);
 
   const loadSummary = useCallback(async (token: string) => {
