@@ -137,6 +137,15 @@ export type ExcelAnalysisResponse = {
   correlation_id?: string;
 };
 
+export type ExcelAskResponse = {
+  document_id: string;
+  question: string;
+  answer: string;
+  sources?: string[];
+  cached?: boolean;
+  correlation_id?: string;
+};
+
 export type UploadResponse = DocumentSummary & {
   correlation_id?: string;
 };

@@ -67,12 +67,15 @@ class CacheSection(BaseModel):
 
 class ExcelSection(BaseModel):
     analyze_rate_limit_per_min: int = 10
+    chat_rate_limit_per_min: int = 20
     max_rows: int = 50000
     max_columns: int = 100
     sample_rows_for_llm: int = 50
     max_charts: int = 6
     chart_plan_max_tokens: int = 1200
     summary_max_tokens: int = 800
+    chat_max_tokens: int = 600
+    chart_context_points: int = 25
 
 
 class QuizzesSection(BaseModel):

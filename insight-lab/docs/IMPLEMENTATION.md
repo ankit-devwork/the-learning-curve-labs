@@ -321,8 +321,48 @@ Uses existing tables from `001_initial.sql`: `quizzes`, `quiz_questions`, `quiz_
 
 ---
 
-## Next up — Phase 2
+## Phase 2 — Excel data chat (implemented)
 
+### Backend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| LLM | `app/services/llm_client.py` | `answer_excel_question()`, user-scoped `excel_question_cache_key()` |
+| Service | `app/services/excel_service.py` | `ask_excel()` with ownership, rate limit, cache |
+| Routes | `app/api/routes/excel.py` | `POST /documents/{id}/excel/ask` |
+
+### Security
+
+- Ownership via `_get_owned_document()` (`owner_id = user.id`)
+- Separate rate limit key `excel_chat:{user_id}` (config: `excel.chat_rate_limit_per_min`)
+- Cache key includes `user_id`, `document_id`, `file_hash`, and question digest
+- LLM context uses `grounded_system_prompt()` + `tag_block()`; chart series truncated via `chart_context_points`
+- No raw file re-download on ask — uses stored profile, summary, and charts only
+- Generic error on LLM failures (`GENERIC_EXCEL_ERROR`)
+
+### Frontend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Chat UI | `components/excel/excel-detail-client.tsx` | Ask form + message history on Excel detail page |
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/documents/{id}/excel/ask` | Grounded Q&A over analyzed spreadsheet |
+
+### Verify
+
+1. Upload and analyze an Excel or CSV file
+2. Open Excel detail → **Ask this spreadsheet**
+3. Ask e.g. "Which region has the highest sales?" — answer references profile/charts
+
+---
+
+## Next up — Phase 2 (remaining)
+
+- [x] Excel data chat (`POST /documents/{id}/excel/ask`)
 - Neo4j concept graph sync
 - Adaptive quizzes from weak concepts
-- Excel data chat
+- Multi-doc chat
