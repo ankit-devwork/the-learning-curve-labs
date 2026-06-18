@@ -243,6 +243,10 @@ logs/
 !genai-doc-assistant-capstone/docs/
 !genai-doc-assistant-capstone/docs/**
 
+# Allow InsightLab runbooks
+!insight-lab/docs/
+!insight-lab/docs/**
+
 # Ignore log files
 *.log
 
