@@ -122,6 +122,43 @@ async def generate_excel_summary(*, profile: dict, charts: list[dict], filename:
     )
 
 
+async def generate_quiz_draft(
+    *,
+    context_chunks: list[str],
+    filename: str,
+    question_type: str,
+    difficulty: str,
+    num_questions: int,
+) -> str:
+    cfg = get_yaml_config().quizzes
+    context = "\n\n---\n\n".join(
+        f"[Chunk {index + 1}]\n{chunk}" for index, chunk in enumerate(context_chunks)
+    )
+    prompt = (
+        "Create a quiz from the document excerpts below. Return ONLY valid JSON with:\n"
+        "- title (string)\n"
+        "- questions (array)\n\n"
+        "Each question object must include:\n"
+        "- question_text (string)\n"
+        "- options (array of 2-6 strings)\n"
+        "- correct_option_index (0-based integer)\n"
+        "- explanation (string)\n"
+        "- source_chunk_index (0-based index into the provided chunks)\n\n"
+        f"Quiz settings: question_type={question_type}, difficulty={difficulty}, "
+        f"num_questions={num_questions}\n"
+        "Use only facts supported by the excerpts. For true_false use exactly two options: True and False.\n\n"
+        f"Document: {filename}\n\n"
+        f"Excerpts:\n{context[:12000]}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {"role": "system", "content": "Return JSON only. No markdown."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.quiz_max_tokens,
+    )
+
+
 def question_cache_key(document_id: str, question: str) -> str:
     digest = hashlib.sha256(question.strip().lower().encode("utf-8")).hexdigest()[:16]
     return f"chat:document:{document_id}:{digest}"
@@ -130,3 +167,7 @@ def question_cache_key(document_id: str, question: str) -> str:
 def excel_cache_key(document_id: str, file_hash: str | None) -> str:
     digest = file_hash or "unknown"
     return f"excel:charts:{document_id}:{digest}"
+
+
+def quiz_cache_key(document_id: str, settings_hash: str) -> str:
+    return f"quiz:{document_id}:{settings_hash}"

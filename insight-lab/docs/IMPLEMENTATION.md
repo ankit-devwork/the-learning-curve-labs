@@ -16,7 +16,7 @@ Living document updated as features land. See [ARCHITECTURE.md](ARCHITECTURE.md)
 | **1.7** | **Document summary + chat** | **Done** | `POST /process`, `GET /summary`, `POST /ask`, Redis cache |
 | **1.7b** | **pgvector embeddings (RAG)** | **Done** | fastembed + `match_document_chunks` RPC, vector retrieval |
 | **1.8** | **Excel charts pipeline** | **Done** | `POST /analyze`, `GET /charts`, retry + circuit breaker |
-| 1.9 | Quiz generator | Planned | `POST /quiz/generate` |
+| **1.9** | **Quiz generator** | **Done** | `POST /quiz/generate`, `GET /quiz`, `POST /quiz/submit` |
 
 ---
 
@@ -283,7 +283,46 @@ Run `supabase/migrations/004_excel_charts.sql` — adds `excel_profile`, `excel_
 
 ---
 
-## Next up — Step 1.9 Quiz generator
+## Step 1.9 — Quiz generator (implemented)
 
-- Generate SCQ/MCQ from ingested documents
-- Score attempts and store results
+### Backend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Quiz parsing | `app/services/quiz_questions.py` | Validate LLM JSON quiz payload |
+| Quiz service | `app/services/quiz_service.py` | Generate, fetch, score attempts |
+| LLM | `app/services/llm_client.py` | `generate_quiz_draft`, `quiz_cache_key` |
+| Routes | `app/api/routes/quiz.py` | Generate, get, submit endpoints |
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/documents/{id}/quiz/generate` | LLM quiz from document chunks |
+| GET | `/documents/{id}/quiz` | Latest quiz for document (no answers) |
+| POST | `/quizzes/{id}/submit` | Score answers, store attempt |
+
+### Frontend
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Quiz panel | `components/documents/document-quiz-panel.tsx` | Generate, take quiz, show score |
+| Document detail | `components/documents/document-detail-client.tsx` | Quiz section on document page |
+
+### Database
+
+Uses existing tables from `001_initial.sql`: `quizzes`, `quiz_questions`, `quiz_attempts`.
+
+### Verify
+
+1. Upload and process a PDF document
+2. Open document detail → **Generate quiz**
+3. Answer questions → **Submit answers** → see score and explanations
+
+---
+
+## Next up — Phase 2
+
+- Neo4j concept graph sync
+- Adaptive quizzes from weak concepts
+- Excel data chat

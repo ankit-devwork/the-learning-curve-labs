@@ -117,7 +117,7 @@ See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 - [x] Document summary + chat (Step 1.7)
 - [x] pgvector embeddings for semantic RAG (Step 1.7b)
 - [x] Excel charts pipeline + retry/circuit breaker (Step 1.8)
-- [ ] Quiz generator
+- [x] Quiz generator (Step 1.9)
 
 ## Related projects
 

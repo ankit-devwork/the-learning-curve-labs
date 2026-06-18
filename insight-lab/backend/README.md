@@ -161,6 +161,10 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 | POST | `/documents/{id}/ask` | **Bearer JWT** | RAG chat over document chunks |
 | POST | `/documents/{id}/analyze` | **Bearer JWT** | Excel profile + charts + insights (Step 1.8) |
 | GET | `/documents/{id}/charts` | **Bearer JWT** | Cached Excel analysis |
+| POST | `/documents/{id}/charts/custom` | **Bearer JWT** | Custom chart from selected columns |
+| POST | `/documents/{id}/quiz/generate` | **Bearer JWT** | Generate quiz from document chunks (Step 1.9) |
+| GET | `/documents/{id}/quiz` | **Bearer JWT** | Latest quiz for document |
+| POST | `/quizzes/{id}/submit` | **Bearer JWT** | Submit quiz answers and get score |
 | GET | `/docs` | No | OpenAPI UI |
 
 ### Calling `/me` from curl

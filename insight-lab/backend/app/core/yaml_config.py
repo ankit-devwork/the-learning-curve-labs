@@ -62,6 +62,7 @@ class CacheSection(BaseModel):
     summary_ttl: int = 604800
     chat_ttl: int = 86400
     excel_ttl: int = 86400
+    quiz_ttl: int = 604800
 
 
 class ExcelSection(BaseModel):
@@ -72,6 +73,14 @@ class ExcelSection(BaseModel):
     max_charts: int = 6
     chart_plan_max_tokens: int = 1200
     summary_max_tokens: int = 800
+
+
+class QuizzesSection(BaseModel):
+    generate_rate_limit_per_min: int = 5
+    default_num_questions: int = 5
+    max_questions: int = 10
+    max_context_chunks: int = 8
+    quiz_max_tokens: int = 2000
 
 
 class ResilienceSection(BaseModel):
@@ -113,6 +122,7 @@ class YamlConfig(BaseModel):
     llm: LlmSection
     embeddings: EmbeddingsSection
     excel: ExcelSection
+    quizzes: QuizzesSection
     resilience: ResilienceSection
 
 

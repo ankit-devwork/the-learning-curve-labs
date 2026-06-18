@@ -49,6 +49,7 @@ cache:
   summary_ttl: 604800
   chat_ttl: 86400
   excel_ttl: 86400
+  quiz_ttl: 604800
 
 documents:
   chunk_size: 1200
@@ -81,6 +82,13 @@ excel:
   max_charts: 6
   chart_plan_max_tokens: 1200
   summary_max_tokens: 800
+
+quizzes:
+  generate_rate_limit_per_min: 5
+  default_num_questions: 5
+  max_questions: 10
+  max_context_chunks: 8
+  quiz_max_tokens: 2000
 
 resilience:
   retry_max_attempts: 4
