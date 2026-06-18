@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   apiFetch,
+  type ConceptMasteryItem,
+  type ConceptMasteryResponse,
   type GenerateQuizRequest,
   type QuizResponse,
   type QuizSubmitResponse,
@@ -10,6 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  hasWeakConcepts,
+  QuizMasteryProgress,
+} from "@/components/documents/quiz-mastery-progress";
 import { cn } from "@/lib/utils";
 
 const selectClassName = cn(
@@ -37,9 +43,33 @@ export function DocumentQuizPanel({
   const [numQuestions, setNumQuestions] = useState(5);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [results, setResults] = useState<QuizSubmitResponse | null>(null);
+  const [mastery, setMastery] = useState<ConceptMasteryItem[]>([]);
+  const [masteryNotice, setMasteryNotice] = useState<string | null>(null);
+  const [masteryMigrationRequired, setMasteryMigrationRequired] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingMastery, setLoadingMastery] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loadMastery = useCallback(async () => {
+    if (!accessToken || !ready) {
+      return;
+    }
+    setLoadingMastery(true);
+    const response = await apiFetch(`/documents/${documentId}/concepts/mastery`, accessToken);
+    setLoadingMastery(false);
+    if (!response.ok) {
+      return;
+    }
+    const data = (await response.json()) as ConceptMasteryResponse;
+    setMastery(data.concepts);
+    setMasteryMigrationRequired(Boolean(data.migration_required));
+    setMasteryNotice(data.notice ?? null);
+  }, [accessToken, documentId, ready]);
+
+  useEffect(() => {
+    void loadMastery();
+  }, [loadMastery]);
 
   const generateQuiz = useCallback(async () => {
     if (!accessToken) {
@@ -67,8 +97,40 @@ export function DocumentQuizPanel({
       return;
     }
 
-    const data = (await response.json()) as QuizResponse;
-    setQuiz(data);
+    setQuiz((await response.json()) as QuizResponse);
+  }, [accessToken, documentId, questionType, difficulty, numQuestions]);
+
+  const generatePracticeQuiz = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+    setGenerating(true);
+    setError(null);
+    setResults(null);
+    setAnswers({});
+
+    const response = await apiFetch(
+      `/documents/${documentId}/quiz/adaptive/generate`,
+      accessToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_type: questionType,
+          difficulty,
+          num_questions: numQuestions,
+        }),
+      },
+    );
+    setGenerating(false);
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || body.detail || `Could not create practice quiz (${response.status})`);
+      return;
+    }
+
+    setQuiz((await response.json()) as QuizResponse);
   }, [accessToken, documentId, questionType, difficulty, numQuestions]);
 
   async function handleSubmit() {
@@ -96,14 +158,18 @@ export function DocumentQuizPanel({
     }
 
     setResults((await response.json()) as QuizSubmitResponse);
+    await loadMastery();
   }
+
+  const canPracticeWeakAreas = hasWeakConcepts(mastery);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Quiz</CardTitle>
         <CardDescription>
-          Generate single-choice questions from this document&apos;s embedded chunks.
+          Test yourself on this document. After you submit, you&apos;ll see which topics need more
+          practice.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -158,62 +224,54 @@ export function DocumentQuizPanel({
           </div>
         </div>
 
-        <Button type="button" disabled={!ready || generating} onClick={() => void generateQuiz()}>
-          {generating ? "Generating..." : quiz ? "Regenerate quiz" : "Generate quiz"}
-        </Button>
-
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={!ready || generating}
-          onClick={async () => {
-            if (!accessToken) {
-              return;
-            }
-            setGenerating(true);
-            setError(null);
-            setResults(null);
-            setAnswers({});
-            const response = await apiFetch(
-              `/documents/${documentId}/quiz/adaptive/generate`,
-              accessToken,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  question_type: questionType,
-                  difficulty,
-                  num_questions: numQuestions,
-                }),
-              },
-            );
-            setGenerating(false);
-            if (!response.ok) {
-              const body = await response.json().catch(() => ({}));
-              setError(body.error || body.detail || `Adaptive quiz failed (${response.status})`);
-              return;
-            }
-            setQuiz((await response.json()) as QuizResponse);
-          }}
-        >
-          {generating ? "Generating..." : "Adaptive quiz (weak concepts)"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={!ready || generating} onClick={() => void generateQuiz()}>
+            {generating ? "Creating..." : quiz ? "New quiz" : "Start quiz"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!ready || generating || !canPracticeWeakAreas}
+            onClick={() => void generatePracticeQuiz()}
+          >
+            {generating ? "Creating..." : "Practice weak areas"}
+          </Button>
+        </div>
+        {!canPracticeWeakAreas && ready && !loadingMastery && (
+          <p className="text-xs text-muted-foreground">
+            Complete a quiz first. If any topics need more work, you can practice them here.
+          </p>
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {(results || mastery.some((item) => item.attempts > 0)) && (
+          <div className="rounded-md border border-dashed p-4">
+            {loadingMastery ? (
+              <p className="text-sm text-muted-foreground">Updating your progress...</p>
+            ) : (
+              <QuizMasteryProgress
+                concepts={mastery}
+                migrationRequired={masteryMigrationRequired}
+                notice={masteryNotice ?? undefined}
+              />
+            )}
+          </div>
+        )}
 
         {quiz && !results && (
           <div className="space-y-5">
             <div>
               <p className="font-medium">{quiz.title}</p>
               <p className="text-sm text-muted-foreground">
-                {quiz.question_type} · {quiz.difficulty}
-                {quiz.cached ? " · cached" : ""}
+                {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)} difficulty
+                {quiz.target_concepts && quiz.target_concepts.length > 0 && (
+                  <>
+                    {" "}
+                    · Focus: {quiz.target_concepts.map((concept) => concept.name).join(", ")}
+                  </>
+                )}
               </p>
-              {quiz.target_concepts && quiz.target_concepts.length > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Targeting: {quiz.target_concepts.map((c) => c.name).join(", ")}
-                </p>
-              )}
             </div>
             {quiz.questions.map((question, index) => (
               <div key={question.id} className="space-y-2 rounded-md border p-4">
@@ -241,7 +299,7 @@ export function DocumentQuizPanel({
               </div>
             ))}
             <Button type="button" disabled={submitting} onClick={() => void handleSubmit()}>
-              {submitting ? "Scoring..." : "Submit answers"}
+              {submitting ? "Checking answers..." : "Submit answers"}
             </Button>
           </div>
         )}
@@ -263,12 +321,17 @@ export function DocumentQuizPanel({
               >
                 <p className="font-medium">{result.question_text}</p>
                 <p className="mt-2 text-muted-foreground">
-                  Your answer: {quiz?.questions.find((q) => q.id === result.question_id)?.options[result.selected_option_index]}
+                  Your answer:{" "}
+                  {quiz?.questions.find((question) => question.id === result.question_id)?.options[
+                    result.selected_option_index
+                  ]}
                 </p>
                 {!result.correct && (
                   <p className="mt-1 text-muted-foreground">
                     Correct:{" "}
-                    {quiz?.questions.find((q) => q.id === result.question_id)?.options[result.correct_option_index]}
+                    {quiz?.questions.find((question) => question.id === result.question_id)?.options[
+                      result.correct_option_index
+                    ]}
                   </p>
                 )}
                 {result.explanation && (
@@ -276,21 +339,28 @@ export function DocumentQuizPanel({
                 )}
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setResults(null);
-                setAnswers({});
-              }}
-            >
-              Try again
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setResults(null);
+                  setAnswers({});
+                }}
+              >
+                Try again
+              </Button>
+              {canPracticeWeakAreas && (
+                <Button type="button" disabled={generating} onClick={() => void generatePracticeQuiz()}>
+                  {generating ? "Creating..." : "Practice weak areas"}
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
         {!ready && (
-          <p className="text-sm text-muted-foreground">Process the document first to generate a quiz.</p>
+          <p className="text-sm text-muted-foreground">Process the document first to take a quiz.</p>
         )}
       </CardContent>
     </Card>

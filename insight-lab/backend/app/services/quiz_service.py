@@ -270,7 +270,7 @@ async def generate_adaptive_quiz(
     weak = await get_weak_concepts(client, document_id, user)
     if not weak:
         raise FileException(
-            "No weak concepts found yet. Complete a quiz first, then try adaptive mode.",
+            "Complete a quiz first. We'll then suggest topics to practice.",
             status_code=409,
         )
 
@@ -391,6 +391,18 @@ async def submit_quiz_attempt(
     *,
     answers: dict[str, int],
 ) -> dict[str, Any]:
+    quiz_cfg = get_yaml_config().quizzes
+    allowed, retry_after = await check_rate_limit(
+        key=f"quiz_submit:{user.id}",
+        limit=quiz_cfg.submit_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Quiz submit limit reached ({quiz_cfg.submit_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
     quiz = _get_owned_quiz(client, quiz_id, user)
     questions = (
         client.table("quiz_questions")
@@ -403,6 +415,9 @@ async def submit_quiz_attempt(
     )
     if not questions:
         raise FileException("Quiz has no questions", status_code=409)
+
+    if len(answers) > quiz_cfg.max_questions:
+        raise FileException("Too many answers submitted", status_code=400)
 
     results: list[dict[str, Any]] = []
     score = 0

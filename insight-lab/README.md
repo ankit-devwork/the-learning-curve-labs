@@ -4,13 +4,13 @@
 
 Part of [The Learning Curve Labs](https://github.com/ankit-devwork/the-learning-curve-labs).
 
-## Features (planned)
+## Features
 
 | Mode | Input | Output |
 |------|-------|--------|
-| **Excel insights** | `.xlsx`, `.csv` | Auto charts, narrative insights, optional data chat |
-| **Document intelligence** | `.pdf`, `.txt`, `.docx` | Summary, RAG chat with citations |
-| **Quiz generator** | Any ingested document | Single-choice / MCQ quizzes with scoring |
+| **Excel insights** | `.xlsx`, `.csv` | Auto charts, custom charts, data chat, narrative insights |
+| **Document intelligence** | `.pdf`, `.txt`, `.docx` | Summary, RAG chat with citations, multi-document chat |
+| **Quiz & progress** | Any ingested document | Quizzes, scoring, topic progress, practice weak areas |
 
 ## Stack
 
@@ -118,6 +118,12 @@ See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 - [x] pgvector embeddings for semantic RAG (Step 1.7b)
 - [x] Excel charts pipeline + retry/circuit breaker (Step 1.8)
 - [x] Quiz generator (Step 1.9)
+- [x] Excel data chat (Phase 2)
+- [x] Multi-document chat with document picker (Phase 2)
+- [x] Adaptive quizzes + topic progress UI (Phase 2)
+- [x] Security hardening (RLS, cache scoping, grounded LLM prompts)
+
+**Ops:** Run all Supabase migrations through `007_phase2_graph_mastery_multi_doc.sql` for multi-doc search, topic progress, and adaptive quizzes.
 
 ## Related projects
 

@@ -178,7 +178,8 @@ Check your token at [jwt.io](https://jwt.io) — paste the `access_token` from t
 
 - Cache keys are scoped per user to prevent cross-user cache reads.
 - LLM prompts wrap untrusted document/user content in XML tags with explicit untrusted-data rules.
-- Upload rate limit enforced (`rate_limit_per_hour` in `config.yaml`).
+- Quiz generate rate limit: `quizzes.generate_rate_limit_per_min` (default 5/min).
+- Quiz submit rate limit: `quizzes.submit_rate_limit_per_min` (default 30/min).
 - Excel chat rate limit: `excel.chat_rate_limit_per_min` (default 20/min, separate from analyze).
 - Run Supabase migrations `005_rls_policies.sql` and `006_storage_and_rpc_security.sql` in production.
 - Set `APP_APP__ENV=production` to disable OpenAPI docs and reduce `/ready` detail.

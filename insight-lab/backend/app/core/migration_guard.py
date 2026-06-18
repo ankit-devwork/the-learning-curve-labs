@@ -36,3 +36,13 @@ def run_or_raise_phase2(callable_fn):
         if is_missing_phase2_schema(exc):
             raise_phase2_migration_required()
         raise
+
+
+def run_or_none_phase2(callable_fn):
+    """Like run_or_raise_phase2 but returns None when Phase 2 tables are missing."""
+    try:
+        return callable_fn()
+    except Exception as exc:
+        if is_missing_phase2_schema(exc):
+            return None
+        raise

@@ -363,6 +363,37 @@ Uses existing tables from `001_initial.sql`: `quizzes`, `quiz_questions`, `quiz_
 ## Next up — Phase 2 (remaining)
 
 - [x] Excel data chat (`POST /documents/{id}/excel/ask`)
-- Neo4j concept graph sync
-- Adaptive quizzes from weak concepts
-- Multi-doc chat
+- [x] Neo4j concept graph sync (backend; UI hidden until progress-focused)
+- [x] Adaptive quizzes from weak concepts + **Your progress by topic** UI
+- [x] Multi-doc chat with document summaries
+
+## Phase 2 — UX & learning (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Topic mastery tracking | `GET /documents/{id}/concepts/mastery` | Progress panel after quiz submit |
+| Practice weak areas | `POST /documents/{id}/quiz/adaptive/generate` | **Practice weak areas** button |
+| Multi-doc chat | `/documents/multi/retrieve`, `/documents/multi/ask` | Document chat on dashboard |
+| Document citations | Collapsed per-document sources | **Based on** filename list |
+
+## Next up — Phase 3
+
+- Team workspaces (multi-user)
+- Teacher HITL quiz edit
+- Course pack generator
+- Semantic cache
+- Export PDF / LMS formats
+- LangGraph agent orchestration (currently direct service calls)
+
+## Security & resilience checklist
+
+| Control | Status |
+|---------|--------|
+| Supabase RLS + Storage policies (migrations 005–006) | Required in prod |
+| JWT auth on all document/quiz/excel routes | Done |
+| User-scoped cache keys (summary, chat, quiz, excel) | Done |
+| Rate limits (upload, process, chat, quiz generate/submit, excel) | Done |
+| Grounded LLM prompts + excerpt marker stripping | Done |
+| Retry + circuit breaker on LLM/Storage | Done |
+| Phase 2 migration guard (graceful degradation) | Done |
+| Generic errors to clients; sanitized stored errors | Done |

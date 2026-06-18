@@ -6,7 +6,7 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.exceptions import NotFoundException
-from app.core.migration_guard import is_missing_phase2_schema, run_or_raise_phase2
+from app.core.migration_guard import PHASE2_MIGRATION_NOTICE, is_missing_phase2_schema, run_or_none_phase2, run_or_raise_phase2
 from app.core.yaml_config import get_yaml_config
 
 log = get_logger("mastery")
@@ -122,24 +122,50 @@ async def get_concept_mastery(
     user: AuthUser,
 ) -> dict[str, Any]:
     _get_owned_document(client, document_id, user)
-    concepts = run_or_raise_phase2(
-        lambda: client.table("document_concepts")
-        .select("concept_id, name, topic")
-        .eq("document_id", document_id)
-        .order("name")
-        .execute()
-        .data
-        or []
-    )
-    mastery_rows = run_or_raise_phase2(
-        lambda: client.table("concept_mastery")
-        .select("concept_id, attempts, correct, last_attempt_at")
-        .eq("document_id", document_id)
-        .eq("user_id", user.id)
-        .execute()
-        .data
-        or []
-    )
+    try:
+        concepts = run_or_none_phase2(
+            lambda: client.table("document_concepts")
+            .select("concept_id, name, topic")
+            .eq("document_id", document_id)
+            .order("name")
+            .execute()
+            .data
+            or []
+        )
+        if concepts is None:
+            return {
+                "document_id": document_id,
+                "concepts": [],
+                "migration_required": True,
+                "notice": PHASE2_MIGRATION_NOTICE,
+            }
+
+        mastery_rows = run_or_none_phase2(
+            lambda: client.table("concept_mastery")
+            .select("concept_id, attempts, correct, last_attempt_at")
+            .eq("document_id", document_id)
+            .eq("user_id", user.id)
+            .execute()
+            .data
+            or []
+        )
+        if mastery_rows is None:
+            return {
+                "document_id": document_id,
+                "concepts": [],
+                "migration_required": True,
+                "notice": PHASE2_MIGRATION_NOTICE,
+            }
+    except Exception as exc:
+        if is_missing_phase2_schema(exc):
+            return {
+                "document_id": document_id,
+                "concepts": [],
+                "migration_required": True,
+                "notice": PHASE2_MIGRATION_NOTICE,
+            }
+        raise
+
     mastery_map = {row["concept_id"]: row for row in mastery_rows}
 
     items: list[dict[str, Any]] = []
