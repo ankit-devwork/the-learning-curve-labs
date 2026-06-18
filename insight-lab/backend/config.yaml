@@ -88,6 +88,7 @@ excel:
 
 quizzes:
   generate_rate_limit_per_min: 5
+  submit_rate_limit_per_min: 30
   default_num_questions: 5
   max_questions: 10
   max_context_chunks: 8

@@ -111,6 +111,8 @@ export type ConceptMasteryItem = {
 export type ConceptMasteryResponse = {
   document_id: string;
   concepts: ConceptMasteryItem[];
+  migration_required?: boolean;
+  notice?: string;
   correlation_id?: string;
 };
 
