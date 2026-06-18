@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
-import { ConceptGraphPanel } from "@/components/documents/concept-graph-panel";
 import { SourceCitations } from "@/components/documents/source-citations";
 import type { SourceCitation } from "@/lib/api";
 
