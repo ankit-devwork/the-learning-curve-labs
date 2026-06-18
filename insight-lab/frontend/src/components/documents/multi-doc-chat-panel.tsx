@@ -134,7 +134,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        setError(body.error || `Could not find passages (${response.status})`);
+        setError(body.error || `Could not search documents (${response.status})`);
         return;
       }
 
@@ -154,7 +154,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
 
     const approved = pendingSources.filter((source) => selectedSourceKeys.has(sourceKey(source)));
     if (approved.length === 0) {
-      setError("Select at least one source passage to generate an answer.");
+      setError("Select at least one source to continue.");
       return;
     }
 
@@ -202,17 +202,16 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Multi-document chat</CardTitle>
+        <CardTitle>Document chat</CardTitle>
         <CardDescription>
-          {hitlMode
-            ? "Step 1: find relevant passages. Step 2: review them, then generate an answer."
-            : "Select one document to ask directly, or select two or more to compare with source review."}
+          Select one or more documents and ask a question. With multiple documents selected, you
+          can review sources before the answer is generated.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {readyDocuments.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Upload and process at least one document to use multi-doc chat.
+            Upload and process at least one document to use document chat.
           </p>
         ) : (
           <>
@@ -245,30 +244,20 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
               <Input
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder={
-                  hitlMode
-                    ? "Ask across selected documents..."
-                    : "Ask a question about the selected document..."
-                }
+                placeholder="Ask a question..."
                 disabled={retrieving || asking || selectedIds.length === 0}
               />
               <Button type="submit" disabled={retrieving || asking || selectedIds.length === 0}>
-                {hitlMode
-                  ? retrieving
-                    ? "Searching..."
-                    : "Find passages"
-                  : asking
-                    ? "Thinking..."
-                    : "Ask"}
+                {retrieving || asking ? "Thinking..." : "Ask"}
               </Button>
             </form>
 
             {hitlMode && pendingSources.length > 0 && (
               <div className="space-y-3 rounded-md border border-dashed p-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Review passages before generating an answer</p>
+                  <p className="text-sm font-medium">Review sources</p>
                   <p className="text-xs text-muted-foreground">
-                    {pendingSources.length} passage{pendingSources.length === 1 ? "" : "s"} from{" "}
+                    {pendingSources.length} result{pendingSources.length === 1 ? "" : "s"} from{" "}
                     {pendingDocumentCount} document{pendingDocumentCount === 1 ? "" : "s"}. Uncheck
                     any you do not need.
                   </p>
@@ -281,7 +270,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
                   groupByDocument
                 />
                 <Button type="button" disabled={asking} onClick={() => void handleGenerateAnswer()}>
-                  {asking ? "Generating..." : "Generate answer"}
+                  {asking ? "Thinking..." : "Continue"}
                 </Button>
               </div>
             )}

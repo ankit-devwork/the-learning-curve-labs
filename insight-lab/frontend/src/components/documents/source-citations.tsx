@@ -44,7 +44,7 @@ function SourceCard({
             className="mt-1"
             checked={checked}
             onChange={() => onToggle(source)}
-            aria-label={`Include passage from ${source.filename}`}
+                    aria-label={`Include source from ${source.filename}`}
           />
         )}
         <div className="min-w-0 flex-1">
