@@ -11,8 +11,9 @@ SQL migrations and RLS policies for InsightLab.
 5. Run `004_excel_charts.sql` for Excel analysis results (Step 1.8).
 6. Run `005_rls_policies.sql` for table RLS policies.
 7. Run `006_storage_and_rpc_security.sql` for Storage policies and RPC lockdown.
-8. Create a Storage bucket named `uploads` (private).
-9. Copy project URL and keys to `.env` files.
+8. Run `007_phase2_graph_mastery_multi_doc.sql` for concept graph, mastery, multi-doc search.
+9. Create a Storage bucket named `uploads` (private).
+10. Copy project URL and keys to `.env` files.
 
 ## Local CLI (optional)
 

@@ -63,6 +63,7 @@ export type QuizResponse = {
   difficulty: string;
   questions: QuizQuestion[];
   cached?: boolean;
+  target_concepts?: ConceptMasteryItem[];
   correlation_id?: string;
 };
 
@@ -83,6 +84,64 @@ export type QuizSubmitResponse = {
   total: number;
   percent: number;
   results: QuizResultItem[];
+  correlation_id?: string;
+};
+
+export type ConceptMasteryItem = {
+  concept_id: string;
+  name: string;
+  topic?: string | null;
+  attempts: number;
+  correct: number;
+  percent?: number | null;
+  last_attempt_at?: string | null;
+};
+
+export type ConceptMasteryResponse = {
+  document_id: string;
+  concepts: ConceptMasteryItem[];
+  correlation_id?: string;
+};
+
+export type GraphNode = {
+  id: string;
+  label: string;
+  topic?: string | null;
+  chunk_indexes?: number[];
+};
+
+export type GraphEdge = {
+  source: string;
+  target: string;
+  type: string;
+};
+
+export type DocumentGraphResponse = {
+  document_id: string;
+  filename: string;
+  neo4j_synced_at?: string | null;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  correlation_id?: string;
+};
+
+export type GraphSyncResponse = {
+  document_id: string;
+  concept_count: number;
+  relationship_count: number;
+  neo4j_synced: boolean;
+  synced_at: string;
+  cached?: boolean;
+  correlation_id?: string;
+};
+
+export type MultiAskResponse = {
+  document_ids: string[];
+  question: string;
+  answer: string;
+  cited_documents?: string[];
+  retrieval_method?: "vector" | "keyword";
+  cached?: boolean;
   correlation_id?: string;
 };
 

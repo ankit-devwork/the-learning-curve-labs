@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
+import { ConceptGraphPanel } from "@/components/documents/concept-graph-panel";
 
 type ChatMessage = {
   question: string;
@@ -258,6 +259,12 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
           )}
         </CardContent>
       </Card>
+
+      <ConceptGraphPanel
+        documentId={documentId}
+        ready={document.status === "ready"}
+        accessToken={accessToken}
+      />
 
       <DocumentQuizPanel
         documentId={documentId}

@@ -5,6 +5,8 @@ from app.core.safe_errors import sanitize_stored_error
 from app.services.llm_client import (
     _compact_charts_for_context,
     excel_question_cache_key,
+    graph_cache_key,
+    multi_chat_cache_key,
     question_cache_key,
     summary_cache_key,
 )
@@ -49,6 +51,18 @@ def test_compact_charts_for_context_truncates_series():
     assert len(compact) == 1
     assert len(compact[0]["labels"]) <= 25
     assert len(compact[0]["values"]) <= 25
+
+
+def test_graph_cache_key_scoped_to_user():
+    assert graph_cache_key("user-a", "doc-1") != graph_cache_key("user-b", "doc-1")
+
+
+def test_multi_chat_cache_key_scoped_to_user_and_docs():
+    key_a = multi_chat_cache_key("user-a", ["doc-1", "doc-2"], "What is RAG?")
+    key_b = multi_chat_cache_key("user-b", ["doc-1", "doc-2"], "What is RAG?")
+    key_c = multi_chat_cache_key("user-a", ["doc-2"], "What is RAG?")
+    assert key_a != key_b
+    assert key_a != key_c
 
 
 def test_tag_block_strips_nested_tags():

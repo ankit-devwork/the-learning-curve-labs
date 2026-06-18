@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -147,6 +148,7 @@ export function FileUploadCard() {
     : "Loading upload settings...";
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Upload files</CardTitle>
@@ -214,5 +216,7 @@ export function FileUploadCard() {
         )}
       </CardContent>
     </Card>
+    <MultiDocChatPanel documents={documents} />
+    </>
   );
 }

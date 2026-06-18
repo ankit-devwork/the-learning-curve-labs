@@ -8,6 +8,7 @@ from pycorekit.exceptions.base import AppException
 from pycorekit.exceptions.handlers import app_exception_handler, generic_exception_handler
 from pycorekit.tracing.middleware import RequestTracingMiddleware
 
+from app.api.routes.graph import router as graph_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.excel import router as excel_router
 from app.api.routes.health import router as health_router
@@ -78,6 +79,7 @@ app.include_router(health_router, tags=["health"])
 app.include_router(me_router, tags=["auth"])
 app.include_router(upload_router, tags=["documents"])
 app.include_router(documents_router, tags=["documents"])
+app.include_router(graph_router, tags=["graph"])
 app.include_router(excel_router, tags=["excel"])
 app.include_router(quiz_router, tags=["quiz"])
 
@@ -97,7 +99,12 @@ async def root():
         "excel_charts": "/documents/{id}/charts",
         "excel_custom_chart": "/documents/{id}/charts/custom",
         "excel_ask": "/documents/{id}/excel/ask",
+        "multi_doc_ask": "/documents/multi/ask",
+        "graph_sync": "/documents/{id}/graph/sync",
+        "graph_get": "/documents/{id}/graph",
         "quiz_generate": "/documents/{id}/quiz/generate",
+        "quiz_adaptive": "/documents/{id}/quiz/adaptive/generate",
+        "concept_mastery": "/documents/{id}/concepts/mastery",
         "quiz_get": "/documents/{id}/quiz",
         "quiz_submit": "/quizzes/{id}/submit",
     }

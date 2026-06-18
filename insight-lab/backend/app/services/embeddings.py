@@ -92,3 +92,27 @@ def search_similar_chunks(
     )
     rows = result.data or []
     return [row for row in rows if float(row.get("similarity", 0)) >= threshold]
+
+
+def search_workspace_chunks(
+    client,
+    *,
+    document_ids: list[str],
+    query_embedding: list[float],
+    limit: int,
+    threshold: float,
+) -> list[dict]:
+    if not document_ids:
+        return []
+    result = (
+        client.rpc(
+            "match_workspace_chunks",
+            {
+                "filter_document_ids": document_ids,
+                "query_embedding": vector_to_pgvector(query_embedding),
+                "match_count": limit,
+            },
+        ).execute()
+    )
+    rows = result.data or []
+    return [row for row in rows if float(row.get("similarity", 0)) >= threshold]

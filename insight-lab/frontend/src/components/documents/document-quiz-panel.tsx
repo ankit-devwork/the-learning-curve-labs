@@ -162,6 +162,43 @@ export function DocumentQuizPanel({
           {generating ? "Generating..." : quiz ? "Regenerate quiz" : "Generate quiz"}
         </Button>
 
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!ready || generating}
+          onClick={async () => {
+            if (!accessToken) {
+              return;
+            }
+            setGenerating(true);
+            setError(null);
+            setResults(null);
+            setAnswers({});
+            const response = await apiFetch(
+              `/documents/${documentId}/quiz/adaptive/generate`,
+              accessToken,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  question_type: questionType,
+                  difficulty,
+                  num_questions: numQuestions,
+                }),
+              },
+            );
+            setGenerating(false);
+            if (!response.ok) {
+              const body = await response.json().catch(() => ({}));
+              setError(body.error || body.detail || `Adaptive quiz failed (${response.status})`);
+              return;
+            }
+            setQuiz((await response.json()) as QuizResponse);
+          }}
+        >
+          {generating ? "Generating..." : "Adaptive quiz (weak concepts)"}
+        </Button>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {quiz && !results && (
@@ -172,6 +209,11 @@ export function DocumentQuizPanel({
                 {quiz.question_type} · {quiz.difficulty}
                 {quiz.cached ? " · cached" : ""}
               </p>
+              {quiz.target_concepts && quiz.target_concepts.length > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Targeting: {quiz.target_concepts.map((c) => c.name).join(", ")}
+                </p>
+              )}
             </div>
             {quiz.questions.map((question, index) => (
               <div key={question.id} className="space-y-2 rounded-md border p-4">
