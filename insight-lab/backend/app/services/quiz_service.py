@@ -358,7 +358,7 @@ async def generate_adaptive_quiz(
     return {**payload, "target_concepts": weak}
 
 
-async def get_document_quiz(client: Client, document_id: str, user: AuthUser) -> dict[str, Any]:
+async def get_document_quiz(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:
     _get_owned_document(client, document_id, user)
     quiz_result = (
         client.table("quizzes")
@@ -369,7 +369,7 @@ async def get_document_quiz(client: Client, document_id: str, user: AuthUser) ->
         .execute()
     )
     if not quiz_result.data:
-        raise NotFoundException("No quiz found for this document")
+        return None
 
     quiz = quiz_result.data[0]
     questions = (

@@ -56,6 +56,12 @@ async def get_document_quiz_route(
 ):
     result = await get_document_quiz(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
+    if result is None:
+        return {
+            "document_id": document_id,
+            "quiz": None,
+            "correlation_id": correlation_id,
+        }
     return {**result, "correlation_id": correlation_id}
 
 
