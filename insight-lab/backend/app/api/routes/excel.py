@@ -2,11 +2,17 @@ from fastapi import APIRouter, Depends, Request
 
 from pycorekit.tracing.decorators import with_observability
 
+from app.api.routes.documents import AskRequest
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
 from app.services.excel_charts import CustomChartRequest
-from app.services.excel_service import analyze_excel, create_custom_excel_chart, get_excel_analysis
+from app.services.excel_service import (
+    analyze_excel,
+    ask_excel,
+    create_custom_excel_chart,
+    get_excel_analysis,
+)
 
 router = APIRouter()
 
@@ -44,5 +50,23 @@ async def create_custom_excel_chart_route(
     user: AuthUser = Depends(get_current_user),
 ):
     result = await create_custom_excel_chart(get_supabase_client(), document_id, user, body)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/excel/ask")
+@with_observability("ask_excel")
+async def ask_excel_route(
+    document_id: str,
+    body: AskRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await ask_excel(
+        get_supabase_client(),
+        document_id,
+        user,
+        question=body.question,
+    )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}

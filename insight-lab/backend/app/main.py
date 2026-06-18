@@ -96,6 +96,7 @@ async def root():
         "excel_analyze": "/documents/{id}/analyze",
         "excel_charts": "/documents/{id}/charts",
         "excel_custom_chart": "/documents/{id}/charts/custom",
+        "excel_ask": "/documents/{id}/excel/ask",
         "quiz_generate": "/documents/{id}/quiz/generate",
         "quiz_get": "/documents/{id}/quiz",
         "quiz_submit": "/quizzes/{id}/submit",

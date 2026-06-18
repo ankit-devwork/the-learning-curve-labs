@@ -20,7 +20,9 @@ from app.services.excel_charts import (
 )
 from app.services.excel_profiling import profile_dataframe, read_dataframe
 from app.services.llm_client import (
+    answer_excel_question,
     excel_cache_key,
+    excel_question_cache_key,
     generate_excel_chart_plan,
     generate_excel_summary,
 )
@@ -224,3 +226,65 @@ async def create_custom_excel_chart(
         y_column=request.y_column,
     )
     return {"chart": chart}
+
+
+async def ask_excel(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+    *,
+    question: str,
+) -> dict:
+    question = question.strip()
+    if not question:
+        raise FileException("Question is required")
+
+    cfg = get_yaml_config().excel
+    allowed, retry_after = await check_rate_limit(
+        key=f"excel_chat:{user.id}",
+        limit=cfg.chat_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Excel chat rate limit reached ({cfg.chat_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    doc = _get_owned_document(client, document_id, user)
+    if doc["file_type"] != "excel":
+        raise FileException("Excel chat is only available for spreadsheet uploads")
+    if doc["status"] != "ready" or not doc.get("excel_profile"):
+        raise FileException("Analyze the spreadsheet before asking questions", status_code=409)
+
+    cache_key = excel_question_cache_key(user.id, document_id, doc.get("file_hash"), question)
+    cached = await cache_get(cache_key)
+    if cached:
+        return {**cached, "cached": True}
+
+    profile = doc.get("excel_profile") or {}
+    charts = doc.get("excel_charts") or []
+    summary = doc.get("excel_summary") or ""
+
+    try:
+        llm_result = await answer_excel_question(
+            question=question,
+            profile=profile,
+            summary=summary,
+            charts=charts,
+            filename=doc["filename"],
+        )
+    except Exception as exc:
+        log.exception("Excel chat failed", document_id=document_id, user_id=user.id)
+        raise FileException(GENERIC_EXCEL_ERROR, status_code=500) from exc
+
+    payload = {
+        "document_id": document_id,
+        "question": question,
+        "answer": llm_result["answer"],
+        "sources": llm_result["sources"],
+        "cached": False,
+    }
+    await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
+    log.info("Excel chat answered", document_id=document_id, user_id=user.id)
+    return payload
