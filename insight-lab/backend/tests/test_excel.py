@@ -137,6 +137,27 @@ def test_build_custom_pie_without_y_column():
     assert "Chair" in chart["labels"]
 
 
+def test_build_scatter_with_datetime_columns():
+    df = pd.read_csv(
+        io.StringIO(
+            "Date,Quantity,ShippingCost\n"
+            "2024-03-21,63,5.01\n"
+            "2024-11-02,75,27.03\n"
+            "2025-05-11,86,49.05\n"
+        )
+    )
+    df["Date"] = pd.to_datetime(df["Date"])
+    request = CustomChartRequest(
+        chart_type="scatter",
+        x_column="ShippingCost",
+        y_column="Date",
+    )
+    chart = build_custom_chart(df, request)
+    assert len(chart["labels"]) == 3
+    assert len(chart["values"]) == 3
+    assert all(isinstance(value, float) for value in chart["values"])
+
+
 def test_circuit_breaker_opens_after_failures():
     breaker = CircuitBreaker(name="test", failure_threshold=2, recovery_seconds=60)
 
