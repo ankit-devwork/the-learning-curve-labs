@@ -148,10 +148,10 @@ export function FileUploadCard() {
     : "Loading upload settings...";
 
   return (
-    <>
+    <div className="space-y-4">
     <Card>
-      <CardHeader>
-        <CardTitle>Upload files</CardTitle>
+      <CardHeader className="pb-3">
+        <CardTitle>Your files</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -217,6 +217,6 @@ export function FileUploadCard() {
       </CardContent>
     </Card>
     <MultiDocChatPanel documents={documents} />
-    </>
+    </div>
   );
 }
