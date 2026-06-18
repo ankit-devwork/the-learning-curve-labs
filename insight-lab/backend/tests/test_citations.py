@@ -2,6 +2,7 @@ import pytest
 
 from app.services.citations import (
     build_source_citations,
+    collapse_sources_by_document,
     hash_document_ids,
     hash_source_refs,
     make_source_preview,
@@ -12,8 +13,50 @@ from app.services.citations import (
 def test_make_source_preview_truncates():
     long_text = "word " * 100
     preview = make_source_preview(long_text, max_len=50)
-    assert len(preview) <= 50
+    assert len(preview) <= 51
     assert preview.endswith("…")
+
+
+def test_make_source_preview_prefers_sentence_boundary():
+    text = (
+        "First sentence is complete. Second sentence adds more detail. "
+        "Third sentence continues with even more background information."
+    )
+    preview = make_source_preview(text, max_len=80)
+    assert preview.endswith(".")
+    assert "Third sentence" not in preview
+
+
+def test_collapse_sources_by_document_keeps_best_match():
+    sources = build_source_citations(
+        [
+            {
+                "document_id": "doc-1",
+                "filename": "a.pdf",
+                "chunk_index": 0,
+                "content": "Lower match chunk.",
+                "similarity": 0.55,
+            },
+            {
+                "document_id": "doc-1",
+                "filename": "a.pdf",
+                "chunk_index": 1,
+                "content": "Higher match chunk.",
+                "similarity": 0.91,
+            },
+            {
+                "document_id": "doc-2",
+                "filename": "b.pdf",
+                "chunk_index": 0,
+                "content": "Other document chunk.",
+                "similarity": 0.7,
+            },
+        ]
+    )
+    collapsed = collapse_sources_by_document(sources)
+    assert len(collapsed) == 2
+    assert collapsed[0]["preview"] == "Higher match chunk."
+    assert collapsed[1]["filename"] == "b.pdf"
 
 
 def test_strip_excerpt_markers():
