@@ -1,0 +1,87 @@
+# InsightLab — pull API from ECR; run Redis + Neo4j locally on EC2.
+#
+# On EC2 (from repo root):
+#   docker compose -f docker-compose.ecr.yml \
+#     --env-file backend/.env \
+#     --env-file .env.ecr up -d
+#
+# Verify image resolution:
+#   docker compose -f docker-compose.ecr.yml --env-file .env.ecr config | grep image:
+
+name: insight-lab
+
+services:
+  api:
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${API_IMAGE_TAG:-api-latest}
+    container_name: insightlab-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - path: backend/.env
+        required: true
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NEO4J_URI: bolt://neo4j:7687
+      LOG_DIR: /app/logs
+    volumes:
+      - api_logs:/app/logs
+    networks:
+      - insightlab-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+
+  redis:
+    image: redis/redis-stack:latest
+    container_name: insightlab-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - insightlab-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5
+    container_name: insightlab-neo4j
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/insightlab_dev_password}
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - insightlab-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  insightlab-net:
+    driver: bridge
+
+volumes:
+  api_logs:
+  redis_data:
+  neo4j_data:

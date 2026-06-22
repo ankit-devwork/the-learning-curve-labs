@@ -1,5 +1,8 @@
 # Deploy InsightLab on EC2 (pilot)
 
+> **Recommended:** use [DEPLOY-ECR.md](DEPLOY-ECR.md) (build locally → ECR → Docker on EC2).  
+> This guide is the **fallback** manual path (git clone + Python venv + systemd).
+
 Minimal production setup: **FastAPI on EC2** (nginx + uvicorn + systemd), **Next.js on Vercel**, **Supabase** hosted.
 
 **Repository:** [github.com/ankit-devwork/insight-lab](https://github.com/ankit-devwork/insight-lab)
