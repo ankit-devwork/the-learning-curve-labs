@@ -2,6 +2,8 @@
 
 Minimal production setup: **FastAPI on EC2** (nginx + uvicorn + systemd), **Next.js on Vercel**, **Supabase** hosted.
 
+**Repository:** [github.com/ankit-devwork/insight-lab](https://github.com/ankit-devwork/insight-lab)
+
 ## Before you deploy
 
 1. **Merge PR #12** if still open (upload timeout + LangSmith noise fixes help on EC2).
@@ -56,8 +58,8 @@ sudo usermod -aG docker $USER
 ## 3. Clone and install backend
 
 ```bash
-git clone https://github.com/ankit-devwork/the-learning-curve-labs.git
-cd the-learning-curve-labs/insight-lab
+git clone https://github.com/ankit-devwork/insight-lab.git
+cd insight-lab
 
 # Redis + Neo4j (adaptive quiz and graph sync use Neo4j)
 docker compose up -d
@@ -67,10 +69,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
 
-# pycorekit (required)
-pip install -e ../../pycorekit
-# Or from GitHub:
-# pip install "git+https://github.com/ankit-devwork/the-learning-curve-labs.git@main#subdirectory=pycorekit"
+# pycorekit (required — lives in the-learning-curve-labs monorepo)
+pip install "git+https://github.com/ankit-devwork/the-learning-curve-labs.git@main#subdirectory=pycorekit"
 
 pip install -r requirements.txt
 ```
@@ -142,9 +142,9 @@ Requires=docker.service
 
 [Service]
 User=ubuntu
-WorkingDirectory=/home/ubuntu/the-learning-curve-labs/insight-lab/backend
-Environment="PATH=/home/ubuntu/the-learning-curve-labs/insight-lab/backend/.venv/bin"
-ExecStart=/home/ubuntu/the-learning-curve-labs/insight-lab/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2
+WorkingDirectory=/home/ubuntu/insight-lab/backend
+Environment="PATH=/home/ubuntu/insight-lab/backend/.venv/bin"
+ExecStart=/home/ubuntu/insight-lab/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2
 Restart=always
 RestartSec=5
 
