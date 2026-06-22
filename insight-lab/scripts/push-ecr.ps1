@@ -9,6 +9,7 @@
 #   .\scripts\push-ecr.ps1
 
 $ErrorActionPreference = "Stop"
+$env:AWS_PAGER = ""
 
 $Region = if ($env:AWS_REGION) { $env:AWS_REGION } else { "us-east-1" }
 $RepoName = if ($env:ECR_REPOSITORY) { $env:ECR_REPOSITORY } else { "insight-lab" }
@@ -26,20 +27,31 @@ Set-Location $Root
 
 Write-Host "Logging in to ECR: $($env:ECR_REGISTRY) ($Region)"
 aws ecr get-login-password --region $Region | docker login --username AWS --password-stdin $env:ECR_REGISTRY
+if ($LASTEXITCODE -ne 0) { throw "ECR docker login failed." }
 
-$repoExists = aws ecr describe-repositories --repository-names $RepoName --region $Region 2>$null
+# PowerShell treats aws stderr as errors when repo is missing — use exit code instead.
+$prevErrorAction = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+aws ecr describe-repositories --repository-names $RepoName --region $Region *> $null
+$repoExists = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $prevErrorAction
+
 if (-not $repoExists) {
     Write-Host "Creating ECR repository: $RepoName"
     aws ecr create-repository --repository-name $RepoName --region $Region | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Failed to create ECR repository: $RepoName" }
 }
 
 Write-Host "Building API image from backend/Dockerfile..."
 docker build -f backend/Dockerfile -t insightlab-api:local backend
+if ($LASTEXITCODE -ne 0) { throw "Docker build failed." }
 
 docker tag insightlab-api:local $Image
+if ($LASTEXITCODE -ne 0) { throw "Docker tag failed." }
 
 Write-Host "Pushing $Image ..."
 docker push $Image
+if ($LASTEXITCODE -ne 0) { throw "Docker push failed." }
 
 Write-Host ""
 Write-Host "Done. On EC2:"
