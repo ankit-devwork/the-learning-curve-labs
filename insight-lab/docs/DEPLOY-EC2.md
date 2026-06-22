@@ -46,15 +46,19 @@ User → Vercel (Next.js) → Supabase Auth + DB + Storage
 
 ## 2. Base setup
 
-SSH into the instance:
+SSH into the instance — see [DEPLOY-ECR.md — Connect to EC2](DEPLOY-ECR.md#part-0--connect-to-ec2-from-windows).
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git nginx certbot python3-certbot-nginx docker.io docker-compose-plugin
+sudo apt install -y git nginx certbot python3-certbot-nginx docker.io docker-compose-v2
 
 sudo usermod -aG docker $USER
 # Log out and back in so the docker group applies
 ```
+
+Verify Docker Compose: `docker compose version` (use a **space**, not `docker-compose`).
+
+For the API itself, this guide uses **Python on the host** — not ECR. If you pushed an image to ECR, use [DEPLOY-ECR.md](DEPLOY-ECR.md) instead and skip sections 3–5 below.
 
 ---
 
@@ -68,6 +72,7 @@ cd insight-lab
 docker compose up -d
 
 cd backend
+sudo apt install -y python3-venv   # required on Ubuntu before venv works
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
