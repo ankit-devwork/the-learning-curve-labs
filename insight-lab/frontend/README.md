@@ -48,6 +48,26 @@ npm run dev
 
 Open http://localhost:3000
 
+## Deploy on Vercel (EC2 HTTP backend)
+
+When the API runs on EC2 **without HTTPS**, use the built-in proxy rewrite:
+
+1. EC2 nginx on port **8080** → `127.0.0.1:8000` (see [docs/DEPLOY-ECR.md](../docs/DEPLOY-ECR.md))
+2. Vercel env:
+   - `NEXT_PUBLIC_API_URL=/api-backend`
+   - `BACKEND_PROXY_URL=http://YOUR_EC2_PUBLIC_IP:8080`
+3. Redeploy on Vercel
+4. Test: `https://your-app.vercel.app/api-backend/health`
+
+Local dev with proxy (optional):
+
+```env
+NEXT_PUBLIC_API_URL=/api-backend
+BACKEND_PROXY_URL=http://localhost:8000
+```
+
+Or call the API directly: `NEXT_PUBLIC_API_URL=http://localhost:8000`
+
 ## Routes
 
 | Route | Description |

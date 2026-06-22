@@ -255,13 +255,54 @@ Logs:
 docker compose -f docker-compose.ecr.yml logs -f api
 ```
 
-### 7. nginx + HTTPS
+### 7. Expose API for Vercel (no domain — port 8080)
+
+If the frontend is on **Vercel (HTTPS)** and the API has **no domain**, use nginx on **8080** and a **Next.js proxy rewrite** (Part 4). The browser never calls HTTP EC2 directly.
+
+```bash
+sudo tee /etc/nginx/sites-available/insightlab-api << 'EOF'
+server {
+    listen 8080;
+    server_name _;
+
+    client_max_body_size 12M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+}
+EOF
+
+sudo ln -sf /etc/nginx/sites-available/insightlab-api /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Security group: add inbound **8080** from **Anywhere** (Vercel’s proxy servers need to reach EC2).
+
+Test:
+
+```bash
+curl -s http://127.0.0.1:8080/health
+curl -s http://YOUR_EC2_PUBLIC_IP:8080/health
+```
+
+### 8. nginx + HTTPS (optional — when you have a domain)
 
 Proxy `api.yourdomain.com` → `http://127.0.0.1:8000` with 300s timeouts. Full config: [DEPLOY-EC2.md — nginx](DEPLOY-EC2.md#6-nginx-reverse-proxy).
 
 ```bash
 sudo certbot --nginx -d api.yourdomain.com
 ```
+
+Then you can set `NEXT_PUBLIC_API_URL=https://api.yourdomain.com` on Vercel and skip the proxy rewrite.
 
 ---
 
@@ -283,16 +324,73 @@ docker compose -f docker-compose.ecr.yml --env-file backend/.env --env-file .env
 
 ---
 
-## Part 4 — Frontend (Vercel)
+## Part 4 — Frontend on Vercel (HTTP EC2 via proxy)
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-NEXT_PUBLIC_SHOW_DEV_PANEL=false
+Browsers block **HTTPS → HTTP** calls. InsightLab proxies API requests through Vercel so the browser only talks to **same-origin HTTPS** (`/api-backend/*`); Vercel forwards to your EC2 nginx on **8080**.
+
+```text
+Browser  →  https://your-app.vercel.app/api-backend/upload
+         →  Vercel rewrite (server)
+         →  http://EC2-IP:8080/upload
+         →  nginx → insightlab-api :8000
 ```
 
-Configure Supabase Auth Site URL + redirect URLs for your Vercel domain.
+### 1. EC2 nginx on 8080
+
+Complete [step 7](#7-expose-api-for-vercel--no-domain--port-8080) above first.
+
+### 2. Vercel project env vars
+
+In Vercel → Project → Settings → Environment Variables:
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Public |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | Public |
+| `NEXT_PUBLIC_API_URL` | `/api-backend` | Same-origin proxy path |
+| `BACKEND_PROXY_URL` | `http://YOUR_EC2_PUBLIC_IP:8080` | **Server-only** — not `NEXT_PUBLIC_` |
+| `NEXT_PUBLIC_SHOW_DEV_PANEL` | `false` | |
+
+Redeploy after changing env vars (rewrites read `BACKEND_PROXY_URL` at build time).
+
+### 3. Supabase Auth
+
+| Field | Value |
+|-------|-------|
+| Site URL | `https://your-app.vercel.app` |
+| Redirect URLs | `https://your-app.vercel.app/**`, `http://localhost:3000/**` |
+
+Google OAuth: add Supabase callback URL in Google Cloud Console (unchanged).
+
+### 4. CORS on EC2
+
+With the proxy, the browser does **not** call EC2 directly — **CORS is optional** for Vercel traffic. Keep localhost in CORS for local dev:
+
+```bash
+CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+### 5. Verify proxy
+
+After Vercel deploy:
+
+```text
+https://your-app.vercel.app/api-backend/health
+```
+
+Should return `{"status":"ok",...}`.
+
+### 6. Upload size note
+
+Vercel may limit proxied request bodies (~**4.5 MB** on Hobby). InsightLab allows up to **10 MB** uploads. If uploads fail on Vercel but work via `curl` to EC2, use a **HTTPS API** (domain or Cloudflare Tunnel) or host the frontend on EC2.
+
+### Alternative — domain + HTTPS API
+
+If you have a domain, skip the proxy and set:
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+```
 
 ---
 
@@ -300,9 +398,10 @@ Configure Supabase Auth Site URL + redirect URLs for your Vercel domain.
 
 | Step | Verify |
 |------|--------|
-| `curl https://api.yourdomain.com/health` | `{"status":"ok",...}` |
+| `curl http://EC2-IP:8080/health` | API reachable from internet |
+| `https://your-app.vercel.app/api-backend/health` | Vercel proxy works |
 | Login on Vercel app | Dashboard loads |
-| Upload PDF | Summary appears |
+| Upload PDF | Summary appears (watch 4.5 MB Vercel limit) |
 | Ask / Quiz / Multi-doc | End-to-end works |
 
 ---
@@ -320,7 +419,9 @@ Configure Supabase Auth Site URL + redirect URLs for your Vercel domain.
 | `push-ecr.ps1` fails on Windows | Repo missing — script creates it; ensure PowerShell fix is pulled (PR #47) |
 | API exits on start | `docker compose -f docker-compose.ecr.yml logs api` — check `backend/.env` |
 | `/ready` 503 | Redis or Neo4j unhealthy — `docker compose -f docker-compose.ecr.yml ps` |
-| CORS errors | `CORS_ALLOW_ORIGINS` must match Vercel URL exactly (no trailing slash) |
+| CORS errors | With Vercel proxy, browser hits same origin — check proxy URL first |
+| Vercel `/api-backend/health` fails | `BACKEND_PROXY_URL` set? EC2 port **8080** open? nginx running? |
+| Upload fails on Vercel only | Vercel body limit ~4.5 MB — use HTTPS API or EC2 frontend |
 | OOM / slow first request | Use t3.medium; first FastEmbed download is slow |
 
 ---

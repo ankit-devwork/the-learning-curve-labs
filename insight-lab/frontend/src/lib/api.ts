@@ -1,7 +1,15 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? "/api-backend" : "http://localhost:8000");
 
 export function getApiUrl(path: string): string {
-  return `${API_URL.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+  const base = API_URL.replace(/\/$/, "");
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  // Relative proxy path (e.g. /api-backend) — same-origin on Vercel HTTPS
+  if (base.startsWith("/")) {
+    return `${base}${suffix}`;
+  }
+  return `${base}${suffix}`;
 }
 
 export async function apiFetch(
