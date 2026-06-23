@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
 import { WorkspaceStatsPanel } from "@/components/workspace/workspace-stats-panel";
+import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { useToast } from "@/components/ui/toast";
 import { fetchUploadConfig, type UploadConfigResponse } from "@/lib/api";
 import { FileSpreadsheet, FileText } from "lucide-react";
@@ -37,6 +38,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setError(null);
@@ -49,6 +51,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       setLoading(false);
       return;
     }
+    setAccessToken(session.access_token);
 
     const [workspaceRes, docsRes, statsRes] = await Promise.all([
       apiFetch(`/workspaces/${setId}`, session.access_token),
@@ -187,7 +190,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           {documents.length === 0 ? (
             <p className="text-sm text-muted-foreground">No files yet — upload your first material above.</p>
           ) : (
-            <ul className="divide-y overflow-hidden rounded-xl border">
+            <ul className="divide-y overflow-hidden rounded-xl border" data-tour="file-list">
               {documents.map((doc) => (
                 <li key={doc.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -216,7 +219,15 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         </CardContent>
       </Card>
 
-      <MultiDocChatPanel documents={documents} />
+      <SetQuizPanel
+        setId={setId}
+        accessToken={accessToken}
+        hasReadyDocuments={documents.some(
+          (doc) => doc.file_type === "document" && doc.status === "ready",
+        )}
+      />
+
+      <MultiDocChatPanel documents={documents} workspaceId={setId} />
     </div>
   );
 }

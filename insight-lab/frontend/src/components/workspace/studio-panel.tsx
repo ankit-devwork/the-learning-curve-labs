@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Network,
   Sparkles,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ type StudioPanelProps = {
   onGenerateQuiz: () => void;
   onGenerateFlashcards: () => void;
   onGenerateStudyGuide: () => void;
+  onGenerateAudioOverview: () => void;
   onOpenGraph: () => void;
   onFocusAsk: () => void;
   className?: string;
@@ -28,6 +30,7 @@ const actions = [
   { id: "quiz", label: "Quiz", icon: Brain, description: "Generate practice questions" },
   { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards" },
   { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview" },
+  { id: "audio", label: "Audio overview", icon: Volume2, description: "Listen to a narrated summary" },
   { id: "graph", label: "Topic graph", icon: Network, description: "Explore key concepts" },
 ] as const;
 
@@ -37,6 +40,7 @@ export function StudioPanel({
   onGenerateQuiz,
   onGenerateFlashcards,
   onGenerateStudyGuide,
+  onGenerateAudioOverview,
   onOpenGraph,
   onFocusAsk,
   className,
@@ -57,6 +61,9 @@ export function StudioPanel({
         break;
       case "guide":
         onGenerateStudyGuide();
+        break;
+      case "audio":
+        onGenerateAudioOverview();
         break;
       case "graph":
         onOpenGraph();

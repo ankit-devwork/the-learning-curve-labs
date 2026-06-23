@@ -400,11 +400,23 @@ Uses existing tables from `001_initial.sql`: `quizzes`, `quiz_questions`, `quiz_
 
 Migration: `008_phase3_4_study_features.sql` (flashcards, study guides, RLS).
 
-## Next up — Phase 5
+## Next up — Phase 5 (implemented)
 
-- Julius-style inline excel chat canvas
-- Export PNG/CSV
-- Audio overviews
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Compare scoped to study sets | `workspace_id` on multi-doc routes | Set picker on `/dashboard/compare` |
+| Export CSV / PNG | Chart data in API responses | Client export on Excel charts |
+| Audio overview | `POST/GET /documents/{id}/audio-overview/*` | Studio + browser TTS player |
+| Set-wide adaptive quiz | `POST /workspaces/{id}/quiz/adaptive/generate` | `SetQuizPanel` on set detail |
+| Julius-style Excel canvas | `GET /documents/{id}/excel/preview` | Split preview + sticky chat layout |
+| Onboarding tour | — | Route-aware tour + **Show tour** in sidebar |
+
+## Next up — Phase 6
+
+- Team / shared study sets
+- Course pack generator (one-click bundle)
+- Semantic cache for repeat questions
+- Export PDF / LMS formats
 
 ## Security & resilience checklist
 

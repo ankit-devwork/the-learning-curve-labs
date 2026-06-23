@@ -20,6 +20,7 @@ export function UploadDropzone({
 }: UploadDropzoneProps) {
   return (
     <label
+      data-tour="upload-btn"
       className={cn(
         "flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-muted/20 px-6 py-10 text-center transition-colors",
         !disabled && "hover:border-primary/40 hover:bg-primary/[0.03]",

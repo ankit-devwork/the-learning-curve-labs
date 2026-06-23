@@ -288,3 +288,33 @@ async def ask_excel(
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
     log.info("Excel chat answered", document_id=document_id, user_id=user.id)
     return payload
+
+
+async def get_excel_preview(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+    *,
+    limit: int | None = None,
+) -> dict:
+    cfg = get_yaml_config().excel_preview
+    row_limit = min(max(limit or cfg.default_limit, 1), cfg.max_limit)
+
+    doc = _get_owned_document(client, document_id, user)
+    if doc["file_type"] != "excel":
+        raise FileException("Excel preview is only available for spreadsheet uploads")
+
+    raw_bytes = await _download_document_bytes(client, doc)
+    df = read_dataframe(raw_bytes, doc["filename"])
+    preview = df.head(row_limit).fillna("").astype(str)
+    columns = [str(column) for column in preview.columns.tolist()]
+    rows = preview.values.tolist()
+
+    return {
+        "document_id": document_id,
+        "columns": columns,
+        "rows": rows,
+        "preview_rows": len(rows),
+        "total_rows": int(len(df)),
+        "total_columns": int(len(df.columns)),
+    }

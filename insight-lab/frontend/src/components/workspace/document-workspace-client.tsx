@@ -13,6 +13,7 @@ import {
   type QuizResponse,
   type StudyGuideResponse,
   type SummaryResponse,
+  type AudioOverviewResponse,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import { ProcessingStepper } from "@/components/workspace/processing-stepper";
 import { SourceViewerDrawer } from "@/components/workspace/source-viewer-drawer";
 import { StudioPanel } from "@/components/workspace/studio-panel";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
+import { AudioOverviewPanel } from "@/components/workspace/audio-overview-panel";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
 import type { SourceCitation } from "@/lib/api";
 
@@ -47,6 +49,7 @@ export function DocumentWorkspaceClient({
   const askRef = useRef<HTMLDivElement>(null);
   const quizRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLDivElement>(null);
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus | null>(null);
@@ -62,6 +65,7 @@ export function DocumentWorkspaceClient({
   const [existingQuiz, setExistingQuiz] = useState<QuizResponse | null>(null);
   const [flashcards, setFlashcards] = useState<FlashcardSetResponse | null>(null);
   const [studyGuide, setStudyGuide] = useState<StudyGuideResponse | null>(null);
+  const [audioOverview, setAudioOverview] = useState<AudioOverviewResponse | null>(null);
   const [sourceViewer, setSourceViewer] = useState<{
     title: string;
     content: string;
@@ -415,6 +419,16 @@ export function DocumentWorkspaceClient({
             <StudyGuideView title={studyGuide.title} content={studyGuide.content} />
           ) : null}
 
+          <div ref={audioRef}>
+            <AudioOverviewPanel
+              documentId={documentId}
+              accessToken={accessToken}
+              ready={ready}
+              overview={audioOverview}
+              onGenerated={setAudioOverview}
+            />
+          </div>
+
           <div ref={graphRef}>
             <ConceptGraphPanel documentId={documentId} ready={ready} accessToken={accessToken} />
           </div>
@@ -428,6 +442,9 @@ export function DocumentWorkspaceClient({
             onGenerateQuiz={() => quizRef.current?.scrollIntoView({ behavior: "smooth" })}
             onGenerateFlashcards={() => void generateFlashcards()}
             onGenerateStudyGuide={() => void generateStudyGuide()}
+            onGenerateAudioOverview={() =>
+              audioRef.current?.scrollIntoView({ behavior: "smooth" })
+            }
             onOpenGraph={() => graphRef.current?.scrollIntoView({ behavior: "smooth" })}
           />
         </aside>

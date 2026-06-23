@@ -29,12 +29,14 @@ class AskRequest(BaseModel):
 class MultiRetrieveRequest(BaseModel):
     document_ids: list[str] = Field(..., min_length=1, max_length=10)
     question: str = Field(..., min_length=1, max_length=2000)
+    workspace_id: str | None = Field(default=None, min_length=1)
 
 
 class MultiAskRequest(BaseModel):
     document_ids: list[str] = Field(..., min_length=1, max_length=10)
     question: str = Field(..., min_length=1, max_length=2000)
     approved_document_ids: list[str] = Field(..., min_length=1, max_length=10)
+    workspace_id: str | None = Field(default=None, min_length=1)
 
 
 @router.post("/documents/multi/retrieve")
@@ -49,6 +51,7 @@ async def retrieve_multiple_documents_route(
         user,
         document_ids=body.document_ids,
         question=body.question,
+        workspace_id=body.workspace_id,
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
@@ -67,6 +70,7 @@ async def ask_multiple_documents_route(
         document_ids=body.document_ids,
         question=body.question,
         approved_document_ids=body.approved_document_ids,
+        workspace_id=body.workspace_id,
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}

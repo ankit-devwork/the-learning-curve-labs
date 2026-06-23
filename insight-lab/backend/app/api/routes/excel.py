@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from pycorekit.tracing.decorators import with_observability
 
@@ -12,6 +12,7 @@ from app.services.excel_service import (
     ask_excel,
     create_custom_excel_chart,
     get_excel_analysis,
+    get_excel_preview,
 )
 
 router = APIRouter()
@@ -50,6 +51,24 @@ async def create_custom_excel_chart_route(
     user: AuthUser = Depends(get_current_user),
 ):
     result = await create_custom_excel_chart(get_supabase_client(), document_id, user, body)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/excel/preview")
+@with_observability("get_excel_preview")
+async def get_excel_preview_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    result = await get_excel_preview(
+        get_supabase_client(),
+        document_id,
+        user,
+        limit=limit,
+    )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
 

@@ -4,17 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
+  Compass,
   FolderOpen,
-  LayoutDashboard,
   MessagesSquare,
 } from "lucide-react";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { InsightLabTourHost } from "@/components/onboarding/insight-lab-tour";
+import { Button } from "@/components/ui/button";
+import { requestTourRestart } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard/sets", label: "Study sets", icon: FolderOpen },
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/compare", label: "Compare", icon: MessagesSquare },
 ];
 
@@ -59,6 +61,16 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
               <BookOpen className="h-4 w-4" aria-hidden />
               <span>Learning workspace</span>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mb-3 w-full gap-2"
+              onClick={() => requestTourRestart()}
+            >
+              <Compass className="h-4 w-4" aria-hidden />
+              Show tour
+            </Button>
             {userEmail ? <p className="truncate">{userEmail}</p> : null}
             <div className="mt-3">
               <SignOutButton />
@@ -70,7 +82,19 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
           <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur md:hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <BrandMark href="/dashboard" />
-              <SignOutButton />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => requestTourRestart()}
+                >
+                  <Compass className="h-4 w-4" aria-hidden />
+                  Tour
+                </Button>
+                <SignOutButton />
+              </div>
             </div>
             <nav className="flex gap-1 overflow-x-auto px-3 pb-3">
               {navItems.map(({ href, label }) => {
@@ -95,6 +119,7 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
           </main>
         </div>
       </div>
+      <InsightLabTourHost />
     </div>
   );
 }

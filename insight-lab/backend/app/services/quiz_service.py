@@ -17,6 +17,7 @@ from app.services.llm_client import (
     adaptive_quiz_cache_key,
     generate_quiz_draft,
     quiz_cache_key,
+    workspace_adaptive_quiz_cache_key,
 )
 from app.services.mastery_service import get_weak_concepts, record_quiz_mastery
 from app.services.quiz_questions import draft_to_rows, parse_quiz_draft
@@ -356,6 +357,146 @@ async def generate_adaptive_quiz(
         weak_concepts=weak_ids,
     )
     return {**payload, "target_concepts": weak}
+
+
+async def generate_workspace_adaptive_quiz(
+    client: Client,
+    workspace_id: str,
+    user: AuthUser,
+    *,
+    question_type: str,
+    difficulty: str,
+    num_questions: int,
+) -> dict[str, Any]:
+    from app.services.mastery_service import get_workspace_weak_concepts
+    from app.services.workspace_service import _get_owned_workspace
+
+    cfg = get_yaml_config().adaptive_quiz
+    allowed, retry_after = await check_rate_limit(
+        key=f"workspace_adaptive_quiz:{user.id}",
+        limit=cfg.generate_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Adaptive quiz limit reached ({cfg.generate_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    _get_owned_workspace(client, workspace_id, user)
+    weak = await get_workspace_weak_concepts(client, workspace_id, user)
+    if not weak:
+        raise FileException(
+            "Complete a quiz on at least one document in this set first. "
+            "We'll then suggest topics to practice across the set.",
+            status_code=409,
+        )
+
+    weak_ids = [row["concept_id"] for row in weak]
+    weak_names = [row["name"] for row in weak]
+    cache_key = workspace_adaptive_quiz_cache_key(
+        user.id,
+        workspace_id,
+        _weak_concepts_hash(weak_ids),
+    )
+    cached = await cache_get(cache_key)
+    if cached and cached.get("quiz_id"):
+        quiz = _get_owned_quiz(client, cached["quiz_id"], user)
+        questions = (
+            client.table("quiz_questions")
+            .select("*")
+            .eq("quiz_id", quiz["id"])
+            .order("sort_order")
+            .execute()
+            .data
+            or []
+        )
+        return {
+            **_serialize_quiz(quiz, questions, include_answers=False, cached=True),
+            "workspace_id": workspace_id,
+            "target_concepts": weak,
+        }
+
+    quiz_cfg = get_yaml_config().quizzes
+    num_questions = min(max(num_questions, 1), quiz_cfg.max_questions)
+    context_chunks: list[str] = []
+    chunk_indexes: list[int] = []
+    primary_document_id: str | None = None
+    chunks_per_concept = max(1, quiz_cfg.max_context_chunks // max(len(weak), 1))
+
+    for concept in weak:
+        document_id = concept["document_id"]
+        sampled, indexes = _chunks_for_concepts(
+            client,
+            document_id=document_id,
+            concept_ids=[concept["concept_id"]],
+            max_chunks=chunks_per_concept,
+        )
+        if not sampled:
+            continue
+        if primary_document_id is None:
+            primary_document_id = document_id
+        context_chunks.extend(row["content"] for row in sampled)
+        chunk_indexes.extend(indexes)
+        if len(context_chunks) >= quiz_cfg.max_context_chunks:
+            break
+
+    if not context_chunks or not primary_document_id:
+        raise FileException(
+            "No chunks found for weak concepts; sync concept graphs for documents in this set",
+            status_code=409,
+        )
+
+    context_chunks = context_chunks[: quiz_cfg.max_context_chunks]
+    primary_doc = _get_owned_document(client, primary_document_id, user)
+    raw = await generate_quiz_draft(
+        context_chunks=context_chunks,
+        filename=primary_doc["filename"],
+        question_type=question_type,
+        difficulty=difficulty,
+        num_questions=num_questions,
+        focus_concepts=weak_names,
+    )
+    try:
+        draft = parse_quiz_draft(raw, max_questions=num_questions)
+    except (ValueError, Exception) as exc:
+        raise FileException(f"Invalid quiz payload from LLM: {exc}", status_code=502) from exc
+
+    quiz_id = str(uuid4())
+    question_rows = draft_to_rows(draft, chunk_indexes=chunk_indexes[: len(draft.questions)])
+    for index, row in enumerate(question_rows):
+        row["id"] = str(uuid4())
+        row["quiz_id"] = quiz_id
+        if not row.get("concept_id") and index < len(weak_ids):
+            row["concept_id"] = weak_ids[index % len(weak_ids)]
+
+    quiz_row = {
+        "id": quiz_id,
+        "document_id": primary_document_id,
+        "workspace_id": workspace_id,
+        "title": draft.title.strip() or "Adaptive quiz: study set",
+        "question_type": question_type,
+        "difficulty": difficulty,
+        "published": True,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    client.table("quizzes").insert(quiz_row).execute()
+    client.table("quiz_questions").insert(question_rows).execute()
+
+    payload = _serialize_quiz(quiz_row, question_rows, include_answers=False, cached=False)
+    await cache_set(cache_key, {"quiz_id": quiz_id}, get_yaml_config().cache.quiz_ttl)
+    log.info(
+        "Workspace adaptive quiz generated",
+        quiz_id=quiz_id,
+        workspace_id=workspace_id,
+        user_id=user.id,
+        weak_concepts=weak_ids,
+    )
+    return {
+        **payload,
+        "workspace_id": workspace_id,
+        "target_concepts": weak,
+    }
 
 
 async def get_document_quiz(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:

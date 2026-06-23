@@ -124,6 +124,15 @@ artifacts:
   suggested_questions_max_tokens: 400
   chunk_preview_max_chars: 1200
 
+audio_overview:
+  generate_rate_limit_per_min: 5
+  max_tokens: 1200
+  target_words: 450
+
+excel_preview:
+  default_limit: 50
+  max_limit: 200
+
 resilience:
   retry_max_attempts: 4
   retry_base_delay_sec: 1.0
