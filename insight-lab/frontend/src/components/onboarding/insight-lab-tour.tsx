@@ -12,20 +12,20 @@ const SETS_TOUR: TourStep[] = [
   {
     id: "welcome",
     title: "Welcome to InsightLab",
-    body: "Organize course materials into study sets, then chat, quiz, compare, and export insights.",
+    body: "Organize course materials into study sets, collaborate with classmates, and use AI tools to study smarter.",
     placement: "center",
   },
   {
     id: "create-set",
     title: "Create a study set",
-    body: "Start by naming a set for a class, exam, or project. Each set keeps its own files and progress.",
+    body: "Name a set for a class, exam, or project. Each set keeps its own files, progress, and sharing settings.",
     target: '[data-tour="create-set"]',
     placement: "bottom",
   },
   {
     id: "sets-list",
     title: "Open a study set",
-    body: "Click a set to upload PDFs or spreadsheets and use AI tools on your materials.",
+    body: "Sets shared with you show a badge. Click any set to upload, chat, quiz, and export.",
     target: '[data-tour="sets-list"]',
     placement: "top",
   },
@@ -33,30 +33,44 @@ const SETS_TOUR: TourStep[] = [
 
 const SET_DETAIL_TOUR: TourStep[] = [
   {
+    id: "share",
+    title: "Share with teammates",
+    body: "Editors and owners can invite collaborators as viewers or editors. Viewers can study; editors can upload and generate content.",
+    target: '[data-tour="share-panel"]',
+    placement: "bottom",
+  },
+  {
+    id: "course-pack",
+    title: "Course pack",
+    body: "One click generates summary, quiz, flashcards, study guide, and audio overview for every ready document.",
+    target: '[data-tour="course-pack"]',
+    placement: "bottom",
+  },
+  {
     id: "upload",
     title: "Upload materials",
-    body: "Drop PDFs, Word docs, Excel sheets, or CSV files into this study set.",
+    body: "Editors can drop PDFs, Word docs, Excel sheets, or CSV files into this study set.",
     target: '[data-tour="upload-btn"]',
     placement: "bottom",
   },
   {
     id: "files",
     title: "Open a ready file",
-    body: "When status shows Ready, open a file for chat, quiz, flashcards, and the Studio panel.",
+    body: "When status shows Ready, open a file for chat, quiz, flashcards, exports, and Studio tools.",
     target: '[data-tour="file-list"]',
     placement: "top",
   },
   {
     id: "set-quiz",
     title: "Set-wide adaptive quiz",
-    body: "After taking quizzes on documents in this set, generate a quiz that targets your weak topics across all files.",
+    body: "After quizzes on individual documents, generate a set-wide quiz targeting weak topics. Edit and publish before sharing.",
     target: '[data-tour="set-quiz"]',
     placement: "top",
   },
   {
     id: "compare",
     title: "Compare documents",
-    body: "Select two or more ready documents and ask one question across all of them.",
+    body: "Ask one question across multiple files. Similar questions may be answered from cache to save time.",
     target: '[data-tour="compare-docs"]',
     placement: "top",
   },
@@ -66,15 +80,42 @@ const DOCUMENT_TOUR: TourStep[] = [
   {
     id: "studio",
     title: "Studio tools",
-    body: "Generate quizzes, flashcards, study guides, audio overviews, and explore the topic graph.",
+    body: "Generate quizzes, flashcards, study guides, and audio overviews. Export flashcards to Anki CSV and study guides to PDF.",
     target: '[data-tour="studio-panel"]',
     placement: "left",
+  },
+  {
+    id: "quiz-edit",
+    title: "Review before you publish",
+    body: "Quizzes start as drafts. Edit questions inline, then publish when you are happy with them.",
+    target: '[data-tour="quiz-panel"]',
+    placement: "top",
+  },
+];
+
+const EXCEL_TOUR: TourStep[] = [
+  {
+    id: "excel-canvas",
+    title: "Excel canvas",
+    body: "Preview data and charts on the left, chat on the right. Ask questions in plain English about your spreadsheet.",
+    target: '[data-tour="excel-canvas"]',
+    placement: "center",
+  },
+  {
+    id: "excel-export",
+    title: "Export charts",
+    body: "Download any chart as CSV or PNG for reports and slides.",
+    target: '[data-tour="excel-preview"]',
+    placement: "top",
   },
 ];
 
 function stepsForPath(pathname: string): TourStep[] {
   if (/^\/dashboard\/sets\/[^/]+\/documents\/[^/]+$/.test(pathname)) {
     return DOCUMENT_TOUR;
+  }
+  if (/^\/dashboard\/sets\/[^/]+\/excel\/[^/]+$/.test(pathname)) {
+    return EXCEL_TOUR;
   }
   if (/^\/dashboard\/sets\/[^/]+$/.test(pathname)) {
     return SET_DETAIL_TOUR;
@@ -85,10 +126,28 @@ function stepsForPath(pathname: string): TourStep[] {
   return [];
 }
 
+/** Steps whose targets may be hidden for viewers — tour skips missing elements gracefully. */
+function filterAvailableSteps(steps: TourStep[]): TourStep[] {
+  if (typeof document === "undefined") {
+    return steps;
+  }
+  return steps.filter((step) => {
+    if (!step.target) {
+      return true;
+    }
+    return Boolean(document.querySelector(step.target));
+  });
+}
+
 export function InsightLabTourHost() {
   const pathname = usePathname();
-  const steps = useMemo(() => stepsForPath(pathname), [pathname]);
+  const rawSteps = useMemo(() => stepsForPath(pathname), [pathname]);
+  const [steps, setSteps] = useState<TourStep[]>(rawSteps);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setSteps(filterAvailableSteps(rawSteps));
+  }, [rawSteps]);
 
   useEffect(() => {
     if (steps.length === 0) {
@@ -107,13 +166,15 @@ export function InsightLabTourHost() {
 
   useEffect(() => {
     function handleRestart() {
-      if (steps.length > 0) {
+      const available = filterAvailableSteps(rawSteps);
+      setSteps(available);
+      if (available.length > 0) {
         setOpen(true);
       }
     }
     window.addEventListener(TOUR_RESTART_EVENT, handleRestart);
     return () => window.removeEventListener(TOUR_RESTART_EVENT, handleRestart);
-  }, [steps.length]);
+  }, [rawSteps]);
 
   if (steps.length === 0) {
     return null;

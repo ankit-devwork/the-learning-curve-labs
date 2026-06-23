@@ -431,19 +431,22 @@ Migration: `009_phase6_sharing_quiz_edit.sql` (members, invites, quiz `published
 | Team roles in UI | Set adaptive quiz requires editor; role on workspace API | Upload, studio, course pack, quiz generate/edit gated by `canEdit` |
 | Semantic cache expansion | Multi-doc + Excel ask use embedding index | Cache match label in document, multi-doc, and Excel chat |
 | Set-wide quiz HITL edit | Reuses `/quizzes/{id}/edit`, publish | Edit + publish in `SetQuizPanel` |
+| Security hardening | Editor checks on mutations; migration 010; invite preview | Tour updated; invite UI without email leak |
+
+Migration: `010_security_hardening.sql` (RLS member insert fix, workspace chunks RPC lockdown).
 
 ## Next up — Phase 8
 
 - LMS export bundles (SCORM / Canvas)
 - Remove member UI (API exists)
-- Backend editor enforcement on all artifact generate routes
 - Owner-only delete study set in UI
+- Storage read policies for workspace members (optional if all reads stay backend-only)
 
 ## Security & resilience checklist
 
 | Control | Status |
 |---------|--------|
-| Supabase RLS + Storage policies (migrations 005–006) | Required in prod |
+| Supabase RLS + Storage policies (migrations 005–010) | Required in prod |
 | JWT auth on all document/quiz/excel routes | Done |
 | User-scoped cache keys (summary, chat, quiz, excel) | Done |
 | Rate limits (upload, process, chat, quiz generate/submit, excel) | Done |

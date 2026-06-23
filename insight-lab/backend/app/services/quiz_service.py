@@ -21,7 +21,11 @@ from app.services.llm_client import (
 )
 from app.services.mastery_service import get_weak_concepts, record_quiz_mastery
 from app.services.quiz_questions import draft_to_rows, parse_quiz_draft, QuizQuestionDraft
-from app.services.workspace_access import get_accessible_document, can_edit_document
+from app.services.workspace_access import (
+    can_edit_document,
+    get_accessible_document,
+    require_editable_document,
+)
 
 log = get_logger("quiz")
 
@@ -130,7 +134,7 @@ async def generate_document_quiz(
         )
         return _serialize_quiz(quiz, questions, include_answers=False, cached=True)
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Quizzes are only available for document uploads")
     if doc["status"] != "ready":
@@ -287,7 +291,7 @@ async def generate_adaptive_quiz(
             "target_concepts": weak,
         }
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Quizzes are only available for document uploads")
     if doc["status"] != "ready":

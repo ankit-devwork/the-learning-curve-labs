@@ -41,7 +41,7 @@ export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canE
   }
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="course-pack">
       <CardHeader>
         <CardTitle>Course pack</CardTitle>
         <CardDescription>

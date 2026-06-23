@@ -233,7 +233,7 @@ export function DocumentQuizPanel({
   const canPracticeWeakAreas = hasWeakConcepts(mastery);
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="quiz-panel">
       <CardHeader>
         <CardTitle className="text-lg">Quiz</CardTitle>
         <CardDescription>

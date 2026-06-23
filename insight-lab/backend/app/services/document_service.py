@@ -27,7 +27,7 @@ from app.services.llm_client import (
     summary_cache_key,
 )
 from app.services.semantic_cache import get_semantic_cached_answer, store_semantic_cached_answer
-from app.services.workspace_access import get_accessible_document
+from app.services.workspace_access import get_accessible_document, require_editable_document
 
 log = get_logger("documents")
 
@@ -97,7 +97,7 @@ async def process_document(client: Client, document_id: str, user: AuthUser) -> 
             retry_after=retry_after,
         )
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Only document uploads can be processed in Step 1.7")
     if doc["status"] == "processing":
@@ -287,6 +287,7 @@ async def ask_document(
         question=question,
     )
     if semantic_cached:
+        _get_owned_document(client, document_id, user)
         return semantic_cached
 
     chunks_result = (

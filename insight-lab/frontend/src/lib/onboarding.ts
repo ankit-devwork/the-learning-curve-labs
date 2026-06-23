@@ -1,4 +1,4 @@
-export const ONBOARDING_VERSION = "phase5-v1";
+export const ONBOARDING_VERSION = "phase7-security-v1";
 export const ONBOARDING_STORAGE_KEY = "insightlab_onboarding_done";
 
 export function isOnboardingComplete(): boolean {

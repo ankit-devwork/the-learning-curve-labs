@@ -10,20 +10,7 @@ from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
 from app.services.document_service import get_document_summary
 from app.services.llm_client import audio_overview_cache_key, generate_audio_overview_script
-
-
-def _get_owned_document(client: Client, document_id: str, user: AuthUser) -> dict:
-    result = (
-        client.table("documents")
-        .select("*")
-        .eq("id", document_id)
-        .eq("owner_id", user.id)
-        .limit(1)
-        .execute()
-    )
-    if not result.data:
-        raise NotFoundException("Document not found")
-    return result.data[0]
+from app.services.workspace_access import get_accessible_document, require_editable_document
 
 
 async def generate_audio_overview(
@@ -43,7 +30,7 @@ async def generate_audio_overview(
             retry_after=retry_after,
         )
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Audio overviews are only available for document uploads")
     if doc["status"] != "ready":
@@ -87,7 +74,7 @@ async def get_audio_overview(
     document_id: str,
     user: AuthUser,
 ) -> dict[str, Any] | None:
-    doc = _get_owned_document(client, document_id, user)
+    doc = get_accessible_document(client, document_id, user, min_role="viewer")
     if doc["status"] != "ready":
         return None
 
