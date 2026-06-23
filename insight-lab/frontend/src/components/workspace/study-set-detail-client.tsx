@@ -18,13 +18,16 @@ import { UploadDropzone } from "@/components/workspace/upload-dropzone";
 import { WorkspaceStatsPanel } from "@/components/workspace/workspace-stats-panel";
 import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
-import { SourcesStrip } from "@/components/workspace/sources-strip";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { useToast } from "@/components/ui/toast";
 import { fetchUploadConfig, type UploadConfigResponse } from "@/lib/api";
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
+import { cn } from "@/lib/utils";
+
+const MATERIAL_ROW_HEIGHT_PX = 64;
+const MATERIAL_MAX_VISIBLE_ROWS = 5;
 
 function FileTypeIcon({ fileType }: { fileType: string }) {
   const Icon = fileType === "excel" ? FileSpreadsheet : FileText;
@@ -68,7 +71,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     ]);
 
     if (!workspaceRes.ok || !docsRes.ok || !statsRes.ok) {
-      setError("Failed to load study set");
+      setError("Failed to load study sheet");
       setLoading(false);
       return;
     }
@@ -171,13 +174,13 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         toast({
-          title: "Could not delete study set",
+          title: "Could not delete study sheet",
           description: body.error || body.detail,
           variant: "error",
         });
         return;
       }
-      toast({ title: "Study set deleted", variant: "success" });
+      toast({ title: "Study sheet deleted", variant: "success" });
       router.push("/dashboard/sets");
     } finally {
       setDeleting(false);
@@ -185,21 +188,23 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading study set…</p>;
+    return <p className="text-sm text-muted-foreground">Loading study sheet…</p>;
   }
 
   if (!workspace) {
-    return <p className="text-sm text-destructive">{error || "Study set not found"}</p>;
+    return <p className="text-sm text-destructive">{error || "Study sheet not found"}</p>;
   }
 
   const canEdit = canEditWorkspace(workspace.access_role);
   const isOwner = workspace.access_role === "owner" || Boolean(workspace.is_owner);
+  const readyCount = documents.filter((doc) => doc.status === "ready").length;
+  const materialsScrollable = documents.length > MATERIAL_MAX_VISIBLE_ROWS;
 
   return (
     <div className="space-y-6 pb-8">
       <ContextBreadcrumb
         items={[
-          { label: "Notebooks", href: "/dashboard/sets" },
+          { label: "Study sheets", href: "/dashboard/sets" },
           { label: workspace.name },
         ]}
       />
@@ -227,7 +232,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
               data-tour="delete-set"
               onClick={() => void handleDeleteStudySet()}
             >
-              {deleting ? "Deleting…" : "Delete study set"}
+              {deleting ? "Deleting…" : "Delete study sheet"}
             </Button>
           ) : null}
           <Button type="button" variant="outline" onClick={() => void loadAll()}>
@@ -235,8 +240,6 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           </Button>
         </div>
       </div>
-
-      <SourcesStrip setId={setId} documents={documents} />
 
       {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
 
@@ -276,40 +279,62 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         </Card>
       )}
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm" data-tour="sources-strip">
         <CardHeader>
-          <CardTitle>Files in this set</CardTitle>
-          <CardDescription>Open a ready file to use chat, quiz, flashcards, and the studio tools.</CardDescription>
+          <CardTitle>Materials</CardTitle>
+          <CardDescription>
+            {documents.length === 0
+              ? "Upload PDFs, Word docs, or spreadsheets to start studying."
+              : `${readyCount} of ${documents.length} ready — open a file for chat, quiz, and study tools.`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {documents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No files yet — upload your first material above.</p>
+            <p className="text-sm text-muted-foreground">No materials yet — upload your first file above.</p>
           ) : (
-            <ul className="divide-y overflow-hidden rounded-xl border" data-tour="file-list">
-              {documents.map((doc) => (
-                <li key={doc.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <FileTypeIcon fileType={doc.file_type} />
-                    <div className="min-w-0">
-                      <Link
-                        href={
-                          doc.file_type === "document"
-                            ? `/dashboard/sets/${setId}/documents/${doc.id}`
-                            : `/dashboard/sets/${setId}/excel/${doc.id}`
-                        }
-                        className="truncate font-medium hover:text-primary hover:underline"
-                      >
-                        {doc.filename}
-                      </Link>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {doc.file_type} · {new Date(doc.created_at).toLocaleString()}
-                      </p>
+            <>
+              <ul
+                className={cn(
+                  "divide-y overflow-hidden rounded-xl border",
+                  materialsScrollable && "overflow-y-auto pr-1",
+                )}
+                style={
+                  materialsScrollable
+                    ? { maxHeight: MATERIAL_MAX_VISIBLE_ROWS * MATERIAL_ROW_HEIGHT_PX }
+                    : undefined
+                }
+                data-tour="file-list"
+              >
+                {documents.map((doc) => (
+                  <li key={doc.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <FileTypeIcon fileType={doc.file_type} />
+                      <div className="min-w-0">
+                        <Link
+                          href={
+                            doc.file_type === "document"
+                              ? `/dashboard/sets/${setId}/documents/${doc.id}`
+                              : `/dashboard/sets/${setId}/excel/${doc.id}`
+                          }
+                          className="truncate font-medium hover:text-primary hover:underline"
+                        >
+                          {doc.filename}
+                        </Link>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {doc.file_type} · {new Date(doc.created_at).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <StatusBadge status={doc.status} />
-                </li>
-              ))}
-            </ul>
+                    <StatusBadge status={doc.status} />
+                  </li>
+                ))}
+              </ul>
+              {materialsScrollable ? (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Scroll to see all {documents.length} materials.
+                </p>
+              ) : null}
+            </>
           )}
         </CardContent>
       </Card>

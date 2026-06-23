@@ -60,11 +60,11 @@ export function StudySetsListClient() {
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        toast({ title: "Could not create study set", description: body.error, variant: "error" });
+        toast({ title: "Could not create study sheet", description: body.error, variant: "error" });
         return;
       }
       setName("");
-      toast({ title: "Notebook created", variant: "success" });
+      toast({ title: "Study sheet created", variant: "success" });
       await loadWorkspaces();
     } finally {
       setCreating(false);
@@ -72,21 +72,21 @@ export function StudySetsListClient() {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading notebooks…</p>;
+    return <p className="text-sm text-muted-foreground">Loading study sheets…</p>;
   }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">Notebooks</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Study sheets</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Organize sources by class or project — chat, generate study tools, and collaborate like a research notebook.
+          Group course materials by class or project — chat with files, generate quizzes, and collaborate with classmates.
         </p>
       </div>
 
       <Card className="notebook-surface border-0 shadow-none">
         <CardHeader>
-          <CardTitle className="text-lg">New notebook</CardTitle>
+          <CardTitle className="text-lg">New study sheet</CardTitle>
           <CardDescription>For example: Biology 101, MetLaw prep, or Q3 sales data.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -94,7 +94,7 @@ export function StudySetsListClient() {
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Notebook name"
+              placeholder="Study sheet name"
               maxLength={100}
               className="max-w-sm"
             />
@@ -113,7 +113,7 @@ export function StudySetsListClient() {
       </div>
 
       {workspaces.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Create your first notebook to upload sources and start studying.</p>
+        <p className="text-sm text-muted-foreground">Create your first study sheet to upload materials and start studying.</p>
       ) : null}
     </div>
   );

@@ -196,7 +196,7 @@ export function SetQuizPanel({
       <CardHeader>
         <CardTitle>Set-wide adaptive quiz</CardTitle>
         <CardDescription>
-          Practice weak topics across all documents in this study set after completing at least one
+          Practice weak topics across all documents in this study sheet after completing at least one
           document quiz.
         </CardDescription>
       </CardHeader>
@@ -211,7 +211,13 @@ export function SetQuizPanel({
         />
 
         {mastery.length > 0 ? (
-          <QuizMasteryProgress concepts={mastery} title="Topic progress across this set" />
+          <QuizMasteryProgress
+            concepts={mastery}
+            title="Topic progress across this set"
+            collapsible
+            defaultExpanded
+            maxVisibleRows={5}
+          />
         ) : null}
 
         {canEdit ? (

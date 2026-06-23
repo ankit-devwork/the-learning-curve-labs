@@ -17,7 +17,7 @@ import { requestTourRestart } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard/sets", label: "Notebooks", icon: FolderOpen },
+  { href: "/dashboard/sets", label: "Study sheets", icon: FolderOpen },
   { href: "/dashboard/compare", label: "Compare", icon: MessagesSquare },
 ];
 

@@ -64,7 +64,7 @@ export function InviteAcceptClient({ token }: { token: string }) {
   return (
     <Card className="mx-auto max-w-lg shadow-sm">
       <CardHeader>
-        <CardTitle>Study set invite</CardTitle>
+        <CardTitle>Study sheet invite</CardTitle>
         <CardDescription>
           {preview?.workspace_name && preview.valid
             ? `You’ve been invited to join “${preview.workspace_name}”`
@@ -82,7 +82,7 @@ export function InviteAcceptClient({ token }: { token: string }) {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {acceptedWorkspaceId ? (
           <Link href={`/dashboard/sets/${acceptedWorkspaceId}`}>
-            <Button type="button">Open study set</Button>
+            <Button type="button">Open study sheet</Button>
           </Link>
         ) : preview?.valid ? (
           <Button type="button" disabled={accepting} onClick={() => void handleAccept()}>

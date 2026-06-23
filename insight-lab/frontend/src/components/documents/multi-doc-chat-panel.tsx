@@ -239,12 +239,12 @@ export function MultiDocChatPanel({
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>
               Compare works with <strong className="font-medium text-foreground">ready PDF and Word files</strong>{" "}
-              in this study set. Excel spreadsheets use a separate chat and chart view.
+              in this study sheet. Excel spreadsheets use a separate chat and chart view.
             </p>
             {processingTextDocuments.length > 0 ? (
               <p>
                 {processingTextDocuments.length} document file
-                {processingTextDocuments.length === 1 ? "" : "s"} still processing — open them from the study set and
+                {processingTextDocuments.length === 1 ? "" : "s"} still processing — open them from the study sheet and
                 wait for status <strong className="font-medium text-foreground">Ready</strong>.
               </p>
             ) : null}
@@ -273,7 +273,7 @@ export function MultiDocChatPanel({
                 </ul>
               </div>
             ) : (
-              <p>Upload at least one PDF or Word file to this study set to compare documents here.</p>
+              <p>Upload at least one PDF or Word file to this study sheet to compare documents here.</p>
             )}
           </div>
         ) : (

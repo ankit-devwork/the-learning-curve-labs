@@ -116,7 +116,7 @@ export function ShareWorkspacePanel({
       return;
     }
     const label = member.email || member.full_name || "this member";
-    if (!window.confirm(`Remove ${label} from this study set? They will lose access immediately.`)) {
+    if (!window.confirm(`Remove ${label} from this study sheet? They will lose access immediately.`)) {
       return;
     }
 
@@ -236,7 +236,7 @@ export function ShareWorkspacePanel({
     }
     if (
       !window.confirm(
-        "Leave this study set? You will lose access to its files and shared progress.",
+        "Leave this study sheet? You will lose access to its files and shared progress.",
       )
     ) {
       return;
@@ -258,13 +258,13 @@ export function ShareWorkspacePanel({
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         toast({
-          title: "Could not leave study set",
+          title: "Could not leave study sheet",
           description: body.error || body.detail,
           variant: "error",
         });
         return;
       }
-      toast({ title: "Left study set", variant: "success" });
+      toast({ title: "Left study sheet", variant: "success" });
       router.push("/dashboard/sets");
     } finally {
       setLeaving(false);
@@ -278,7 +278,7 @@ export function ShareWorkspacePanel({
   return (
     <Card className="shadow-sm" data-tour="share-panel">
       <CardHeader>
-        <CardTitle>Share study set</CardTitle>
+        <CardTitle>Share study sheet</CardTitle>
         <CardDescription>
           Invite classmates as viewers (read + study) or editors (upload + generate tools).
         </CardDescription>
@@ -348,7 +348,7 @@ export function ShareWorkspacePanel({
               disabled={leaving}
               onClick={() => void handleLeaveWorkspace()}
             >
-              {leaving ? "Leaving…" : "Leave study set"}
+              {leaving ? "Leaving…" : "Leave study sheet"}
             </Button>
           </div>
         ) : null}
