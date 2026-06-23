@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Label } from "@/components/ui/label";
 import {
   hasWeakConcepts,
@@ -168,11 +169,18 @@ export function DocumentQuizPanel({
       <CardHeader>
         <CardTitle>Quiz</CardTitle>
         <CardDescription>
-          Test yourself on this document. After you submit, you&apos;ll see which topics need more
-          practice.
+          Check your understanding — questions are generated from this document&apos;s content.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        <FeatureGuide
+          title="How quizzing works"
+          steps={[
+            "Pick question type, difficulty, and count, then click Generate quiz.",
+            "Answer every question and Submit — you will see your score and explanations.",
+            "Your progress by topic updates below; use Practice weak areas for topics you missed.",
+          ]}
+        />
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="quiz-type">Question type</Label>

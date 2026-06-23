@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
 import { DocumentReviewPicker } from "@/components/documents/document-review-picker";
 import { SourceCitations } from "@/components/documents/source-citations";
@@ -197,13 +198,20 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Document chat</CardTitle>
+        <CardTitle>Compare documents</CardTitle>
         <CardDescription>
-          Select one or more documents and ask a question. When multiple documents are selected,
-          each document is summarized so you can choose which to answer from.
+          Ask one question across multiple files — useful for comparing readings or lecture notes.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <FeatureGuide
+          title="Steps"
+          steps={[
+            "Select one document for a direct answer, or two or more to compare.",
+            "With multiple files, you will see a short summary per document — pick which to include.",
+            "Click Continue to get an answer combined from your selected documents.",
+          ]}
+        />
         {readyDocuments.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Upload and process at least one document to use document chat.
@@ -239,7 +247,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
               <Input
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Ask a question..."
+                placeholder="e.g. How do these sources disagree on climate policy?"
                 disabled={retrieving || asking || selectedIds.length === 0}
               />
               <Button type="submit" disabled={retrieving || asking || selectedIds.length === 0}>

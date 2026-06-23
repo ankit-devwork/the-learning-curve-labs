@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureGuide } from "@/components/ui/feature-guide";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 
 function formatDate(value: string): string {
@@ -152,9 +153,20 @@ export function FileUploadCard() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle>Your files</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>
+          {description}. After upload, open a file to explore it — processing usually takes a
+          minute.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <FeatureGuide
+          title="File types"
+          steps={[
+            "PDF, TXT, DOCX — summary, ask questions, and take a quiz on the document page.",
+            "XLSX, XLS, CSV — auto charts, insights, and spreadsheet Q&A on the excel page.",
+            "Status Pending means still processing; Ready means you can open and use the file.",
+          ]}
+        />
         <div className="flex flex-wrap items-center gap-3">
           <input
             ref={inputRef}
@@ -182,7 +194,10 @@ export function FileUploadCard() {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading your files...</p>
         ) : documents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No uploads yet. Choose a file to get started.</p>
+          <p className="text-sm text-muted-foreground">
+            No uploads yet. Choose a file above to get started — try a PDF lecture note or a CSV
+            dataset.
+          </p>
         ) : (
           <ul className="divide-y rounded-md border">
             {documents.map((doc) => (
