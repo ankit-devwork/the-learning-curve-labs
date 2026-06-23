@@ -13,6 +13,8 @@ type AudioOverviewPanelProps = {
   ready: boolean;
   overview?: AudioOverviewResponse | null;
   onGenerated?: (overview: AudioOverviewResponse) => void;
+  onPlayingChange?: (playing: boolean, overview: AudioOverviewResponse | null) => void;
+  onControlsReady?: (controls: { playPause: () => void; stop: () => void }) => void;
 };
 
 export function AudioOverviewPanel({
@@ -21,6 +23,8 @@ export function AudioOverviewPanel({
   ready,
   overview,
   onGenerated,
+  onPlayingChange,
+  onControlsReady,
 }: AudioOverviewPanelProps) {
   const [localOverview, setLocalOverview] = useState<AudioOverviewResponse | null>(overview ?? null);
   const [generating, setGenerating] = useState(false);
@@ -81,6 +85,11 @@ export function AudioOverviewPanel({
     }
   }
 
+  function setPlayingState(next: boolean) {
+    setPlaying(next);
+    onPlayingChange?.(next, localOverview);
+  }
+
   function handlePlayPause() {
     if (!localOverview?.script || typeof window === "undefined" || !window.speechSynthesis) {
       return;
@@ -88,27 +97,31 @@ export function AudioOverviewPanel({
 
     if (playing) {
       window.speechSynthesis.cancel();
-      setPlaying(false);
+      setPlayingState(false);
       return;
     }
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(localOverview.script);
     utterance.rate = 1;
-    utterance.onend = () => setPlaying(false);
-    utterance.onerror = () => setPlaying(false);
+    utterance.onend = () => setPlayingState(false);
+    utterance.onerror = () => setPlayingState(false);
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-    setPlaying(true);
+    setPlayingState(true);
   }
 
   function handleStop() {
     window.speechSynthesis?.cancel();
-    setPlaying(false);
+    setPlayingState(false);
   }
 
+  useEffect(() => {
+    onControlsReady?.({ playPause: handlePlayPause, stop: handleStop });
+  });
+
   return (
-    <Card className="shadow-sm" data-tour="audio-overview">
+    <Card className="notebook-surface border-0 shadow-none" data-tour="audio-overview">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Volume2 className="h-4 w-4 text-primary" aria-hidden />

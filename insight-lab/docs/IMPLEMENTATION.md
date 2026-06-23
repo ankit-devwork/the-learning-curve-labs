@@ -272,7 +272,7 @@ Run `supabase/migrations/004_excel_charts.sql` — adds `excel_profile`, `excel_
 
 ### Frontend
 
-`/dashboard/excel/[id]` — auto-analyze on upload, bar chart previews, narrative summary.
+`/dashboard/sets/[setId]/excel/[docId]` — notebook workspace; auto-analyze on open, Insights/Preview/Charts tabs, data chat.
 
 ### Verify
 
@@ -386,7 +386,7 @@ Uses existing tables from `001_initial.sql`: `quizzes`, `quiz_questions`, `quiz_
 | Upload to study set | `POST /upload?workspace_id=` | Drag-drop upload on set page |
 | Processing status | `GET /documents/{id}/status` | Processing stepper |
 | Suggested questions | `GET /documents/{id}/suggested-questions` | Question chips in workspace chat |
-| 3-panel document workspace | — | Sources \| Chat \| Studio layout |
+| 3-panel document workspace | — | Sources \| Chat \| Studio notebook layout |
 
 ### Phase 4 — Study parity
 
@@ -408,7 +408,7 @@ Migration: `008_phase3_4_study_features.sql` (flashcards, study guides, RLS).
 | Export CSV / PNG | Chart data in API responses | Client export on Excel charts |
 | Audio overview | `POST/GET /documents/{id}/audio-overview/*` | Studio + browser TTS player |
 | Set-wide adaptive quiz | `POST /workspaces/{id}/quiz/adaptive/generate` | `SetQuizPanel` on set detail |
-| Julius-style Excel canvas | `GET /documents/{id}/excel/preview` | Split preview + sticky chat layout |
+| Excel notebook canvas | `GET /documents/{id}/excel/preview` | Same notebook layout as documents: sources \| chat \| Spreadsheet tools |
 | Onboarding tour | — | Route-aware tour + **Show tour** in sidebar |
 
 ## Phase 6 (implemented)
@@ -449,6 +449,19 @@ Migration: `010_security_hardening.sql` (RLS member insert fix, workspace chunks
 | Deeper artifact RLS | Migration 011 member-aware SELECT/INSERT policies | — |
 
 Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guides, member role updates).
+
+## Phase 8 UI — Notebook polish (implemented)
+
+| Feature | Frontend |
+|---------|----------|
+| Theme + typography | DM Sans, `notebook-surface`, sidebar theme toggle |
+| Notebook gallery | Study set cards with accent colors on `/dashboard/sets` |
+| Document notebook | Sources rail, chat-first, `NotebookTabs`, sticky Studio, audio player bar |
+| Excel notebook | Same shell; `ExcelToolsPanel`; tabs: Insights, Preview, Charts, Builder |
+| Set detail | Sources strip, breadcrumbs, course pack artifact cards with tab deep links |
+| Chat UX | Bubble messages, citation chips, cache labels (document, compare, Excel) |
+| Compare page | Explains PDF/Word vs Excel routing; links to spreadsheet canvas |
+| Onboarding tour | Route-aware steps including Excel notebook layout |
 
 ## Next up — Phase 9
 

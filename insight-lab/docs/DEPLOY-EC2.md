@@ -9,9 +9,8 @@ Minimal production setup: **FastAPI on EC2** (nginx + uvicorn + systemd), **Next
 
 ## Before you deploy
 
-1. **Merge PR #12** if still open (upload timeout + LangSmith noise fixes help on EC2).
-2. **Run Supabase migrations** `001` through `007` on your project (SQL Editor or CLI). Migration **007** is required for multi-doc search, topic progress, and adaptive quizzes.
-3. Choose domains, for example:
+1. **Run Supabase migrations** `001` through `011` on your project (SQL Editor or CLI). See [supabase/README.md](../supabase/README.md) for the ordered list. Migration **007** is required for multi-doc search; **008–011** are required for study features, sharing, and member RLS.
+2. Choose domains, for example:
    - Frontend: `https://app.yourdomain.com` (Vercel)
    - API: `https://api.yourdomain.com` (EC2 + nginx)
 
@@ -248,13 +247,14 @@ After deploy, logged in as a test user:
 
 | Step | Verify |
 |------|--------|
-| Login | Email or Google → lands on `/dashboard` |
-| Upload | PDF or Excel → appears in **Your files** |
-| Process | Document opens → **Summary** loads |
-| Ask | Single-doc question → answer + **Based on** filename |
-| Quiz | Generate → submit → score |
-| Progress | **Your progress by topic** on dashboard |
-| Multi-doc | Select 2+ docs → **Ask** → document picker → answer |
+| Login | Email or Google → lands on `/dashboard/sets` |
+| Study set | Create notebook → upload PDF or Excel |
+| Document notebook | Open PDF → chat + Brief tab summary |
+| Ask | Single-doc question → answer + citations |
+| Quiz | Studio → Generate quiz → submit → score |
+| Compare | Select 2+ **document** files on `/dashboard/compare` → multi-doc answer |
+| Excel notebook | Open `.xlsx` → Insights + Preview + Charts after analysis |
+| Share (optional) | Invite member → accept link → shared sources visible |
 
 Watch logs during first upload/process (first embedding run downloads the FastEmbed model — expect a slow first request):
 
@@ -285,9 +285,10 @@ Neo4j still needs to run for graph sync and adaptive quiz unless you defer those
 |---------|-----|
 | 401 on all API calls | Wrong `SUPABASE_JWT_SECRET`; or empty `SUPABASE_URL` in shell env overriding `.env` |
 | CORS error in browser | Add exact frontend URL to `CORS_ALLOW_ORIGINS` (no trailing slash) |
-| 502 / timeout on upload or process | nginx `proxy_read_timeout 300s`; merge PR #12 |
+| 502 / timeout on upload or process | nginx `proxy_read_timeout 300s`; check API logs |
 | `/ready` returns 503 | Redis or Neo4j down — run `docker compose ps` |
 | Mastery / multi-doc broken | Migration **007** not applied on Supabase |
+| Sharing / member access broken | Migrations **009–011** not applied |
 | `fastembed` / import errors | `pip install fastembed` in the venv; restart systemd service |
 
 ---

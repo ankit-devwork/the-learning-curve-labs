@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch, type WorkspaceSummary } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { StudySetCard } from "@/components/workspace/study-set-card";
 import { useToast } from "@/components/ui/toast";
 
 export function StudySetsListClient() {
@@ -64,7 +64,7 @@ export function StudySetsListClient() {
         return;
       }
       setName("");
-      toast({ title: "Study set created", variant: "success" });
+      toast({ title: "Notebook created", variant: "success" });
       await loadWorkspaces();
     } finally {
       setCreating(false);
@@ -72,29 +72,29 @@ export function StudySetsListClient() {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading study sets…</p>;
+    return <p className="text-sm text-muted-foreground">Loading notebooks…</p>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Study sets</h1>
-        <p className="mt-1 text-muted-foreground">
-          Organize course materials by class, exam, or project — then upload, chat, quiz, and compare.
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Notebooks</h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          Organize sources by class or project — chat, generate study tools, and collaborate like a research notebook.
         </p>
       </div>
 
-      <Card className="shadow-sm">
+      <Card className="notebook-surface border-0 shadow-none">
         <CardHeader>
-          <CardTitle className="text-lg">Create a study set</CardTitle>
-          <CardDescription>For example: Biology 101, Midterm prep, or Q3 sales data.</CardDescription>
+          <CardTitle className="text-lg">New notebook</CardTitle>
+          <CardDescription>For example: Biology 101, MetLaw prep, or Q3 sales data.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreate} className="flex flex-wrap gap-2" data-tour="create-set">
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Study set name"
+              placeholder="Notebook name"
               maxLength={100}
               className="max-w-sm"
             />
@@ -106,28 +106,15 @@ export function StudySetsListClient() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2" data-tour="sets-list">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-tour="sets-list">
         {workspaces.map((workspace) => (
-          <Link
-            key={workspace.id}
-            href={`/dashboard/sets/${workspace.id}`}
-            className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <p className="font-medium">{workspace.name}</p>
-            {workspace.shared ? (
-              <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                <Users className="h-3.5 w-3.5" aria-hidden />
-                Shared with you
-              </p>
-            ) : null}
-            {workspace.description ? (
-              <p className="mt-1 text-sm text-muted-foreground">{workspace.description}</p>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">Open files, upload, and compare documents</p>
-            )}
-          </Link>
+          <StudySetCard key={workspace.id} workspace={workspace} />
         ))}
       </div>
+
+      {workspaces.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Create your first notebook to upload sources and start studying.</p>
+      ) : null}
     </div>
   );
 }

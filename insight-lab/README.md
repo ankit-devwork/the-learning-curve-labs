@@ -8,8 +8,9 @@ Part of [The Learning Curve Labs](https://github.com/ankit-devwork/the-learning-
 
 | Mode | Input | Output |
 |------|-------|--------|
-| **Excel insights** | `.xlsx`, `.csv` | Auto charts, custom charts, data chat, narrative insights |
-| **Document intelligence** | `.pdf`, `.txt`, `.docx` | Summary, RAG chat with citations, multi-document chat |
+| **Excel insights** | `.xlsx`, `.csv` | Auto charts, custom charts, data chat, narrative insights (notebook workspace) |
+| **Document intelligence** | `.pdf`, `.txt`, `.docx` | Summary, RAG chat with citations, multi-document compare |
+| **Study notebooks** | Study sets (workspaces) | Upload sources, Studio tools (quiz, flashcards, study guide, audio), course packs, sharing |
 | **Quiz & progress** | Any ingested document | Quizzes, scoring, topic progress, practice weak areas |
 
 ## Stack
@@ -131,7 +132,7 @@ See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 - [x] Adaptive quizzes + topic progress UI (Phase 2)
 - [x] Security hardening (RLS, cache scoping, grounded LLM prompts)
 
-**Ops:** Run all Supabase migrations through `007_phase2_graph_mastery_multi_doc.sql` for multi-doc search, topic progress, and adaptive quizzes.
+**Ops:** Run all Supabase migrations through `011_phase8_member_rls.sql` for study features, sharing, and member RLS. See [supabase/README.md](supabase/README.md).
 
 ## Related projects
 

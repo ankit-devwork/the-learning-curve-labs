@@ -12,11 +12,12 @@ import { BrandMark } from "@/components/layout/brand-mark";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { InsightLabTourHost } from "@/components/onboarding/insight-lab-tour";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { requestTourRestart } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard/sets", label: "Study sets", icon: FolderOpen },
+  { href: "/dashboard/sets", label: "Notebooks", icon: FolderOpen },
   { href: "/dashboard/compare", label: "Compare", icon: MessagesSquare },
 ];
 
@@ -61,16 +62,19 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
               <BookOpen className="h-4 w-4" aria-hidden />
               <span>Learning workspace</span>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mb-3 w-full gap-2"
-              onClick={() => requestTourRestart()}
-            >
-              <Compass className="h-4 w-4" aria-hidden />
-              Show tour
-            </Button>
+            <div className="mb-3 flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={() => requestTourRestart()}
+              >
+                <Compass className="h-4 w-4" aria-hidden />
+                Show tour
+              </Button>
+              <ThemeToggle />
+            </div>
             {userEmail ? <p className="truncate">{userEmail}</p> : null}
             <div className="mt-3">
               <SignOutButton />
@@ -93,6 +97,7 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
                   <Compass className="h-4 w-4" aria-hidden />
                   Tour
                 </Button>
+                <ThemeToggle />
                 <SignOutButton />
               </div>
             </div>
