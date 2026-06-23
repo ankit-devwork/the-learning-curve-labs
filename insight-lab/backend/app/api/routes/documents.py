@@ -12,6 +12,11 @@ from app.services.document_service import (
     get_document_summary,
     process_document,
 )
+from app.services.document_extras import (
+    get_document_chunk,
+    get_document_processing_status,
+    get_suggested_questions,
+)
 from app.services.multi_doc_service import ask_multiple_documents, retrieve_multiple_documents
 
 router = APIRouter()
@@ -119,3 +124,40 @@ async def ask_document_route(
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**answer, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/status")
+@with_observability("document_processing_status")
+async def document_processing_status_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    status = await get_document_processing_status(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**status, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/suggested-questions")
+@with_observability("document_suggested_questions")
+async def document_suggested_questions_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await get_suggested_questions(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/chunks/{chunk_index}")
+@with_observability("get_document_chunk")
+async def get_document_chunk_route(
+    document_id: str,
+    chunk_index: int,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    chunk = await get_document_chunk(get_supabase_client(), document_id, chunk_index, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**chunk, "correlation_id": correlation_id}

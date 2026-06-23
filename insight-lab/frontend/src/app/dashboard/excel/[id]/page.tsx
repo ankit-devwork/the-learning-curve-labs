@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ExcelDetailClient } from "@/components/excel/excel-detail-client";
-import { AppShell } from "@/components/layout/app-shell";
 
-export default async function ExcelDetailPage({
+export default async function ExcelDetailRedirectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -18,9 +16,16 @@ export default async function ExcelDetailPage({
     redirect("/login");
   }
 
-  return (
-    <AppShell userEmail={user.email} wide>
-      <ExcelDetailClient documentId={id} />
-    </AppShell>
-  );
+  const { data: document } = await supabase
+    .from("documents")
+    .select("workspace_id")
+    .eq("id", id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!document?.workspace_id) {
+    redirect("/dashboard/sets");
+  }
+
+  redirect(`/dashboard/sets/${document.workspace_id}/excel/${id}`);
 }

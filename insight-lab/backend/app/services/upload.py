@@ -47,9 +47,10 @@ def upload_document(
     validated: ValidatedUpload,
     content: bytes,
     mime_type: str | None,
+    workspace_id: str | None = None,
 ) -> dict:
     upload = get_yaml_config().upload
-    workspace_id = ensure_profile_and_workspace(client, user)
+    resolved_workspace_id = workspace_id or ensure_profile_and_workspace(client, user)
 
     document_id = str(uuid.uuid4())
     storage_path = f"{user.id}/{document_id}/{validated.safe_filename}"
@@ -73,7 +74,7 @@ def upload_document(
             .insert(
                 {
                     "id": document_id,
-                    "workspace_id": workspace_id,
+                    "workspace_id": resolved_workspace_id,
                     "owner_id": user.id,
                     "filename": validated.safe_filename,
                     "storage_path": storage_path,

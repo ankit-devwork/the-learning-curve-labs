@@ -405,3 +405,110 @@ def multi_chat_cache_key(
     question_digest = hashlib.sha256(question.strip().lower().encode("utf-8")).hexdigest()[:16]
     refs_part = source_refs_hash or "auto"
     return f"multi_chat:{user_id}:{docs_digest}:{refs_part}:{question_digest}"
+
+
+async def generate_flashcard_draft(
+    *,
+    context_chunks: list[str],
+    filename: str,
+    num_cards: int,
+) -> str:
+    cfg = get_yaml_config().artifacts
+    context = "\n\n".join(
+        tag_block(f"excerpt_{index + 1}", chunk) for index, chunk in enumerate(context_chunks)
+    )
+    prompt = (
+        "Create flashcards from the document excerpts below. Return ONLY valid JSON with:\n"
+        "- title (string)\n"
+        "- cards (array): each item has front, back, source_chunk_index (0-based into excerpts)\n\n"
+        f"Generate up to {num_cards} cards focused on key terms and concepts.\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('excerpts', context[:12000])}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.flashcard_max_tokens,
+    )
+
+
+async def generate_study_guide_draft(
+    *,
+    context_chunks: list[str],
+    summary: str,
+    filename: str,
+) -> str:
+    cfg = get_yaml_config().artifacts
+    context = "\n\n".join(
+        tag_block(f"excerpt_{index + 1}", chunk) for index, chunk in enumerate(context_chunks)
+    )
+    prompt = (
+        "Create a study guide from the document below. Return ONLY valid JSON with:\n"
+        "- title (string)\n"
+        "- overview (string)\n"
+        "- key_terms (array of {term, definition})\n"
+        "- sections (array of {heading, bullets})\n"
+        "- sample_questions (array of strings)\n\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('summary', summary[:6000])}\n\n"
+        f"{tag_block('excerpts', context[:8000])}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.study_guide_max_tokens,
+    )
+
+
+async def generate_suggested_questions(*, summary: str, filename: str) -> list[str]:
+    cfg = get_yaml_config().artifacts
+    prompt = (
+        "Based on the document summary below, return ONLY valid JSON with a 'questions' array "
+        "of 4-6 short, specific questions a learner might ask. "
+        "Questions must be answerable from the document.\n\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('summary', summary[:4000])}"
+    )
+    raw = await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.suggested_questions_max_tokens,
+    )
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+    payload = json.loads(text.strip())
+    questions = payload.get("questions") if isinstance(payload, dict) else payload
+    if not isinstance(questions, list):
+        raise ValueError("Invalid suggested questions payload")
+    cleaned = [str(item).strip() for item in questions if str(item).strip()]
+    return cleaned[:6]
+
+
+def flashcard_cache_key(user_id: str, document_id: str, num_cards: int) -> str:
+    return f"flashcards:{user_id}:{document_id}:{num_cards}"
+
+
+def study_guide_cache_key(user_id: str, document_id: str) -> str:
+    return f"study_guide:{user_id}:{document_id}"
+
+
+def suggested_questions_cache_key(user_id: str, document_id: str) -> str:
+    return f"suggested_questions:{user_id}:{document_id}"

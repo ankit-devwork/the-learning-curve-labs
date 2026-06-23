@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { DocumentDetailClient } from "@/components/documents/document-detail-client";
-import { AppShell } from "@/components/layout/app-shell";
 
-export default async function DocumentDetailPage({
+export default async function DocumentDetailRedirectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -18,9 +16,16 @@ export default async function DocumentDetailPage({
     redirect("/login");
   }
 
-  return (
-    <AppShell userEmail={user.email} wide>
-      <DocumentDetailClient documentId={id} />
-    </AppShell>
-  );
+  const { data: document } = await supabase
+    .from("documents")
+    .select("workspace_id")
+    .eq("id", id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!document?.workspace_id) {
+    redirect("/dashboard/sets");
+  }
+
+  redirect(`/dashboard/sets/${document.workspace_id}/documents/${id}`);
 }

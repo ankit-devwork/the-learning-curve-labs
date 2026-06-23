@@ -56,6 +56,7 @@ async def get_document(client: Client, document_id: str, user: AuthUser) -> dict
     doc = _get_owned_document(client, document_id, user)
     return {
         "id": doc["id"],
+        "workspace_id": doc["workspace_id"],
         "filename": doc["filename"],
         "file_type": doc["file_type"],
         "mime_type": doc.get("mime_type"),
