@@ -257,11 +257,11 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
 
   const breadcrumbItems = setId
     ? [
-        { label: "Study sets", href: "/dashboard/sets" },
-        { label: workspaceName || "Study set", href: `/dashboard/sets/${setId}` },
+        { label: "Study sheets", href: "/dashboard/sets" },
+        { label: workspaceName || "Study sheet", href: `/dashboard/sets/${setId}` },
         { label: filename },
       ]
-    : [{ label: "Study sets", href: "/dashboard/sets" }, { label: filename }];
+    : [{ label: "Study sheets", href: "/dashboard/sets" }, { label: filename }];
 
   return (
     <div className="space-y-4" data-tour="excel-canvas">

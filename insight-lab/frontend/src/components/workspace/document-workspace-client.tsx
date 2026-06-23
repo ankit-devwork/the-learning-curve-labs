@@ -389,8 +389,8 @@ export function DocumentWorkspaceClient({
     <div className={audioPlaying ? "space-y-4 pb-24" : "space-y-4"}>
       <ContextBreadcrumb
         items={[
-          { label: "Study sets", href: "/dashboard/sets" },
-          { label: workspaceName || "Study set", href: `/dashboard/sets/${setId}` },
+          { label: "Study sheets", href: "/dashboard/sets" },
+          { label: workspaceName || "Study sheet", href: `/dashboard/sets/${setId}` },
           { label: document.filename },
         ]}
       />

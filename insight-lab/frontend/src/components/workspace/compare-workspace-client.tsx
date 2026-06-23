@@ -72,7 +72,7 @@ export function CompareWorkspaceClient({ initialSetId }: CompareWorkspaceClientP
   }, [loadDocuments, selectedSetId]);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading study sets…</p>;
+    return <p className="text-sm text-muted-foreground">Loading study sheets…</p>;
   }
 
   return (
@@ -80,23 +80,23 @@ export function CompareWorkspaceClient({ initialSetId }: CompareWorkspaceClientP
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Compare documents</h1>
         <p className="mt-1 text-muted-foreground">
-          Pick a study set, then ask one question across two or more ready PDF or Word files. Excel files open in
-          the spreadsheet canvas from the study set file list.
+          Pick a study sheet, then ask one question across two or more ready PDF or Word files. Excel files open in
+          the spreadsheet canvas from the study sheet file list.
         </p>
       </div>
 
       {workspaces.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Create a study set first on the{" "}
+          Create a study sheet first on the{" "}
           <Link href="/dashboard/sets" className="text-primary hover:underline">
-            Study sets
+            Study sheets
           </Link>{" "}
           page.
         </p>
       ) : (
         <>
           <div className="max-w-md space-y-2">
-            <Label htmlFor="compare-set">Study set</Label>
+            <Label htmlFor="compare-set">Study sheet</Label>
             <select
               id="compare-set"
               className={selectClassName}

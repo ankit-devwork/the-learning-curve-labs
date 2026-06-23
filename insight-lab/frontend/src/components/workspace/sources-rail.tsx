@@ -23,7 +23,7 @@ export function SourcesRail({ setId, documents, activeDocumentId, className }: S
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sources</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {documents.length} file{documents.length === 1 ? "" : "s"} in this set
+          {documents.length} file{documents.length === 1 ? "" : "s"} in this sheet
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export function SourcesRail({ setId, documents, activeDocumentId, className }: S
       ) : null}
 
       {documents.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No sources yet — upload from the study set page.</p>
+        <p className="text-xs text-muted-foreground">No sources yet — upload from the study sheet page.</p>
       ) : null}
     </aside>
   );

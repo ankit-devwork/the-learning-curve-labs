@@ -71,7 +71,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     ]);
 
     if (!workspaceRes.ok || !docsRes.ok || !statsRes.ok) {
-      setError("Failed to load study set");
+      setError("Failed to load study sheet");
       setLoading(false);
       return;
     }
@@ -174,13 +174,13 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         toast({
-          title: "Could not delete study set",
+          title: "Could not delete study sheet",
           description: body.error || body.detail,
           variant: "error",
         });
         return;
       }
-      toast({ title: "Study set deleted", variant: "success" });
+      toast({ title: "Study sheet deleted", variant: "success" });
       router.push("/dashboard/sets");
     } finally {
       setDeleting(false);
@@ -188,11 +188,11 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading study set…</p>;
+    return <p className="text-sm text-muted-foreground">Loading study sheet…</p>;
   }
 
   if (!workspace) {
-    return <p className="text-sm text-destructive">{error || "Study set not found"}</p>;
+    return <p className="text-sm text-destructive">{error || "Study sheet not found"}</p>;
   }
 
   const canEdit = canEditWorkspace(workspace.access_role);
@@ -204,7 +204,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     <div className="space-y-6 pb-8">
       <ContextBreadcrumb
         items={[
-          { label: "Study sets", href: "/dashboard/sets" },
+          { label: "Study sheets", href: "/dashboard/sets" },
           { label: workspace.name },
         ]}
       />
@@ -232,7 +232,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
               data-tour="delete-set"
               onClick={() => void handleDeleteStudySet()}
             >
-              {deleting ? "Deleting…" : "Delete study set"}
+              {deleting ? "Deleting…" : "Delete study sheet"}
             </Button>
           ) : null}
           <Button type="button" variant="outline" onClick={() => void loadAll()}>

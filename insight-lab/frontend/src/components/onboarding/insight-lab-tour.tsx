@@ -12,20 +12,20 @@ const SETS_TOUR: TourStep[] = [
   {
     id: "welcome",
     title: "Welcome to InsightLab",
-    body: "Organize course materials into study sets, collaborate with classmates, and use AI tools to study smarter.",
+    body: "Organize course materials into study sheets, collaborate with classmates, and use AI tools to study smarter.",
     placement: "center",
   },
   {
     id: "create-set",
-    title: "Create a study set",
-    body: "Name a set for a class, exam, or project. Each set keeps its own files, progress, and sharing settings.",
+    title: "Create a study sheet",
+    body: "Name a sheet for a class, exam, or project. Each sheet keeps its own files, progress, and sharing settings.",
     target: '[data-tour="create-set"]',
     placement: "bottom",
   },
   {
     id: "sets-list",
-    title: "Open a study set",
-    body: "Sets shared with you show a badge. Click any set to upload, chat, quiz, and export.",
+    title: "Open a study sheet",
+    body: "Sheets shared with you show a badge. Click any sheet to upload, chat, quiz, and export.",
     target: '[data-tour="sets-list"]',
     placement: "top",
   },
@@ -34,7 +34,7 @@ const SETS_TOUR: TourStep[] = [
 const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share",
-    title: "Share this study set",
+    title: "Share this study sheet",
     body: "Open the share panel to invite classmates. Editors and owners can send invite links; viewers can see who has access.",
     target: '[data-tour="share-panel"]',
     placement: "bottom",
@@ -42,7 +42,7 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share-members",
     title: "Manage members",
-    body: "Owners can change roles (viewer ↔ editor), remove members, or revoke pending invites. Members who are not owners can leave the set.",
+    body: "Owners can change roles (viewer ↔ editor), remove members, or revoke pending invites. Members who are not owners can leave the sheet.",
     target: '[data-tour="share-members"]',
     placement: "bottom",
   },
@@ -55,15 +55,15 @@ const SET_DETAIL_TOUR: TourStep[] = [
   },
   {
     id: "share-leave",
-    title: "Leave a shared set",
-    body: "Editors and viewers can leave when they no longer need access. Owners delete the set instead.",
+    title: "Leave a shared sheet",
+    body: "Editors and viewers can leave when they no longer need access. Owners delete the sheet instead.",
     target: '[data-tour="share-leave"]',
     placement: "bottom",
   },
   {
     id: "delete-set",
-    title: "Delete study set",
-    body: "Owners can permanently delete a study set from the header. You must keep at least one set on your account.",
+    title: "Delete study sheet",
+    body: "Owners can permanently delete a study sheet from the header. You must keep at least one sheet on your account.",
     target: '[data-tour="delete-set"]',
     placement: "bottom",
   },
@@ -84,7 +84,7 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "upload",
     title: "Upload materials",
-    body: "Editors can drop PDFs, Word docs, Excel sheets, or CSV files into this study set.",
+    body: "Editors can drop PDFs, Word docs, Excel spreadsheets, or CSV files into this study sheet.",
     target: '[data-tour="upload-btn"]',
     placement: "bottom",
   },
