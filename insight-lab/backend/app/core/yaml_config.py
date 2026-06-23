@@ -63,6 +63,7 @@ class CacheSection(BaseModel):
     chat_ttl: int = 86400
     excel_ttl: int = 86400
     quiz_ttl: int = 604800
+    artifact_ttl: int = 604800
 
 
 class ExcelSection(BaseModel):
@@ -139,6 +140,17 @@ class EmbeddingsSection(BaseModel):
     similarity_threshold: float = 0.35
 
 
+class ArtifactsSection(BaseModel):
+    generate_rate_limit_per_min: int = 5
+    review_rate_limit_per_min: int = 120
+    max_flashcards: int = 20
+    max_context_chunks: int = 8
+    flashcard_max_tokens: int = 2000
+    study_guide_max_tokens: int = 2500
+    suggested_questions_max_tokens: int = 400
+    chunk_preview_max_chars: int = 1200
+
+
 class YamlConfig(BaseModel):
     app: AppSection
     logging: LoggingSection
@@ -152,6 +164,7 @@ class YamlConfig(BaseModel):
     graph: GraphSection
     adaptive_quiz: AdaptiveQuizSection
     multi_doc: MultiDocSection
+    artifacts: ArtifactsSection
     resilience: ResilienceSection
 
 

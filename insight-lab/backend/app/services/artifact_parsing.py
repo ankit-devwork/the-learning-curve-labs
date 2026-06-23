@@ -1,0 +1,102 @@
+import json
+from typing import Any
+from uuid import uuid4
+
+from pydantic import BaseModel, Field
+
+from app.services.concept_extraction import normalize_concept_id
+
+
+class FlashcardDraft(BaseModel):
+    front: str
+    back: str
+    source_chunk_index: int | None = Field(default=None, ge=0)
+
+
+class FlashcardSetDraft(BaseModel):
+    title: str
+    cards: list[FlashcardDraft] = Field(min_length=1)
+
+
+class StudyGuideSection(BaseModel):
+    heading: str
+    bullets: list[str] = Field(default_factory=list)
+
+
+class StudyGuideKeyTerm(BaseModel):
+    term: str
+    definition: str = ""
+
+
+class StudyGuideDraft(BaseModel):
+    title: str
+    overview: str
+    key_terms: list[StudyGuideKeyTerm] = Field(default_factory=list)
+    sections: list[StudyGuideSection] = Field(default_factory=list)
+    sample_questions: list[str] = Field(default_factory=list)
+
+
+def _strip_json_fence(raw: str) -> str:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+    return text.strip()
+
+
+def parse_flashcard_draft(raw: str, *, max_cards: int) -> FlashcardSetDraft:
+    payload = json.loads(_strip_json_fence(raw))
+    draft = FlashcardSetDraft.model_validate(payload)
+    draft.cards = draft.cards[:max_cards]
+    if not draft.cards:
+        raise ValueError("Flashcard set must contain at least one card")
+    return draft
+
+
+def parse_study_guide_draft(raw: str) -> StudyGuideDraft:
+    payload = json.loads(_strip_json_fence(raw))
+    return StudyGuideDraft.model_validate(payload)
+
+
+def flashcard_draft_to_rows(draft: FlashcardSetDraft, *, chunk_indexes: list[int]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for index, card in enumerate(draft.cards):
+        source_chunk_index = None
+        if card.source_chunk_index is not None and chunk_indexes:
+            position = min(card.source_chunk_index, len(chunk_indexes) - 1)
+            source_chunk_index = chunk_indexes[position]
+        rows.append(
+            {
+                "front": card.front.strip(),
+                "back": card.back.strip(),
+                "sort_order": index,
+                "source_chunk_index": source_chunk_index,
+            }
+        )
+    return rows
+
+
+def study_guide_to_content(draft: StudyGuideDraft) -> dict[str, Any]:
+    return {
+        "title": draft.title.strip(),
+        "overview": draft.overview.strip(),
+        "key_terms": [
+            {"term": item.term.strip(), "definition": item.definition.strip()}
+            for item in draft.key_terms
+            if item.term.strip()
+        ],
+        "sections": [
+            {
+                "heading": section.heading.strip(),
+                "bullets": [bullet.strip() for bullet in section.bullets if bullet.strip()],
+            }
+            for section in draft.sections
+            if section.heading.strip()
+        ],
+        "sample_questions": [question.strip() for question in draft.sample_questions if question.strip()],
+    }
+
+
+def normalize_study_term_slug(term: str) -> str:
+    return normalize_concept_id(term) or "term"

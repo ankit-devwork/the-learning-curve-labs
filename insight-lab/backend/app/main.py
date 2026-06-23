@@ -8,7 +8,9 @@ from pycorekit.exceptions.base import AppException
 from pycorekit.exceptions.handlers import app_exception_handler, generic_exception_handler
 from pycorekit.tracing.middleware import RequestTracingMiddleware
 
+from app.api.routes.artifacts import router as artifacts_router
 from app.api.routes.graph import router as graph_router
+from app.api.routes.workspaces import router as workspaces_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.excel import router as excel_router
 from app.api.routes.health import router as health_router
@@ -79,6 +81,8 @@ app.include_router(health_router, tags=["health"])
 app.include_router(me_router, tags=["auth"])
 app.include_router(upload_router, tags=["documents"])
 app.include_router(documents_router, tags=["documents"])
+app.include_router(workspaces_router)
+app.include_router(artifacts_router)
 app.include_router(graph_router, tags=["graph"])
 app.include_router(excel_router, tags=["excel"])
 app.include_router(quiz_router, tags=["quiz"])

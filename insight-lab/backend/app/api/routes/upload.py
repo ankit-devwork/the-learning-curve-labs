@@ -11,6 +11,7 @@ from app.core.supabase_client import get_supabase_client
 from app.core.yaml_config import get_yaml_config
 from app.services.upload import get_upload_public_config, list_documents, upload_document
 from app.services.upload_validation import validate_upload
+from app.services.workspace_service import resolve_workspace_id
 
 router = APIRouter()
 
@@ -31,6 +32,7 @@ async def upload_file(
     request: Request,
     user: AuthUser = Depends(get_current_user),
     file: UploadFile = File(...),
+    workspace_id: str | None = Query(default=None),
 ):
     if not file.filename:
         raise FileException("Filename is required")
@@ -60,6 +62,7 @@ async def upload_file(
         validated=validated,
         content=content,
         mime_type=file.content_type,
+        workspace_id=resolve_workspace_id(get_supabase_client(), user, workspace_id),
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {
@@ -74,13 +77,25 @@ async def get_documents(
     request: Request,
     user: AuthUser = Depends(get_current_user),
     limit: int | None = Query(default=None, ge=1, le=100),
+    workspace_id: str | None = Query(default=None),
 ):
+    client = get_supabase_client()
     default_limit = get_yaml_config().upload.documents_list_default_limit
-    documents = list_documents(
-        get_supabase_client(),
-        user,
-        limit=limit if limit is not None else default_limit,
-    )
+    if workspace_id:
+        from app.services.workspace_service import list_workspace_documents
+
+        documents = list_workspace_documents(
+            client,
+            resolve_workspace_id(client, user, workspace_id),
+            user,
+            limit=limit if limit is not None else default_limit,
+        )
+    else:
+        documents = list_documents(
+            client,
+            user,
+            limit=limit if limit is not None else default_limit,
+        )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {
         "documents": documents,

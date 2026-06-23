@@ -345,6 +345,14 @@ export function DocumentQuizPanel({
                 {result.explanation && (
                   <p className="mt-2 text-muted-foreground">{result.explanation}</p>
                 )}
+                {!result.correct && result.source_preview && (
+                  <div className="mt-3 rounded-md border bg-background/80 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      From your document
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{result.source_preview}</p>
+                  </div>
+                )}
               </div>
             ))}
             <div className="flex flex-wrap gap-2">

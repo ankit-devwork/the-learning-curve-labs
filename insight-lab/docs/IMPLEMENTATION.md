@@ -376,14 +376,35 @@ Uses existing tables from `001_initial.sql`: `quizzes`, `quiz_questions`, `quiz_
 | Multi-doc chat | `/documents/multi/retrieve`, `/documents/multi/ask` | Document chat on dashboard |
 | Document citations | Collapsed per-document sources | **Based on** filename list |
 
-## Next up — Phase 3
+## Next up — Phase 3 & 4 (implemented)
 
-- Team workspaces (multi-user)
-- Teacher HITL quiz edit
-- Course pack generator
-- Semantic cache
-- Export PDF / LMS formats
-- LangGraph agent orchestration (currently direct service calls)
+### Phase 3 — Competitive shell
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Study Sets (workspaces) CRUD | `GET/POST/PATCH/DELETE /workspaces` | Sidebar + `/dashboard/sets` |
+| Upload to study set | `POST /upload?workspace_id=` | Drag-drop upload on set page |
+| Processing status | `GET /documents/{id}/status` | Processing stepper |
+| Suggested questions | `GET /documents/{id}/suggested-questions` | Question chips in workspace chat |
+| 3-panel document workspace | — | Sources \| Chat \| Studio layout |
+
+### Phase 4 — Study parity
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Flashcards | `POST/GET /documents/{id}/flashcards/*` | Flashcard study mode + Studio button |
+| Study guide | `POST/GET /documents/{id}/study-guide/*` | Study guide view + Studio button |
+| Source viewer | `GET /documents/{id}/chunks/{index}` | Citation drawer + quiz source excerpts |
+| Quiz feedback | Source preview on wrong answers in submit | Enhanced quiz results UI |
+| Set analytics | `GET /workspaces/{id}/stats` | Progress panel on set page |
+
+Migration: `008_phase3_4_study_features.sql` (flashcards, study guides, RLS).
+
+## Next up — Phase 5
+
+- Julius-style inline excel chat canvas
+- Export PNG/CSV
+- Audio overviews
 
 ## Security & resilience checklist
 

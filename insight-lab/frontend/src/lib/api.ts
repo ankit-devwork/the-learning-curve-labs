@@ -32,6 +32,7 @@ export type DocumentSummary = {
 };
 
 export type DocumentDetail = DocumentSummary & {
+  workspace_id?: string;
   summary?: string | null;
   error_message?: string | null;
   processed_at?: string | null;
@@ -93,6 +94,8 @@ export type QuizResultItem = {
   correct_option_index: number;
   correct: boolean;
   explanation?: string | null;
+  source_preview?: string | null;
+  source_chunk_index?: number | null;
 };
 
 export type QuizSubmitResponse = {
@@ -270,3 +273,69 @@ export async function fetchUploadConfig(): Promise<UploadConfigResponse> {
   }
   return response.json();
 }
+
+export type WorkspaceSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkspaceStats = {
+  workspace_id: string;
+  document_count: number;
+  ready_count: number;
+  document_files: number;
+  excel_files: number;
+  quiz_attempts: number;
+  avg_quiz_percent: number | null;
+};
+
+export type ProcessingStatus = {
+  document_id: string;
+  status: string;
+  stage: string;
+  progress_pct: number;
+  message: string;
+};
+
+export type FlashcardItem = {
+  id: string;
+  front: string;
+  back: string;
+  sort_order: number;
+  source_chunk_index?: number | null;
+};
+
+export type FlashcardSetResponse = {
+  set_id: string;
+  document_id: string;
+  title: string;
+  cards: FlashcardItem[];
+  card_count: number;
+};
+
+export type StudyGuideContent = {
+  title: string;
+  overview: string;
+  key_terms: Array<{ term: string; definition: string }>;
+  sections: Array<{ heading: string; bullets: string[] }>;
+  sample_questions: string[];
+};
+
+export type StudyGuideResponse = {
+  guide_id: string;
+  document_id: string;
+  title: string;
+  content: StudyGuideContent;
+  created_at: string;
+};
+
+export type DocumentChunkResponse = {
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  preview: string;
+  truncated: boolean;
+};

@@ -50,6 +50,7 @@ cache:
   chat_ttl: 86400
   excel_ttl: 86400
   quiz_ttl: 604800
+  artifact_ttl: 604800
 
 documents:
   chunk_size: 1200
@@ -112,6 +113,16 @@ multi_doc:
   max_context_chunks: 6
   max_chunks_per_document: 3
   chat_max_tokens: 800
+
+artifacts:
+  generate_rate_limit_per_min: 5
+  review_rate_limit_per_min: 120
+  max_flashcards: 20
+  max_context_chunks: 8
+  flashcard_max_tokens: 2000
+  study_guide_max_tokens: 2500
+  suggested_questions_max_tokens: 400
+  chunk_preview_max_chars: 1200
 
 resilience:
   retry_max_attempts: 4
