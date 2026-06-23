@@ -6,7 +6,7 @@ from app.core.exceptions import NotFoundException
 from app.core.safe_errors import sanitize_stored_error
 from app.core.yaml_config import get_yaml_config
 from app.services.llm_client import suggested_questions_cache_key
-from app.services.quiz_service import _get_owned_document
+from app.services.document_service import _get_owned_document
 
 DEFAULT_SUGGESTED_QUESTIONS = [
     "What are the main themes in this document?",

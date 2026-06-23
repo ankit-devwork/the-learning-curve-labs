@@ -19,7 +19,6 @@ from app.services.llm_client import (
     quiz_cache_key,
 )
 from app.services.mastery_service import get_weak_concepts, record_quiz_mastery
-from app.services.document_extras import attach_source_previews
 from app.services.quiz_questions import draft_to_rows, parse_quiz_draft
 
 log = get_logger("quiz")
@@ -468,6 +467,8 @@ async def submit_quiz_attempt(
         results=results,
     )
     log.info("Quiz submitted", quiz_id=quiz_id, user_id=user.id, score=score, total=total)
+    from app.services.document_extras import attach_source_previews
+
     enriched_results = attach_source_previews(
         client,
         document_id=quiz["document_id"],
