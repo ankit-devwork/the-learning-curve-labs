@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch, type WorkspaceSummary } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,12 @@ export function StudySetsListClient() {
             className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
           >
             <p className="font-medium">{workspace.name}</p>
+            {workspace.shared ? (
+              <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                <Users className="h-3.5 w-3.5" aria-hidden />
+                Shared with you
+              </p>
+            ) : null}
             {workspace.description ? (
               <p className="mt-1 text-sm text-muted-foreground">{workspace.description}</p>
             ) : (

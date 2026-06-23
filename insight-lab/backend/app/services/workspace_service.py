@@ -5,8 +5,13 @@ from pycorekit.exceptions.file import FileException
 from supabase import Client
 
 from app.core.auth import AuthUser
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import ForbiddenException, NotFoundException
 from app.services.upload import ensure_profile_and_workspace
+from app.services.workspace_access import (
+    get_workspace_membership_role,
+    get_workspace_row,
+    require_workspace_role,
+)
 
 WORKSPACE_NAME_MAX = 100
 WORKSPACE_NAME_MIN = 1
@@ -22,11 +27,11 @@ def _sanitize_workspace_name(name: str) -> str:
 
 
 def _get_owned_workspace(client: Client, workspace_id: str, user: AuthUser) -> dict:
+    require_workspace_role(client, workspace_id, user, min_role="owner")
     result = (
         client.table("workspaces")
         .select("*")
         .eq("id", workspace_id)
-        .eq("owner_id", user.id)
         .limit(1)
         .execute()
     )
@@ -37,14 +42,40 @@ def _get_owned_workspace(client: Client, workspace_id: str, user: AuthUser) -> d
 
 def list_workspaces(client: Client, user: AuthUser) -> list[dict]:
     ensure_profile_and_workspace(client, user)
+    memberships = (
+        client.table("workspace_members")
+        .select("workspace_id, role")
+        .eq("user_id", user.id)
+        .execute()
+        .data
+        or []
+    )
+    workspace_ids = [row["workspace_id"] for row in memberships]
+    if not workspace_ids:
+        return []
+
+    role_map = {row["workspace_id"]: row["role"] for row in memberships}
     result = (
         client.table("workspaces")
-        .select("id, name, description, created_at, updated_at")
-        .eq("owner_id", user.id)
+        .select("id, name, description, created_at, updated_at, owner_id")
+        .in_("id", workspace_ids)
         .order("created_at")
         .execute()
     )
-    return result.data or []
+    rows = result.data or []
+    return [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "description": row.get("description"),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "access_role": role_map.get(row["id"]),
+            "is_owner": row["owner_id"] == user.id,
+            "shared": row["owner_id"] != user.id,
+        }
+        for row in rows
+    ]
 
 
 def create_workspace(
@@ -57,8 +88,9 @@ def create_workspace(
     ensure_profile_and_workspace(client, user)
     safe_name = _sanitize_workspace_name(name)
     safe_description = description.strip()[:500] if description else None
+    workspace_id = str(uuid4())
     row = {
-        "id": str(uuid4()),
+        "id": workspace_id,
         "owner_id": user.id,
         "name": safe_name,
         "description": safe_description,
@@ -66,6 +98,13 @@ def create_workspace(
     inserted = client.table("workspaces").insert(row).execute()
     if not inserted.data:
         raise FileException("Failed to create study set", status_code=500)
+    client.table("workspace_members").insert(
+        {
+            "workspace_id": workspace_id,
+            "user_id": user.id,
+            "role": "owner",
+        }
+    ).execute()
     created = inserted.data[0]
     return {
         "id": created["id"],
@@ -73,6 +112,9 @@ def create_workspace(
         "description": created.get("description"),
         "created_at": created["created_at"],
         "updated_at": created["updated_at"],
+        "access_role": "owner",
+        "is_owner": True,
+        "shared": False,
     }
 
 
@@ -96,24 +138,16 @@ def update_workspace(
         client.table("workspaces")
         .update(updates)
         .eq("id", workspace_id)
-        .eq("owner_id", user.id)
         .execute()
     )
     if not updated.data:
         raise FileException("Failed to update study set", status_code=500)
-    row = updated.data[0]
-    return {
-        "id": row["id"],
-        "name": row["name"],
-        "description": row.get("description"),
-        "created_at": row["created_at"],
-        "updated_at": row["updated_at"],
-    }
+    return get_workspace(client, workspace_id, user)
 
 
 def delete_workspace(client: Client, workspace_id: str, user: AuthUser) -> None:
     workspace = _get_owned_workspace(client, workspace_id, user)
-    all_sets = (
+    owned_sets = (
         client.table("workspaces")
         .select("id")
         .eq("owner_id", user.id)
@@ -121,19 +155,22 @@ def delete_workspace(client: Client, workspace_id: str, user: AuthUser) -> None:
         .data
         or []
     )
-    if len(all_sets) <= 1:
+    if len(owned_sets) <= 1:
         raise FileException("You must keep at least one study set", status_code=409)
-    client.table("workspaces").delete().eq("id", workspace["id"]).eq("owner_id", user.id).execute()
+    client.table("workspaces").delete().eq("id", workspace["id"]).execute()
 
 
 def get_workspace(client: Client, workspace_id: str, user: AuthUser) -> dict:
-    row = _get_owned_workspace(client, workspace_id, user)
+    row = get_workspace_row(client, workspace_id, user)
     return {
         "id": row["id"],
         "name": row["name"],
         "description": row.get("description"),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+        "access_role": row.get("access_role"),
+        "is_owner": row["owner_id"] == user.id,
+        "shared": row["owner_id"] != user.id,
     }
 
 
@@ -144,13 +181,12 @@ def list_workspace_documents(
     *,
     limit: int = 50,
 ) -> list[dict]:
-    _get_owned_workspace(client, workspace_id, user)
+    require_workspace_role(client, workspace_id, user, min_role="viewer")
     limit = min(max(limit, 1), 100)
     result = (
         client.table("documents")
-        .select("id, filename, file_type, mime_type, status, created_at, workspace_id")
+        .select("id, filename, file_type, mime_type, status, created_at, workspace_id, owner_id")
         .eq("workspace_id", workspace_id)
-        .eq("owner_id", user.id)
         .order("created_at", desc=True)
         .limit(limit)
         .execute()
@@ -159,12 +195,11 @@ def list_workspace_documents(
 
 
 def get_workspace_stats(client: Client, workspace_id: str, user: AuthUser) -> dict:
-    _get_owned_workspace(client, workspace_id, user)
+    require_workspace_role(client, workspace_id, user, min_role="viewer")
     docs = (
         client.table("documents")
         .select("id, status, file_type")
         .eq("workspace_id", workspace_id)
-        .eq("owner_id", user.id)
         .execute()
         .data
         or []
@@ -219,5 +254,6 @@ def resolve_workspace_id(
     workspace_id: str | None,
 ) -> str:
     if workspace_id:
-        return _get_owned_workspace(client, workspace_id, user)["id"]
+        require_workspace_role(client, workspace_id, user, min_role="editor")
+        return workspace_id
     return ensure_profile_and_workspace(client, user)

@@ -51,6 +51,11 @@ cache:
   excel_ttl: 86400
   quiz_ttl: 604800
   artifact_ttl: 604800
+  semantic_threshold: 0.85
+  semantic_max_entries: 50
+
+course_pack:
+  generate_rate_limit_per_hour: 3
 
 documents:
   chunk_size: 1200

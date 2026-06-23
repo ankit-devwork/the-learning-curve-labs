@@ -15,6 +15,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
 import { WorkspaceStatsPanel } from "@/components/workspace/workspace-stats-panel";
+import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
+import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { useToast } from "@/components/ui/toast";
 import { fetchUploadConfig, type UploadConfigResponse } from "@/lib/api";
@@ -161,6 +163,13 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       </div>
 
       {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
+
+      <CoursePackPanel setId={setId} />
+
+      <ShareWorkspacePanel
+        setId={setId}
+        canManage={workspace.access_role === "owner" || workspace.access_role === "editor"}
+      />
 
       <Card className="shadow-sm">
         <CardHeader>

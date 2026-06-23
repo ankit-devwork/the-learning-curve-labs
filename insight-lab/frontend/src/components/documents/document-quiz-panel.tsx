@@ -8,8 +8,10 @@ import {
   type GenerateQuizRequest,
   type QuizResponse,
   type QuizSubmitResponse,
+  type QuizQuestionEditable,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Label } from "@/components/ui/label";
@@ -51,6 +53,10 @@ export function DocumentQuizPanel({
   const [submitting, setSubmitting] = useState(false);
   const [loadingMastery, setLoadingMastery] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editQuestions, setEditQuestions] = useState<QuizQuestionEditable[]>([]);
+  const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const loadMastery = useCallback(async () => {
     if (!accessToken || !ready) {
@@ -162,6 +168,66 @@ export function DocumentQuizPanel({
     await loadMastery();
   }
 
+  async function loadEditMode() {
+    if (!accessToken || !quiz) {
+      return;
+    }
+    const response = await apiFetch(`/quizzes/${quiz.quiz_id}/edit`, accessToken);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Could not load quiz for editing");
+      return;
+    }
+    const data = (await response.json()) as QuizResponse & { questions: QuizQuestionEditable[] };
+    setEditQuestions(data.questions);
+    setEditMode(true);
+  }
+
+  async function saveQuestion(question: QuizQuestionEditable) {
+    if (!accessToken || !quiz) {
+      return;
+    }
+    setSavingQuestionId(question.id);
+    const response = await apiFetch(
+      `/quizzes/${quiz.quiz_id}/questions/${question.id}`,
+      accessToken,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: question.question_text,
+          options: question.options,
+          correct_option_index: question.correct_option_index,
+          explanation: question.explanation,
+        }),
+      },
+    );
+    setSavingQuestionId(null);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Save failed");
+    }
+  }
+
+  async function handlePublish() {
+    if (!accessToken || !quiz) {
+      return;
+    }
+    setPublishing(true);
+    const response = await apiFetch(`/quizzes/${quiz.quiz_id}/publish`, accessToken, {
+      method: "POST",
+    });
+    setPublishing(false);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Publish failed");
+      return;
+    }
+    const data = (await response.json()) as QuizResponse;
+    setQuiz(data);
+    setEditMode(false);
+  }
+
   const canPracticeWeakAreas = hasWeakConcepts(mastery);
 
   return (
@@ -269,18 +335,106 @@ export function DocumentQuizPanel({
 
         {quiz && !results && (
           <div className="space-y-5">
-            <div>
-              <p className="font-medium">{quiz.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)} difficulty
-                {quiz.target_concepts && quiz.target_concepts.length > 0 && (
-                  <>
-                    {" "}
-                    · Focus: {quiz.target_concepts.map((concept) => concept.name).join(", ")}
-                  </>
-                )}
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">{quiz.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)} difficulty
+                  {quiz.published === false ? " · Draft — review before publishing" : ""}
+                  {quiz.target_concepts && quiz.target_concepts.length > 0 && (
+                    <>
+                      {" "}
+                      · Focus: {quiz.target_concepts.map((concept) => concept.name).join(", ")}
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!editMode ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => void loadEditMode()}>
+                    Edit quiz
+                  </Button>
+                ) : null}
+                {quiz.published === false ? (
+                  <Button type="button" size="sm" disabled={publishing} onClick={() => void handlePublish()}>
+                    {publishing ? "Publishing…" : "Publish quiz"}
+                  </Button>
+                ) : null}
+              </div>
             </div>
+
+            {editMode ? (
+              <div className="space-y-4">
+                {editQuestions.map((question, index) => (
+                  <div key={question.id} className="space-y-2 rounded-md border p-4">
+                    <Label htmlFor={`q-${question.id}`}>Question {index + 1}</Label>
+                    <textarea
+                      id={`q-${question.id}`}
+                      className="min-h-20 w-full rounded-md border px-3 py-2 text-sm"
+                      value={question.question_text}
+                      onChange={(event) =>
+                        setEditQuestions((current) =>
+                          current.map((row) =>
+                            row.id === question.id
+                              ? { ...row, question_text: event.target.value }
+                              : row,
+                          ),
+                        )
+                      }
+                    />
+                    {question.options.map((option, optionIndex) => (
+                      <Input
+                        key={`${question.id}-opt-${optionIndex}`}
+                        value={option}
+                        onChange={(event) =>
+                          setEditQuestions((current) =>
+                            current.map((row) =>
+                              row.id === question.id
+                                ? {
+                                    ...row,
+                                    options: row.options.map((value, idx) =>
+                                      idx === optionIndex ? event.target.value : value,
+                                    ),
+                                  }
+                                : row,
+                            ),
+                          )
+                        }
+                      />
+                    ))}
+                    <select
+                      className={selectClassName}
+                      value={question.correct_option_index ?? 0}
+                      onChange={(event) =>
+                        setEditQuestions((current) =>
+                          current.map((row) =>
+                            row.id === question.id
+                              ? { ...row, correct_option_index: Number(event.target.value) }
+                              : row,
+                          ),
+                        )
+                      }
+                    >
+                      {question.options.map((option, optionIndex) => (
+                        <option key={optionIndex} value={optionIndex}>
+                          Correct: {option || `Option ${optionIndex + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={savingQuestionId === question.id}
+                      onClick={() => void saveQuestion(question)}
+                    >
+                      {savingQuestionId === question.id ? "Saving…" : "Save question"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
             {quiz.questions.map((question, index) => (
               <div key={question.id} className="space-y-2 rounded-md border p-4">
                 <p className="text-sm font-medium">
@@ -309,6 +463,8 @@ export function DocumentQuizPanel({
             <Button type="button" disabled={submitting} onClick={() => void handleSubmit()}>
               {submitting ? "Checking answers..." : "Submit answers"}
             </Button>
+              </>
+            )}
           </div>
         )}
 

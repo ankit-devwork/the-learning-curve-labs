@@ -114,6 +114,15 @@ export async function downloadChartPng(
   anchor.click();
 }
 
+export function downloadAnkiCsv(cards: Array<{ front: string; back: string }>, filename: string): void {
+  const lines = ["Front,Back,Tags", ...cards.map((card) => {
+    const front = card.front.replace(/"/g, '""');
+    const back = card.back.replace(/"/g, '""');
+    return `"${front}","${back}","InsightLab"`;
+  })];
+  downloadTextFile(lines.join("\n"), filename);
+}
+
 export function downloadTextFile(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -122,4 +131,30 @@ export function downloadTextFile(content: string, filename: string): void {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export function downloadStudyGuidePdf(title: string, content: {
+  overview?: string;
+  key_terms?: Array<{ term: string; definition: string }>;
+  sections?: Array<{ heading: string; bullets: string[] }>;
+  sample_questions?: string[];
+}): void {
+  const html = `
+    <!DOCTYPE html><html><head><title>${title}</title>
+    <style>body{font-family:system-ui,sans-serif;padding:2rem;line-height:1.5}h1,h2{margin-top:1.5rem}</style>
+    </head><body>
+    <h1>${title}</h1>
+    ${content.overview ? `<h2>Overview</h2><p>${content.overview}</p>` : ""}
+    ${content.key_terms?.length ? `<h2>Key terms</h2><ul>${content.key_terms.map((t) => `<li><strong>${t.term}</strong>: ${t.definition}</li>`).join("")}</ul>` : ""}
+    ${content.sections?.map((s) => `<h2>${s.heading}</h2><ul>${s.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>`).join("") ?? ""}
+    ${content.sample_questions?.length ? `<h2>Sample questions</h2><ul>${content.sample_questions.map((q) => `<li>${q}</li>`).join("")}</ul>` : ""}
+    </body></html>`;
+  const win = window.open("", "_blank");
+  if (!win) {
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
 }
