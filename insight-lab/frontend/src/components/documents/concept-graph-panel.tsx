@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, type DocumentGraphResponse, type GraphEdge, type GraphNode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProcessingContentSkeleton } from "@/components/ui/loading-skeletons";
 
 type ConceptGraphPanelProps = {
   documentId: string;
@@ -139,7 +140,7 @@ export function ConceptGraphPanel({ documentId, ready, accessToken }: ConceptGra
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {loading && <p className="text-sm text-muted-foreground">Loading topics...</p>}
+        {loading && <ProcessingContentSkeleton lines={4} />}
 
         {graph?.migration_required && graph.notice && (
           <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">

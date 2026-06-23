@@ -1,4 +1,7 @@
+"use client";
+
 import { FileSpreadsheet, FileText, MessagesSquare } from "lucide-react";
+import { DashboardOnboarding } from "@/components/onboarding/dashboard-onboarding";
 
 const features = [
   {
@@ -20,13 +23,16 @@ const features = [
 
 export function DashboardHero() {
   return (
-    <section className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Your workspace</h2>
-        <p className="mt-1 max-w-2xl text-muted-foreground">
-          Upload learning materials or datasets, then explore them with AI-powered summaries,
-          chat, and quizzes.
-        </p>
+    <section className="space-y-6" data-tour="workspace-hero">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Your workspace</h2>
+          <p className="mt-1 max-w-2xl text-muted-foreground">
+            Upload learning materials or datasets, then explore them with AI-powered summaries,
+            chat, and quizzes.
+          </p>
+        </div>
+        <DashboardOnboarding />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {features.map(({ icon: Icon, title, description }) => (

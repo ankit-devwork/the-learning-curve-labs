@@ -196,7 +196,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   }
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="compare-docs">
       <CardHeader>
         <CardTitle className="text-lg">Compare documents</CardTitle>
         <CardDescription>

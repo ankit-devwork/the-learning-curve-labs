@@ -10,6 +10,11 @@ import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
 import { ExcelChartView } from "@/components/excel/excel-chart-view";
 import { ExcelChartBuilder } from "@/components/excel/excel-chart-builder";
+import {
+  ChartBuilderSkeleton,
+  ExcelDetailSkeleton,
+  ProcessingContentSkeleton,
+} from "@/components/ui/loading-skeletons";
 
 type ExcelChatMessage = {
   question: string;
@@ -163,7 +168,7 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading spreadsheet...</p>;
+    return <ExcelDetailSkeleton />;
   }
 
   return (
@@ -201,7 +206,17 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {analyzing && <p className="text-sm text-muted-foreground">Analyzing spreadsheet...</p>}
+      {analyzing && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Insights</CardTitle>
+            <CardDescription>Analyzing your spreadsheet…</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProcessingContentSkeleton lines={5} />
+          </CardContent>
+        </Card>
+      )}
 
       {status === "ready" && (
         <FeatureGuide
@@ -312,6 +327,8 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
           </CardContent>
         </Card>
       ))}
+
+      {analyzing && !analysis && <ChartBuilderSkeleton />}
 
       {!analyzing && !analysis && status !== "ready" && (
         <p className="text-sm text-muted-foreground">Charts will appear after analysis.</p>
