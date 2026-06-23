@@ -32,11 +32,11 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
   return (
     <div className="min-h-screen bg-[hsl(var(--shell))]">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r bg-background md:flex md:flex-col">
+        <aside className="hidden w-64 shrink-0 self-start border-r bg-background md:sticky md:top-0 md:flex md:h-screen md:max-h-screen md:flex-col">
           <div className="border-b px-4 py-4">
             <BrandMark href="/dashboard" />
           </div>
-          <nav className="flex-1 space-y-1 p-3">
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3">
             {navItems.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
@@ -56,7 +56,7 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
               );
             })}
           </nav>
-          <div className="border-t p-4 text-xs text-muted-foreground">
+          <div className="shrink-0 border-t p-4 text-xs text-muted-foreground">
             <div className="mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4" aria-hidden />
               <span>Learning workspace</span>
