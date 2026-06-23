@@ -36,7 +36,7 @@ export function StudySetCard({ workspace, sourceCount, readyCount }: StudySetCar
         {workspace.description ? (
           <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{workspace.description}</p>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">Open notebook to chat, quiz, and study</p>
+          <p className="mt-2 text-sm text-muted-foreground">Open set to chat, quiz, and study</p>
         )}
         <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
           {sourceCount != null ? (

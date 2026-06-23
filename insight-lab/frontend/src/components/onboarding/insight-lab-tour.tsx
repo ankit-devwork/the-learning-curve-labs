@@ -131,7 +131,7 @@ const DOCUMENT_TOUR: TourStep[] = [
 const EXCEL_TOUR: TourStep[] = [
   {
     id: "excel-canvas",
-    title: "Excel notebook",
+    title: "Excel workspace",
     body: "Same layout as document sources: chat first, then Insights, Preview, Charts, and Builder tabs below.",
     target: '[data-tour="excel-canvas"]',
     placement: "center",

@@ -338,6 +338,7 @@ export function DocumentQuizPanel({
                 concepts={mastery}
                 migrationRequired={masteryMigrationRequired}
                 notice={masteryNotice ?? undefined}
+                maxVisibleRows={5}
               />
             )}
           </div>

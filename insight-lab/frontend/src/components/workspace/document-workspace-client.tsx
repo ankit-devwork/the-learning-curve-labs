@@ -367,7 +367,7 @@ export function DocumentWorkspaceClient({
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading notebook…</p>;
+    return <p className="text-sm text-muted-foreground">Loading workspace…</p>;
   }
 
   if (!document) {
@@ -389,7 +389,7 @@ export function DocumentWorkspaceClient({
     <div className={audioPlaying ? "space-y-4 pb-24" : "space-y-4"}>
       <ContextBreadcrumb
         items={[
-          { label: "Notebooks", href: "/dashboard/sets" },
+          { label: "Study sets", href: "/dashboard/sets" },
           { label: workspaceName || "Study set", href: `/dashboard/sets/${setId}` },
           { label: document.filename },
         ]}

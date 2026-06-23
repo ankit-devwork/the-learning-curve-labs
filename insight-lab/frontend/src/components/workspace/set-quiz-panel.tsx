@@ -211,7 +211,13 @@ export function SetQuizPanel({
         />
 
         {mastery.length > 0 ? (
-          <QuizMasteryProgress concepts={mastery} title="Topic progress across this set" />
+          <QuizMasteryProgress
+            concepts={mastery}
+            title="Topic progress across this set"
+            collapsible
+            defaultExpanded
+            maxVisibleRows={5}
+          />
         ) : null}
 
         {canEdit ? (

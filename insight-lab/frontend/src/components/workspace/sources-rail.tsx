@@ -23,7 +23,7 @@ export function SourcesRail({ setId, documents, activeDocumentId, className }: S
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sources</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {documents.length} file{documents.length === 1 ? "" : "s"} in this notebook
+          {documents.length} file{documents.length === 1 ? "" : "s"} in this set
         </p>
       </div>
 
