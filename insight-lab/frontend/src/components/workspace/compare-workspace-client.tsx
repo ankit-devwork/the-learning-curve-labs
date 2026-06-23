@@ -80,7 +80,8 @@ export function CompareWorkspaceClient({ initialSetId }: CompareWorkspaceClientP
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Compare documents</h1>
         <p className="mt-1 text-muted-foreground">
-          Pick a study set, then ask one question across two or more ready documents in that set.
+          Pick a study set, then ask one question across two or more ready PDF or Word files. Excel files open in
+          the spreadsheet canvas from the study set file list.
         </p>
       </div>
 
