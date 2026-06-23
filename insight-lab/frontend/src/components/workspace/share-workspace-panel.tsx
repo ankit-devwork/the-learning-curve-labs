@@ -31,9 +31,11 @@ type Invite = {
 export function ShareWorkspacePanel({
   setId,
   canManage,
+  isOwner = false,
 }: {
   setId: string;
   canManage: boolean;
+  isOwner?: boolean;
 }) {
   const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
@@ -42,6 +44,8 @@ export function ShareWorkspacePanel({
   const [role, setRole] = useState<"viewer" | "editor">("viewer");
   const [loading, setLoading] = useState(true);
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     const supabase = createClient();
@@ -52,6 +56,7 @@ export function ShareWorkspacePanel({
       setLoading(false);
       return;
     }
+    setCurrentUserId(session.user.id);
     const [membersRes, invitesRes] = await Promise.all([
       apiFetch(`/workspaces/${setId}/members`, session.access_token),
       canManage ? apiFetch(`/workspaces/${setId}/invites`, session.access_token) : Promise.resolve(null),
@@ -98,6 +103,46 @@ export function ShareWorkspacePanel({
     await loadAll();
   }
 
+  async function handleRemoveMember(member: Member) {
+    if (!isOwner || member.role === "owner") {
+      return;
+    }
+    const label = member.email || member.full_name || "this member";
+    if (!window.confirm(`Remove ${label} from this study set? They will lose access immediately.`)) {
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+
+    setRemovingMemberId(member.user_id);
+    try {
+      const response = await apiFetch(
+        `/workspaces/${setId}/members/${member.user_id}`,
+        session.access_token,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({
+          title: "Could not remove member",
+          description: body.error || body.detail,
+          variant: "error",
+        });
+        return;
+      }
+      toast({ title: "Member removed", variant: "success" });
+      await loadAll();
+    } finally {
+      setRemovingMemberId(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading sharing settings…</p>;
   }
@@ -115,12 +160,39 @@ export function ShareWorkspacePanel({
           <p className="mb-2 text-sm font-medium">Members</p>
           <ul className="space-y-2 text-sm">
             {members.map((member) => (
-              <li key={member.user_id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span>{member.email || member.full_name || member.user_id}</span>
-                <span className="text-xs capitalize text-muted-foreground">{member.role}</span>
+              <li
+                key={member.user_id}
+                className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate">{member.email || member.full_name || member.user_id}</p>
+                  {member.user_id === currentUserId ? (
+                    <p className="text-xs text-muted-foreground">You</p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs capitalize text-muted-foreground">{member.role}</span>
+                  {isOwner && member.role !== "owner" && member.user_id !== currentUserId ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-destructive hover:text-destructive"
+                      disabled={removingMemberId === member.user_id}
+                      onClick={() => void handleRemoveMember(member)}
+                    >
+                      {removingMemberId === member.user_id ? "Removing…" : "Remove"}
+                    </Button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>
+          {isOwner ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              As owner, you can remove editors and viewers. You cannot remove yourself here.
+            </p>
+          ) : null}
         </div>
 
         {canManage ? (

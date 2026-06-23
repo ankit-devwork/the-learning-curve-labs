@@ -432,13 +432,15 @@ Migration: `009_phase6_sharing_quiz_edit.sql` (members, invites, quiz `published
 | Semantic cache expansion | Multi-doc + Excel ask use embedding index | Cache match label in document, multi-doc, and Excel chat |
 | Set-wide quiz HITL edit | Reuses `/quizzes/{id}/edit`, publish | Edit + publish in `SetQuizPanel` |
 | Security hardening | Editor checks on mutations; migration 010; invite preview | Tour updated; invite UI without email leak |
+| Remove member | `DELETE /workspaces/{id}/members/{user_id}` (owner only) | Remove button in share panel |
 
 Migration: `010_security_hardening.sql` (RLS member insert fix, workspace chunks RPC lockdown).
 
 ## Next up — Phase 8
 
 - LMS export bundles (SCORM / Canvas)
-- Remove member UI (API exists)
+- Revoke pending invite UI
+- Leave workspace (member self-remove)
 - Owner-only delete study set in UI
 - Storage read policies for workspace members (optional if all reads stay backend-only)
 

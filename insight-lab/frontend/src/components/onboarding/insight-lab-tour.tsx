@@ -35,7 +35,7 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share",
     title: "Share with teammates",
-    body: "Editors and owners can invite collaborators as viewers or editors. Viewers can study; editors can upload and generate content.",
+    body: "Editors and owners can invite collaborators. Owners can remove members who no longer need access.",
     target: '[data-tour="share-panel"]',
     placement: "bottom",
   },
