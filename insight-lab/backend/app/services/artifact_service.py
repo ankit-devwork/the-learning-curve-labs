@@ -22,7 +22,8 @@ from app.services.llm_client import (
     generate_study_guide_draft,
     study_guide_cache_key,
 )
-from app.services.quiz_service import _get_owned_document, _sample_chunks
+from app.services.workspace_access import get_accessible_document, require_editable_document
+from app.services.quiz_service import _sample_chunks
 
 log = get_logger("artifacts")
 
@@ -52,7 +53,7 @@ async def generate_document_flashcards(
     if cached and cached.get("set_id"):
         return await get_flashcard_set(client, cached["set_id"], user)
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Flashcards are only available for document uploads")
     if doc["status"] != "ready":
@@ -106,12 +107,11 @@ async def generate_document_flashcards(
 
 
 async def get_document_flashcards(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:
-    _get_owned_document(client, document_id, user)
+    get_accessible_document(client, document_id, user, min_role="viewer")
     result = (
         client.table("flashcard_sets")
         .select("id")
         .eq("document_id", document_id)
-        .eq("owner_id", user.id)
         .order("created_at", desc=True)
         .limit(1)
         .execute()
@@ -132,7 +132,7 @@ async def get_flashcard_set(client: Client, set_id: str, user: AuthUser) -> dict
     if not set_result.data:
         raise NotFoundException("Flashcard set not found")
     flashcard_set = set_result.data[0]
-    _get_owned_document(client, flashcard_set["document_id"], user)
+    get_accessible_document(client, flashcard_set["document_id"], user, min_role="viewer")
     cards = (
         client.table("flashcards")
         .select("id, front, back, sort_order, source_chunk_index")
@@ -215,7 +215,7 @@ async def generate_document_study_guide(
     if cached and cached.get("guide_id"):
         return await get_study_guide_by_id(client, cached["guide_id"], user)
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Study guides are only available for document uploads")
     if doc["status"] != "ready" or not doc.get("summary"):
@@ -261,12 +261,11 @@ async def generate_document_study_guide(
 
 
 async def get_document_study_guide(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:
-    _get_owned_document(client, document_id, user)
+    get_accessible_document(client, document_id, user, min_role="viewer")
     result = (
         client.table("study_guides")
         .select("id")
         .eq("document_id", document_id)
-        .eq("owner_id", user.id)
         .order("created_at", desc=True)
         .limit(1)
         .execute()
@@ -287,7 +286,7 @@ async def get_study_guide_by_id(client: Client, guide_id: str, user: AuthUser) -
     if not result.data:
         raise NotFoundException("Study guide not found")
     row = result.data[0]
-    _get_owned_document(client, row["document_id"], user)
+    get_accessible_document(client, row["document_id"], user, min_role="viewer")
     return {
         "guide_id": row["id"],
         "document_id": row["document_id"],

@@ -32,6 +32,7 @@ type DocumentQuizPanelProps = {
   ready: boolean;
   accessToken: string | null;
   initialQuiz?: QuizResponse | null;
+  canEdit?: boolean;
 };
 
 export function DocumentQuizPanel({
@@ -39,6 +40,7 @@ export function DocumentQuizPanel({
   ready,
   accessToken,
   initialQuiz = null,
+  canEdit = true,
 }: DocumentQuizPanelProps) {
   const [quiz, setQuiz] = useState<QuizResponse | null>(initialQuiz);
   const [questionType, setQuestionType] = useState<GenerateQuizRequest["question_type"]>("scq");
@@ -79,7 +81,7 @@ export function DocumentQuizPanel({
   }, [loadMastery]);
 
   const generateQuiz = useCallback(async () => {
-    if (!accessToken) {
+    if (!accessToken || !canEdit) {
       return;
     }
     setGenerating(true);
@@ -105,10 +107,10 @@ export function DocumentQuizPanel({
     }
 
     setQuiz((await response.json()) as QuizResponse);
-  }, [accessToken, documentId, questionType, difficulty, numQuestions]);
+  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit]);
 
   const generatePracticeQuiz = useCallback(async () => {
-    if (!accessToken) {
+    if (!accessToken || !canEdit) {
       return;
     }
     setGenerating(true);
@@ -138,7 +140,7 @@ export function DocumentQuizPanel({
     }
 
     setQuiz((await response.json()) as QuizResponse);
-  }, [accessToken, documentId, questionType, difficulty, numQuestions]);
+  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit]);
 
   async function handleSubmit() {
     if (!accessToken || !quiz) {
@@ -169,7 +171,7 @@ export function DocumentQuizPanel({
   }
 
   async function loadEditMode() {
-    if (!accessToken || !quiz) {
+    if (!accessToken || !quiz || !canEdit) {
       return;
     }
     const response = await apiFetch(`/quizzes/${quiz.quiz_id}/edit`, accessToken);
@@ -231,7 +233,7 @@ export function DocumentQuizPanel({
   const canPracticeWeakAreas = hasWeakConcepts(mastery);
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="quiz-panel">
       <CardHeader>
         <CardTitle className="text-lg">Quiz</CardTitle>
         <CardDescription>
@@ -299,17 +301,25 @@ export function DocumentQuizPanel({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={!ready || generating} onClick={() => void generateQuiz()}>
-            {generating ? "Creating..." : quiz ? "New quiz" : "Start quiz"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!ready || generating || !canPracticeWeakAreas}
-            onClick={() => void generatePracticeQuiz()}
-          >
-            {generating ? "Creating..." : "Practice weak areas"}
-          </Button>
+          {canEdit ? (
+            <>
+              <Button type="button" disabled={!ready || generating} onClick={() => void generateQuiz()}>
+                {generating ? "Creating..." : quiz ? "New quiz" : "Start quiz"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!ready || generating || !canPracticeWeakAreas}
+                onClick={() => void generatePracticeQuiz()}
+              >
+                {generating ? "Creating..." : "Practice weak areas"}
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Viewer access — you can take existing quizzes but not generate new ones.
+            </p>
+          )}
         </div>
         {!canPracticeWeakAreas && ready && !loadingMastery && (
           <p className="text-xs text-muted-foreground">
@@ -350,12 +360,12 @@ export function DocumentQuizPanel({
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {!editMode ? (
+                {canEdit && !editMode ? (
                   <Button type="button" variant="outline" size="sm" onClick={() => void loadEditMode()}>
                     Edit quiz
                   </Button>
                 ) : null}
-                {quiz.published === false ? (
+                {canEdit && quiz.published === false ? (
                   <Button type="button" size="sm" disabled={publishing} onClick={() => void handlePublish()}>
                     {publishing ? "Publishing…" : "Publish quiz"}
                   </Button>
@@ -363,7 +373,7 @@ export function DocumentQuizPanel({
               </div>
             </div>
 
-            {editMode ? (
+            {editMode && canEdit ? (
               <div className="space-y-4">
                 {editQuestions.map((question, index) => (
                   <div key={question.id} className="space-y-2 rounded-md border p-4">

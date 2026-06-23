@@ -23,14 +23,12 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
-async def get_semantic_cached_answer(
+async def get_semantic_cached_answer_by_index(
     *,
-    user_id: str,
-    document_id: str,
+    index_key: str,
     question: str,
 ) -> dict[str, Any] | None:
     cfg = get_yaml_config().cache
-    index_key = semantic_chat_index_key(user_id, document_id)
     index = await cache_get(index_key)
     if not index or not isinstance(index, list):
         return None
@@ -58,15 +56,13 @@ async def get_semantic_cached_answer(
     return payload
 
 
-async def store_semantic_cached_answer(
+async def store_semantic_cached_answer_by_index(
     *,
-    user_id: str,
-    document_id: str,
+    index_key: str,
     question: str,
     payload: dict[str, Any],
 ) -> None:
     cfg = get_yaml_config().cache
-    index_key = semantic_chat_index_key(user_id, document_id)
     index = await cache_get(index_key)
     entries: list[dict[str, Any]] = list(index) if isinstance(index, list) else []
 
@@ -83,3 +79,29 @@ async def store_semantic_cached_answer(
     if len(entries) > max_entries:
         entries = entries[-max_entries:]
     await cache_set(index_key, entries, cfg.chat_ttl)
+
+
+async def get_semantic_cached_answer(
+    *,
+    user_id: str,
+    document_id: str,
+    question: str,
+) -> dict[str, Any] | None:
+    return await get_semantic_cached_answer_by_index(
+        index_key=semantic_chat_index_key(user_id, document_id),
+        question=question,
+    )
+
+
+async def store_semantic_cached_answer(
+    *,
+    user_id: str,
+    document_id: str,
+    question: str,
+    payload: dict[str, Any],
+) -> None:
+    await store_semantic_cached_answer_by_index(
+        index_key=semantic_chat_index_key(user_id, document_id),
+        question=question,
+        payload=payload,
+    )

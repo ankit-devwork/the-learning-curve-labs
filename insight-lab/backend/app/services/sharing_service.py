@@ -185,7 +185,7 @@ def accept_workspace_invite(client: Client, user: AuthUser, *, token: str) -> di
 def get_invite_preview(client: Client, token: str) -> dict:
     invite = (
         client.table("workspace_invites")
-        .select("id, email, role, expires_at, accepted_at, workspace_id")
+        .select("id, role, expires_at, accepted_at, workspace_id")
         .eq("token", token.strip())
         .limit(1)
         .execute()
@@ -193,17 +193,30 @@ def get_invite_preview(client: Client, token: str) -> dict:
     if not invite.data:
         raise NotFoundException("Invite not found")
     row = invite.data[0]
+    expires_at = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
+    expired = expires_at < datetime.now(timezone.utc)
+    accepted = bool(row.get("accepted_at"))
+
+    if expired or accepted:
+        return {
+            "valid": False,
+            "expired": expired,
+            "accepted": accepted,
+            "role": row["role"],
+        }
+
     workspace = (
         client.table("workspaces")
-        .select("name, description")
+        .select("name")
         .eq("id", row["workspace_id"])
         .limit(1)
         .execute()
     )
     return {
-        "email": row["email"],
+        "valid": True,
+        "expired": False,
+        "accepted": False,
         "role": row["role"],
         "expires_at": row["expires_at"],
-        "accepted_at": row.get("accepted_at"),
         "workspace_name": workspace.data[0]["name"] if workspace.data else None,
     }

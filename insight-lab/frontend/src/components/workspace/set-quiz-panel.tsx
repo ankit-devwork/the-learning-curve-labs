@@ -7,8 +7,10 @@ import {
   type GenerateQuizRequest,
   type QuizResponse,
   type QuizSubmitResponse,
+  type QuizQuestionEditable,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Label } from "@/components/ui/label";
@@ -25,9 +27,15 @@ type SetQuizPanelProps = {
   setId: string;
   accessToken: string | null;
   hasReadyDocuments: boolean;
+  canEdit?: boolean;
 };
 
-export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizPanelProps) {
+export function SetQuizPanel({
+  setId,
+  accessToken,
+  hasReadyDocuments,
+  canEdit = true,
+}: SetQuizPanelProps) {
   const [quiz, setQuiz] = useState<QuizResponse | null>(null);
   const [questionType, setQuestionType] = useState<GenerateQuizRequest["question_type"]>("scq");
   const [difficulty, setDifficulty] = useState<GenerateQuizRequest["difficulty"]>("medium");
@@ -38,6 +46,10 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editQuestions, setEditQuestions] = useState<QuizQuestionEditable[]>([]);
+  const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const loadMastery = useCallback(async () => {
     if (!accessToken || !hasReadyDocuments) {
@@ -56,13 +68,14 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
   }, [loadMastery]);
 
   async function generateAdaptiveQuiz() {
-    if (!accessToken) {
+    if (!accessToken || !canEdit) {
       return;
     }
     setGenerating(true);
     setError(null);
     setResults(null);
     setAnswers({});
+    setEditMode(false);
     try {
       const response = await apiFetch(
         `/workspaces/${setId}/quiz/adaptive/generate`,
@@ -92,6 +105,10 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
     if (!accessToken || !quiz) {
       return;
     }
+    if (quiz.questions.some((question) => answers[question.id] === undefined)) {
+      setError("Answer every question before submitting.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -112,6 +129,66 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
     }
   }
 
+  async function loadEditMode() {
+    if (!accessToken || !quiz || !canEdit) {
+      return;
+    }
+    const response = await apiFetch(`/quizzes/${quiz.quiz_id}/edit`, accessToken);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Could not load quiz for editing");
+      return;
+    }
+    const data = (await response.json()) as QuizResponse & { questions: QuizQuestionEditable[] };
+    setEditQuestions(data.questions);
+    setEditMode(true);
+  }
+
+  async function saveQuestion(question: QuizQuestionEditable) {
+    if (!accessToken || !quiz || !canEdit) {
+      return;
+    }
+    setSavingQuestionId(question.id);
+    const response = await apiFetch(
+      `/quizzes/${quiz.quiz_id}/questions/${question.id}`,
+      accessToken,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: question.question_text,
+          options: question.options,
+          correct_option_index: question.correct_option_index,
+          explanation: question.explanation,
+        }),
+      },
+    );
+    setSavingQuestionId(null);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Save failed");
+    }
+  }
+
+  async function handlePublish() {
+    if (!accessToken || !quiz || !canEdit) {
+      return;
+    }
+    setPublishing(true);
+    const response = await apiFetch(`/quizzes/${quiz.quiz_id}/publish`, accessToken, {
+      method: "POST",
+    });
+    setPublishing(false);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Publish failed");
+      return;
+    }
+    const data = (await response.json()) as QuizResponse;
+    setQuiz(data);
+    setEditMode(false);
+  }
+
   const weakAvailable = hasWeakConcepts(mastery);
 
   return (
@@ -129,7 +206,7 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
           steps={[
             "Take a quiz on any document in this set first.",
             "We track topic mastery per document.",
-            "This quiz pulls questions from weak concepts across the whole set.",
+            "Editors can generate, review, and publish a set-wide quiz from weak topics.",
           ]}
         />
 
@@ -137,63 +214,74 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
           <QuizMasteryProgress concepts={mastery} title="Topic progress across this set" />
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="set-quiz-type">Question type</Label>
-            <select
-              id="set-quiz-type"
-              className={selectClassName}
-              value={questionType}
-              onChange={(event) =>
-                setQuestionType(event.target.value as GenerateQuizRequest["question_type"])
-              }
-            >
-              <option value="scq">Single choice</option>
-              <option value="mcq">Multiple choice</option>
-              <option value="true_false">True / false</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="set-quiz-difficulty">Difficulty</Label>
-            <select
-              id="set-quiz-difficulty"
-              className={selectClassName}
-              value={difficulty}
-              onChange={(event) =>
-                setDifficulty(event.target.value as GenerateQuizRequest["difficulty"])
-              }
-            >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="set-quiz-count">Questions</Label>
-            <select
-              id="set-quiz-count"
-              className={selectClassName}
-              value={numQuestions}
-              onChange={(event) => setNumQuestions(Number(event.target.value))}
-            >
-              {[3, 5, 8, 10].map((count) => (
-                <option key={count} value={count}>
-                  {count}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        {canEdit ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="set-quiz-type">Question type</Label>
+                <select
+                  id="set-quiz-type"
+                  className={selectClassName}
+                  value={questionType}
+                  disabled={generating}
+                  onChange={(event) =>
+                    setQuestionType(event.target.value as GenerateQuizRequest["question_type"])
+                  }
+                >
+                  <option value="scq">Single choice</option>
+                  <option value="mcq">Multiple choice</option>
+                  <option value="true_false">True / false</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-quiz-difficulty">Difficulty</Label>
+                <select
+                  id="set-quiz-difficulty"
+                  className={selectClassName}
+                  value={difficulty}
+                  disabled={generating}
+                  onChange={(event) =>
+                    setDifficulty(event.target.value as GenerateQuizRequest["difficulty"])
+                  }
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-quiz-count">Questions</Label>
+                <select
+                  id="set-quiz-count"
+                  className={selectClassName}
+                  value={numQuestions}
+                  disabled={generating}
+                  onChange={(event) => setNumQuestions(Number(event.target.value))}
+                >
+                  {[3, 5, 8, 10].map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-        <Button
-          type="button"
-          disabled={!hasReadyDocuments || generating || !weakAvailable}
-          onClick={() => void generateAdaptiveQuiz()}
-        >
-          {generating ? "Generating…" : "Generate set-wide adaptive quiz"}
-        </Button>
+            <Button
+              type="button"
+              disabled={!hasReadyDocuments || generating || !weakAvailable}
+              onClick={() => void generateAdaptiveQuiz()}
+            >
+              {generating ? "Generating…" : "Generate set-wide adaptive quiz"}
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            You have viewer access — you can take quizzes but not generate or edit them.
+          </p>
+        )}
 
-        {!weakAvailable && hasReadyDocuments ? (
+        {!weakAvailable && hasReadyDocuments && canEdit ? (
           <p className="text-sm text-muted-foreground">
             Complete a quiz on at least one document in this set to unlock adaptive practice.
           </p>
@@ -201,50 +289,175 @@ export function SetQuizPanel({ setId, accessToken, hasReadyDocuments }: SetQuizP
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        {quiz ? (
+        {quiz && !results ? (
           <div className="space-y-4 rounded-xl border p-4">
-            <h3 className="font-medium">{quiz.title}</h3>
-            {quiz.target_concepts && quiz.target_concepts.length > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Targeting: {quiz.target_concepts.map((item) => item.name).join(", ")}
-              </p>
-            ) : null}
-            {quiz.questions.map((question) => (
-              <div key={question.id} className="space-y-2">
-                <p className="text-sm font-medium">{question.question_text}</p>
-                <div className="space-y-1">
-                  {question.options.map((option, index) => (
-                    <label key={`${question.id}-${index}`} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="radio"
-                        name={question.id}
-                        checked={answers[question.id] === index}
-                        disabled={Boolean(results)}
-                        onChange={() =>
-                          setAnswers((current) => ({ ...current, [question.id]: index }))
-                        }
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {!results ? (
-              <Button
-                type="button"
-                disabled={submitting || quiz.questions.some((q) => answers[q.id] === undefined)}
-                onClick={() => void submitQuiz()}
-              >
-                {submitting ? "Submitting…" : "Submit answers"}
-              </Button>
-            ) : (
-              <div className="rounded-md bg-muted/40 p-3 text-sm">
-                <p className="font-medium">
-                  Score: {results.score}/{results.total} ({results.percent}%)
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-medium">{quiz.title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)} difficulty
+                  {quiz.published === false ? " · Draft — review before publishing" : ""}
+                  {quiz.target_concepts && quiz.target_concepts.length > 0 ? (
+                    <> · Targeting: {quiz.target_concepts.map((item) => item.name).join(", ")}</>
+                  ) : null}
                 </p>
               </div>
+              {canEdit ? (
+                <div className="flex flex-wrap gap-2">
+                  {!editMode ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => void loadEditMode()}>
+                      Edit quiz
+                    </Button>
+                  ) : null}
+                  {quiz.published === false ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={publishing}
+                      onClick={() => void handlePublish()}
+                    >
+                      {publishing ? "Publishing…" : "Publish quiz"}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            {editMode && canEdit ? (
+              <div className="space-y-4">
+                {editQuestions.map((question, index) => (
+                  <div key={question.id} className="space-y-2 rounded-md border p-4">
+                    <Label htmlFor={`set-q-${question.id}`}>Question {index + 1}</Label>
+                    <textarea
+                      id={`set-q-${question.id}`}
+                      className="min-h-20 w-full rounded-md border px-3 py-2 text-sm"
+                      value={question.question_text}
+                      onChange={(event) =>
+                        setEditQuestions((current) =>
+                          current.map((row) =>
+                            row.id === question.id
+                              ? { ...row, question_text: event.target.value }
+                              : row,
+                          ),
+                        )
+                      }
+                    />
+                    {question.options.map((option, optionIndex) => (
+                      <Input
+                        key={`${question.id}-opt-${optionIndex}`}
+                        value={option}
+                        onChange={(event) =>
+                          setEditQuestions((current) =>
+                            current.map((row) =>
+                              row.id === question.id
+                                ? {
+                                    ...row,
+                                    options: row.options.map((value, idx) =>
+                                      idx === optionIndex ? event.target.value : value,
+                                    ),
+                                  }
+                                : row,
+                            ),
+                          )
+                        }
+                      />
+                    ))}
+                    <select
+                      className={selectClassName}
+                      value={question.correct_option_index ?? 0}
+                      onChange={(event) =>
+                        setEditQuestions((current) =>
+                          current.map((row) =>
+                            row.id === question.id
+                              ? { ...row, correct_option_index: Number(event.target.value) }
+                              : row,
+                          ),
+                        )
+                      }
+                    >
+                      {question.options.map((option, optionIndex) => (
+                        <option key={optionIndex} value={optionIndex}>
+                          Correct: {option || `Option ${optionIndex + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={savingQuestionId === question.id}
+                      onClick={() => void saveQuestion(question)}
+                    >
+                      {savingQuestionId === question.id ? "Saving…" : "Save question"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {quiz.questions.map((question) => (
+                  <div key={question.id} className="space-y-2">
+                    <p className="text-sm font-medium">{question.question_text}</p>
+                    <div className="space-y-1">
+                      {question.options.map((option, index) => (
+                        <label key={`${question.id}-${index}`} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name={question.id}
+                            checked={answers[question.id] === index}
+                            onChange={() =>
+                              setAnswers((current) => ({ ...current, [question.id]: index }))
+                            }
+                          />
+                          {option}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  disabled={submitting || quiz.questions.some((q) => answers[q.id] === undefined)}
+                  onClick={() => void submitQuiz()}
+                >
+                  {submitting ? "Submitting…" : "Submit answers"}
+                </Button>
+              </>
             )}
+          </div>
+        ) : null}
+
+        {results && quiz ? (
+          <div className="space-y-4 rounded-xl border p-4">
+            <div className="rounded-md bg-muted/40 p-3 text-sm">
+              <p className="font-medium">
+                Score: {results.score}/{results.total} ({results.percent}%)
+              </p>
+            </div>
+            {results.results.map((result) => (
+              <div
+                key={result.question_id}
+                className={cn(
+                  "rounded-md border p-4 text-sm",
+                  result.correct ? "border-green-300 bg-green-50/50" : "border-red-300 bg-red-50/50",
+                )}
+              >
+                <p className="font-medium">{result.question_text}</p>
+                {!result.correct && result.explanation ? (
+                  <p className="mt-2 text-muted-foreground">{result.explanation}</p>
+                ) : null}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setResults(null);
+                setAnswers({});
+              }}
+            >
+              Try again
+            </Button>
           </div>
         ) : null}
       </CardContent>

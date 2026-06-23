@@ -553,3 +553,12 @@ def workspace_adaptive_quiz_cache_key(
 
 def semantic_chat_index_key(user_id: str, document_id: str) -> str:
     return f"semantic_chat:{user_id}:{document_id}"
+
+
+def semantic_multi_chat_index_key(user_id: str, docs_hash: str) -> str:
+    return f"semantic_multi_chat:{user_id}:{docs_hash}"
+
+
+def semantic_excel_chat_index_key(user_id: str, document_id: str, file_hash: str | None) -> str:
+    suffix = file_hash or "none"
+    return f"semantic_excel_chat:{user_id}:{document_id}:{suffix}"

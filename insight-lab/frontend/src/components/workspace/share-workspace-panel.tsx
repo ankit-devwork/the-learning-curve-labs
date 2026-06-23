@@ -103,7 +103,7 @@ export function ShareWorkspacePanel({
   }
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="share-panel">
       <CardHeader>
         <CardTitle>Share study set</CardTitle>
         <CardDescription>

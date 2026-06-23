@@ -8,7 +8,7 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
-from app.core.exceptions import NotFoundException, RateLimitException
+from app.core.exceptions import ForbiddenException, NotFoundException, RateLimitException
 from app.core.safe_errors import GENERIC_EXCEL_ERROR
 from app.core.resilience import storage_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
@@ -25,23 +25,19 @@ from app.services.llm_client import (
     excel_question_cache_key,
     generate_excel_chart_plan,
     generate_excel_summary,
+    semantic_excel_chat_index_key,
 )
+from app.services.semantic_cache import (
+    get_semantic_cached_answer_by_index,
+    store_semantic_cached_answer_by_index,
+)
+from app.services.workspace_access import get_accessible_document, require_editable_document
 
 log = get_logger("excel")
 
 
-def _get_owned_document(client: Client, document_id: str, user: AuthUser) -> dict:
-    result = (
-        client.table("documents")
-        .select("*")
-        .eq("id", document_id)
-        .eq("owner_id", user.id)
-        .limit(1)
-        .execute()
-    )
-    if not result.data:
-        raise NotFoundException("Document not found")
-    return result.data[0]
+def _get_readable_document(client: Client, document_id: str, user: AuthUser) -> dict:
+    return get_accessible_document(client, document_id, user, min_role="viewer")
 
 
 async def _download_document_bytes(client: Client, document: dict) -> bytes:
@@ -84,7 +80,7 @@ def _serialize_result(
 
 
 async def get_excel_analysis(client: Client, document_id: str, user: AuthUser) -> dict:
-    doc = _get_owned_document(client, document_id, user)
+    doc = _get_readable_document(client, document_id, user)
     if doc["file_type"] != "excel":
         raise FileException("Excel analysis is only available for spreadsheet uploads")
 
@@ -121,7 +117,7 @@ async def analyze_excel(client: Client, document_id: str, user: AuthUser) -> dic
             retry_after=retry_after,
         )
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "excel":
         raise FileException("Only spreadsheet uploads can be analyzed")
     if doc["status"] == "processing":
@@ -203,7 +199,7 @@ async def create_custom_excel_chart(
     user: AuthUser,
     request: CustomChartRequest,
 ) -> dict:
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "excel":
         raise FileException("Custom charts are only available for spreadsheet uploads")
     if doc["status"] != "ready" or not doc.get("excel_profile"):
@@ -251,7 +247,7 @@ async def ask_excel(
             retry_after=retry_after,
         )
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = _get_readable_document(client, document_id, user)
     if doc["file_type"] != "excel":
         raise FileException("Excel chat is only available for spreadsheet uploads")
     if doc["status"] != "ready" or not doc.get("excel_profile"):
@@ -261,6 +257,19 @@ async def ask_excel(
     cached = await cache_get(cache_key)
     if cached:
         return {**cached, "cached": True}
+
+    semantic_index_key = semantic_excel_chat_index_key(
+        user.id,
+        document_id,
+        doc.get("file_hash"),
+    )
+    semantic_cached = await get_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+    )
+    if semantic_cached:
+        _get_readable_document(client, document_id, user)
+        return semantic_cached
 
     profile = doc.get("excel_profile") or {}
     charts = doc.get("excel_charts") or []
@@ -286,6 +295,11 @@ async def ask_excel(
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
+    await store_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+        payload=payload,
+    )
     log.info("Excel chat answered", document_id=document_id, user_id=user.id)
     return payload
 
@@ -300,7 +314,7 @@ async def get_excel_preview(
     cfg = get_yaml_config().excel_preview
     row_limit = min(max(limit or cfg.default_limit, 1), cfg.max_limit)
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = _get_readable_document(client, document_id, user)
     if doc["file_type"] != "excel":
         raise FileException("Excel preview is only available for spreadsheet uploads")
 

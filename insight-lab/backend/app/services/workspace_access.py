@@ -107,3 +107,8 @@ def can_edit_document(client: Client, document_id: str, user: AuthUser) -> bool:
         return True
     except (NotFoundException, ForbiddenException):
         return False
+
+
+def require_editable_document(client: Client, document_id: str, user: AuthUser) -> dict:
+    """Document read for mutation endpoints (process, generate artifacts, analyze)."""
+    return get_accessible_document(client, document_id, user, min_role="editor")

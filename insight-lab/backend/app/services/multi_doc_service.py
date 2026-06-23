@@ -9,6 +9,7 @@ from supabase import Client
 from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
+from app.services.workspace_access import get_accessible_document, require_editable_document
 from app.core.yaml_config import get_yaml_config
 from app.services.citations import build_source_citations, collapse_sources_by_document, hash_document_ids
 from app.services.embeddings import embed_text, search_workspace_chunks
@@ -16,6 +17,11 @@ from app.services.llm_client import (
     answer_multi_document_question,
     generate_document_relevance_summary,
     multi_chat_cache_key,
+    semantic_multi_chat_index_key,
+)
+from app.services.semantic_cache import (
+    get_semantic_cached_answer_by_index,
+    store_semantic_cached_answer_by_index,
 )
 
 log = get_logger("multi_doc")
@@ -36,16 +42,19 @@ def _validate_owned_documents(
     if len(unique_ids) > cfg.max_documents:
         raise FileException(f"At most {cfg.max_documents} documents allowed per question")
 
-    result = (
-        client.table("documents")
-        .select("id, filename, file_type, status, summary, workspace_id")
-        .in_("id", unique_ids)
-        .eq("owner_id", user.id)
-        .execute()
-    )
-    rows = result.data or []
-    if len(rows) != len(unique_ids):
-        raise NotFoundException("One or more documents were not found")
+    rows: list[dict[str, Any]] = []
+    for document_id in unique_ids:
+        doc = get_accessible_document(client, document_id, user, min_role="viewer")
+        rows.append(
+            {
+                "id": doc["id"],
+                "filename": doc["filename"],
+                "file_type": doc["file_type"],
+                "status": doc["status"],
+                "summary": doc.get("summary"),
+                "workspace_id": doc.get("workspace_id"),
+            }
+        )
 
     if workspace_id:
         for row in rows:
@@ -334,6 +343,15 @@ async def ask_multiple_documents(
     if cached:
         return {**cached, "cached": True}
 
+    semantic_index_key = semantic_multi_chat_index_key(user.id, docs_hash)
+    semantic_cached = await get_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+    )
+    if semantic_cached:
+        _validate_owned_documents(client, approved_sorted, user, workspace_id=workspace_id)
+        return semantic_cached
+
     context_rows = _retrieve_rows_for_documents(
         client,
         document_ids=approved_sorted,
@@ -357,6 +375,11 @@ async def ask_multiple_documents(
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
+    await store_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+        payload=payload,
+    )
     log.info(
         "Multi-doc chat answered after document selection",
         user_id=user.id,

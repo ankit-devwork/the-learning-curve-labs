@@ -21,6 +21,7 @@ import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { useToast } from "@/components/ui/toast";
 import { fetchUploadConfig, type UploadConfigResponse } from "@/lib/api";
 import { FileSpreadsheet, FileText } from "lucide-react";
+import { canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 
 function FileTypeIcon({ fileType }: { fileType: string }) {
   const Icon = fileType === "excel" ? FileSpreadsheet : FileText;
@@ -145,6 +146,8 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     return <p className="text-sm text-destructive">{error || "Study set not found"}</p>;
   }
 
+  const canEdit = canEditWorkspace(workspace.access_role);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -153,6 +156,12 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
             ← All study sets
           </Link>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">{workspace.name}</h1>
+          {workspace.access_role ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your role: {workspaceRoleLabel(workspace.access_role)}
+              {workspace.shared ? " · Shared with you" : ""}
+            </p>
+          ) : null}
           {workspace.description ? (
             <p className="mt-1 max-w-2xl text-muted-foreground">{workspace.description}</p>
           ) : null}
@@ -164,13 +173,14 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
 
       {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
 
-      <CoursePackPanel setId={setId} />
+      <CoursePackPanel setId={setId} canEdit={canEdit} />
 
       <ShareWorkspacePanel
         setId={setId}
-        canManage={workspace.access_role === "owner" || workspace.access_role === "editor"}
+        canManage={canEdit}
       />
 
+      {canEdit ? (
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Upload materials</CardTitle>
@@ -189,6 +199,14 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           />
         </CardContent>
       </Card>
+      ) : (
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Upload materials</CardTitle>
+            <CardDescription>Viewer access — you can read and study files but not upload.</CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       <Card className="shadow-sm">
         <CardHeader>
@@ -231,6 +249,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       <SetQuizPanel
         setId={setId}
         accessToken={accessToken}
+        canEdit={canEdit}
         hasReadyDocuments={documents.some(
           (doc) => doc.file_type === "document" && doc.status === "ready",
         )}

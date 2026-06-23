@@ -17,12 +17,15 @@ import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
 import { DocumentReviewPicker } from "@/components/documents/document-review-picker";
 import { SourceCitations } from "@/components/documents/source-citations";
+import { cacheResponseLabel } from "@/lib/workspace-roles";
 
 type ChatMessage = {
   question: string;
   answer: string;
   sources?: SourceCitation[];
   cached?: boolean;
+  cacheMatch?: string;
+  similarity?: number;
 };
 
 export function MultiDocChatPanel({
@@ -112,6 +115,8 @@ export function MultiDocChatPanel({
           answer: data.answer,
           sources: data.sources,
           cached: data.cached,
+          cacheMatch: data.cache_match,
+          similarity: data.similarity,
         },
       ]);
       setQuestion("");
@@ -195,6 +200,8 @@ export function MultiDocChatPanel({
           answer: data.answer,
           sources: data.sources,
           cached: data.cached,
+          cacheMatch: data.cache_match,
+          similarity: data.similarity,
         },
       ]);
       setQuestion("");
@@ -297,9 +304,11 @@ export function MultiDocChatPanel({
               {message.sources && message.sources.length > 0 && (
                 <SourceCitations sources={message.sources} className="mt-3" />
               )}
-              {message.cached && (
-                <p className="mt-2 text-xs text-muted-foreground">Cached response</p>
-              )}
+              {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity) ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
+                </p>
+              ) : null}
             </div>
           ))}
         </div>

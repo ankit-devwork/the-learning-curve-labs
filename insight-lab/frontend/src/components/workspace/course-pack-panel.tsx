@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 
-export function CoursePackPanel({ setId }: { setId: string }) {
+export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canEdit?: boolean }) {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [pack, setPack] = useState<CoursePackResponse | null>(null);
@@ -41,7 +41,7 @@ export function CoursePackPanel({ setId }: { setId: string }) {
   }
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="course-pack">
       <CardHeader>
         <CardTitle>Course pack</CardTitle>
         <CardDescription>
@@ -50,9 +50,15 @@ export function CoursePackPanel({ setId }: { setId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button type="button" disabled={generating} onClick={() => void handleGenerate()}>
-          {generating ? "Generating pack…" : "Generate course pack"}
-        </Button>
+        {canEdit ? (
+          <Button type="button" disabled={generating} onClick={() => void handleGenerate()}>
+            {generating ? "Generating pack…" : "Generate course pack"}
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Course pack generation requires editor or owner access.
+          </p>
+        )}
 
         {pack ? (
           <ul className="space-y-3 text-sm">

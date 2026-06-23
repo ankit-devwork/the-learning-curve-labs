@@ -21,7 +21,11 @@ from app.services.llm_client import (
 )
 from app.services.mastery_service import get_weak_concepts, record_quiz_mastery
 from app.services.quiz_questions import draft_to_rows, parse_quiz_draft, QuizQuestionDraft
-from app.services.workspace_access import get_accessible_document, can_edit_document
+from app.services.workspace_access import (
+    can_edit_document,
+    get_accessible_document,
+    require_editable_document,
+)
 
 log = get_logger("quiz")
 
@@ -130,7 +134,7 @@ async def generate_document_quiz(
         )
         return _serialize_quiz(quiz, questions, include_answers=False, cached=True)
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Quizzes are only available for document uploads")
     if doc["status"] != "ready":
@@ -287,7 +291,7 @@ async def generate_adaptive_quiz(
             "target_concepts": weak,
         }
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Quizzes are only available for document uploads")
     if doc["status"] != "ready":
@@ -361,7 +365,7 @@ async def generate_workspace_adaptive_quiz(
     num_questions: int,
 ) -> dict[str, Any]:
     from app.services.mastery_service import get_workspace_weak_concepts
-    from app.services.workspace_service import _get_owned_workspace
+    from app.services.workspace_access import require_workspace_role
 
     cfg = get_yaml_config().adaptive_quiz
     allowed, retry_after = await check_rate_limit(
@@ -375,7 +379,7 @@ async def generate_workspace_adaptive_quiz(
             retry_after=retry_after,
         )
 
-    _get_owned_workspace(client, workspace_id, user)
+    require_workspace_role(client, workspace_id, user, min_role="editor")
     weak = await get_workspace_weak_concepts(client, workspace_id, user)
     if not weak:
         raise FileException(

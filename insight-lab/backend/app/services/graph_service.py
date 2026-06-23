@@ -17,22 +17,9 @@ from app.core.neo4j_client import neo4j_client
 from app.core.yaml_config import get_yaml_config
 from app.services.concept_extraction import draft_to_rows, parse_concept_extraction
 from app.services.llm_client import extract_concepts_from_chunks, graph_cache_key
+from app.services.workspace_access import get_accessible_document, require_editable_document
 
 log = get_logger("graph")
-
-
-def _get_owned_document(client: Client, document_id: str, user: AuthUser) -> dict:
-    result = (
-        client.table("documents")
-        .select("*")
-        .eq("id", document_id)
-        .eq("owner_id", user.id)
-        .limit(1)
-        .execute()
-    )
-    if not result.data:
-        raise NotFoundException("Document not found")
-    return result.data[0]
 
 
 def _sample_chunks(chunks: list[dict], max_chunks: int) -> list[dict]:
@@ -139,7 +126,7 @@ async def sync_document_graph(
                 retry_after=retry_after,
             )
 
-    doc = _get_owned_document(client, document_id, user)
+    doc = require_editable_document(client, document_id, user)
     if doc["file_type"] != "document":
         raise FileException("Concept graphs are only available for document uploads")
     if doc["status"] != "ready":
@@ -222,7 +209,7 @@ async def sync_document_graph(
 
 
 async def get_document_graph(client: Client, document_id: str, user: AuthUser) -> dict[str, Any]:
-    doc = _get_owned_document(client, document_id, user)
+    doc = get_accessible_document(client, document_id, user, min_role="viewer")
     try:
         concepts = (
             client.table("document_concepts")
