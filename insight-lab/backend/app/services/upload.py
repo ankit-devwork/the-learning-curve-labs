@@ -37,7 +37,11 @@ def ensure_profile_and_workspace(client: Client, user: AuthUser) -> str:
     )
     if not created.data:
         raise FileException("Failed to create workspace", status_code=500)
-    return created.data[0]["id"]
+    workspace_id = created.data[0]["id"]
+    client.table("workspace_members").upsert(
+        {"workspace_id": workspace_id, "user_id": user.id, "role": "owner"}
+    ).execute()
+    return workspace_id
 
 
 def upload_document(

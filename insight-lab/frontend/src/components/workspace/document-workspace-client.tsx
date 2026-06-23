@@ -396,6 +396,7 @@ export function DocumentWorkspaceClient({
           {flashcards ? (
             <FlashcardStudy
               title={flashcards.title}
+              setId={flashcards.set_id}
               cards={flashcards.cards}
               onReview={async (flashcardId, knew) => {
                 if (!accessToken) {

@@ -20,23 +20,14 @@ from app.services.llm_client import (
     workspace_adaptive_quiz_cache_key,
 )
 from app.services.mastery_service import get_weak_concepts, record_quiz_mastery
-from app.services.quiz_questions import draft_to_rows, parse_quiz_draft
+from app.services.quiz_questions import draft_to_rows, parse_quiz_draft, QuizQuestionDraft
+from app.services.workspace_access import get_accessible_document, can_edit_document
 
 log = get_logger("quiz")
 
 
 def _get_owned_document(client: Client, document_id: str, user: AuthUser) -> dict:
-    result = (
-        client.table("documents")
-        .select("*")
-        .eq("id", document_id)
-        .eq("owner_id", user.id)
-        .limit(1)
-        .execute()
-    )
-    if not result.data:
-        raise NotFoundException("Document not found")
-    return result.data[0]
+    return get_accessible_document(client, document_id, user, min_role="viewer")
 
 
 def _get_owned_quiz(client: Client, quiz_id: str, user: AuthUser) -> dict:
@@ -88,6 +79,7 @@ def _serialize_quiz(
         "title": quiz["title"],
         "question_type": quiz["question_type"],
         "difficulty": quiz["difficulty"],
+        "published": quiz.get("published", True),
         "questions": [
             _serialize_question_for_client(question, include_answers=include_answers)
             for question in sorted(questions, key=lambda row: row["sort_order"])
@@ -184,7 +176,7 @@ async def generate_document_quiz(
         "title": draft.title.strip() or f"Quiz: {doc['filename']}",
         "question_type": question_type,
         "difficulty": difficulty,
-        "published": True,
+        "published": False,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     client.table("quizzes").insert(quiz_row).execute()
@@ -341,7 +333,7 @@ async def generate_adaptive_quiz(
         "title": draft.title.strip() or f"Adaptive quiz: {doc['filename']}",
         "question_type": question_type,
         "difficulty": difficulty,
-        "published": True,
+        "published": False,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     client.table("quizzes").insert(quiz_row).execute()
@@ -477,7 +469,7 @@ async def generate_workspace_adaptive_quiz(
         "title": draft.title.strip() or "Adaptive quiz: study set",
         "question_type": question_type,
         "difficulty": difficulty,
-        "published": True,
+        "published": False,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     client.table("quizzes").insert(quiz_row).execute()
@@ -523,6 +515,112 @@ async def get_document_quiz(client: Client, document_id: str, user: AuthUser) ->
         or []
     )
     return _serialize_quiz(quiz, questions, include_answers=False, cached=False)
+
+
+async def update_quiz_question(
+    client: Client,
+    quiz_id: str,
+    question_id: str,
+    user: AuthUser,
+    *,
+    question_text: str | None = None,
+    options: list[str] | None = None,
+    correct_option_index: int | None = None,
+    explanation: str | None = None,
+) -> dict[str, Any]:
+    quiz = _get_owned_quiz(client, quiz_id, user)
+    if not can_edit_document(client, quiz["document_id"], user):
+        raise FileException("You do not have permission to edit this quiz", status_code=403)
+
+    question_result = (
+        client.table("quiz_questions")
+        .select("*")
+        .eq("id", question_id)
+        .eq("quiz_id", quiz_id)
+        .limit(1)
+        .execute()
+    )
+    if not question_result.data:
+        raise NotFoundException("Quiz question not found")
+    current = question_result.data[0]
+
+    draft = QuizQuestionDraft(
+        question_text=question_text if question_text is not None else current["question_text"],
+        options=options if options is not None else current["options"],
+        correct_option_index=(
+            correct_option_index
+            if correct_option_index is not None
+            else current["correct_option_index"]
+        ),
+        explanation=explanation if explanation is not None else current.get("explanation"),
+    )
+    updated = (
+        client.table("quiz_questions")
+        .update(
+            {
+                "question_text": draft.question_text,
+                "options": draft.options,
+                "correct_option_index": draft.correct_option_index,
+                "explanation": draft.explanation,
+            }
+        )
+        .eq("id", question_id)
+        .eq("quiz_id", quiz_id)
+        .execute()
+    )
+    if not updated.data:
+        raise FileException("Failed to update quiz question", status_code=500)
+
+    client.table("quizzes").update(
+        {"published": False, "updated_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", quiz_id).execute()
+
+    row = updated.data[0]
+    return _serialize_question_for_client(row, include_answers=True)
+
+
+async def publish_quiz(client: Client, quiz_id: str, user: AuthUser) -> dict[str, Any]:
+    quiz = _get_owned_quiz(client, quiz_id, user)
+    if not can_edit_document(client, quiz["document_id"], user):
+        raise FileException("You do not have permission to publish this quiz", status_code=403)
+
+    updated = (
+        client.table("quizzes")
+        .update(
+            {"published": True, "updated_at": datetime.now(timezone.utc).isoformat()}
+        )
+        .eq("id", quiz_id)
+        .execute()
+    )
+    if not updated.data:
+        raise FileException("Failed to publish quiz", status_code=500)
+    row = updated.data[0]
+    questions = (
+        client.table("quiz_questions")
+        .select("*")
+        .eq("quiz_id", quiz_id)
+        .order("sort_order")
+        .execute()
+        .data
+        or []
+    )
+    return _serialize_quiz(row, questions, include_answers=False, cached=False)
+
+
+async def get_quiz_for_edit(client: Client, quiz_id: str, user: AuthUser) -> dict[str, Any]:
+    quiz = _get_owned_quiz(client, quiz_id, user)
+    if not can_edit_document(client, quiz["document_id"], user):
+        raise FileException("You do not have permission to edit this quiz", status_code=403)
+    questions = (
+        client.table("quiz_questions")
+        .select("*")
+        .eq("quiz_id", quiz_id)
+        .order("sort_order")
+        .execute()
+        .data
+        or []
+    )
+    return _serialize_quiz(quiz, questions, include_answers=True, cached=False)
 
 
 async def submit_quiz_attempt(

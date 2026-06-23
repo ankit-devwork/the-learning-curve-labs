@@ -64,6 +64,12 @@ class CacheSection(BaseModel):
     excel_ttl: int = 86400
     quiz_ttl: int = 604800
     artifact_ttl: int = 604800
+    semantic_threshold: float = 0.85
+    semantic_max_entries: int = 50
+
+
+class CoursePackSection(BaseModel):
+    generate_rate_limit_per_hour: int = 3
 
 
 class ExcelSection(BaseModel):
@@ -178,6 +184,7 @@ class YamlConfig(BaseModel):
     artifacts: ArtifactsSection
     audio_overview: AudioOverviewSection
     excel_preview: ExcelPreviewSection
+    course_pack: CoursePackSection
     resilience: ResilienceSection
 
 

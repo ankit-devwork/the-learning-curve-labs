@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FlashcardItem } from "@/lib/api";
+import { downloadAnkiCsv } from "@/lib/export-utils";
 import { cn } from "@/lib/utils";
 
 type FlashcardStudyProps = {
   title: string;
   cards: FlashcardItem[];
+  setId?: string;
   onReview: (flashcardId: string, knew: boolean) => Promise<void>;
   onViewSource?: (card: FlashcardItem) => void;
   className?: string;
@@ -17,6 +19,7 @@ type FlashcardStudyProps = {
 export function FlashcardStudy({
   title,
   cards,
+  setId,
   onReview,
   onViewSource,
   className,
@@ -51,9 +54,21 @@ export function FlashcardStudy({
 
   return (
     <Card className={cn("shadow-sm", className)}>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>Tap the card to flip · mark whether you knew it</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-3">
+        <div>
+          <CardTitle className="text-lg">{title}</CardTitle>
+          <CardDescription>Tap the card to flip · mark whether you knew it</CardDescription>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            downloadAnkiCsv(cards, `${setId ?? "flashcards"}-anki.csv`)
+          }
+        >
+          Anki CSV
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between text-sm text-muted-foreground">

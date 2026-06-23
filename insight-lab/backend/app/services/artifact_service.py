@@ -126,13 +126,13 @@ async def get_flashcard_set(client: Client, set_id: str, user: AuthUser) -> dict
         client.table("flashcard_sets")
         .select("*")
         .eq("id", set_id)
-        .eq("owner_id", user.id)
         .limit(1)
         .execute()
     )
     if not set_result.data:
         raise NotFoundException("Flashcard set not found")
     flashcard_set = set_result.data[0]
+    _get_owned_document(client, flashcard_set["document_id"], user)
     cards = (
         client.table("flashcards")
         .select("id, front, back, sort_order, source_chunk_index")
@@ -281,13 +281,13 @@ async def get_study_guide_by_id(client: Client, guide_id: str, user: AuthUser) -
         client.table("study_guides")
         .select("*")
         .eq("id", guide_id)
-        .eq("owner_id", user.id)
         .limit(1)
         .execute()
     )
     if not result.data:
         raise NotFoundException("Study guide not found")
     row = result.data[0]
+    _get_owned_document(client, row["document_id"], user)
     return {
         "guide_id": row["id"],
         "document_id": row["document_id"],

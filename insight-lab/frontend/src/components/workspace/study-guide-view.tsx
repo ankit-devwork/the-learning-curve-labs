@@ -1,7 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StudyGuideContent } from "@/lib/api";
+import { downloadStudyGuidePdf } from "@/lib/export-utils";
 
 export function StudyGuideView({
   title,
@@ -12,8 +14,16 @@ export function StudyGuideView({
 }) {
   return (
     <Card className="shadow-sm">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-start justify-between gap-3">
         <CardTitle className="text-lg">{title}</CardTitle>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => downloadStudyGuidePdf(title, content)}
+        >
+          Export PDF
+        </Button>
       </CardHeader>
       <CardContent className="space-y-6 text-sm">
         <section>

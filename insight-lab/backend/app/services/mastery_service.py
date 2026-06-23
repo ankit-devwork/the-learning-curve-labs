@@ -215,9 +215,9 @@ async def get_workspace_concept_mastery(
     workspace_id: str,
     user: AuthUser,
 ) -> dict[str, Any]:
-    from app.services.workspace_service import _get_owned_workspace
+    from app.services.workspace_access import require_workspace_role
 
-    _get_owned_workspace(client, workspace_id, user)
+    require_workspace_role(client, workspace_id, user, min_role="viewer")
     docs = (
         client.table("documents")
         .select("id, filename")

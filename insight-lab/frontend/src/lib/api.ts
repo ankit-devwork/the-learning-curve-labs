@@ -81,6 +81,7 @@ export type QuizResponse = {
   title: string;
   question_type: "scq" | "mcq" | "true_false";
   difficulty: string;
+  published?: boolean;
   questions: QuizQuestion[];
   cached?: boolean;
   target_concepts?: ConceptMasteryItem[];
@@ -282,6 +283,35 @@ export type WorkspaceSummary = {
   description?: string | null;
   created_at: string;
   updated_at: string;
+  access_role?: string | null;
+  is_owner?: boolean;
+  shared?: boolean;
+};
+
+export type QuizQuestionEditable = QuizQuestion & {
+  correct_option_index?: number;
+  explanation?: string | null;
+};
+
+export type CoursePackDocumentResult = {
+  document_id: string;
+  filename: string;
+  artifacts: {
+    summary?: string;
+    quiz_id?: string;
+    flashcard_set_id?: string;
+    study_guide_id?: string;
+    audio_title?: string;
+    audio_script?: string;
+  };
+  errors: string[];
+};
+
+export type CoursePackResponse = {
+  workspace_id: string;
+  document_count: number;
+  documents: CoursePackDocumentResult[];
+  correlation_id?: string;
 };
 
 export type WorkspaceStats = {

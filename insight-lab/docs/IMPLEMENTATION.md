@@ -411,12 +411,25 @@ Migration: `008_phase3_4_study_features.sql` (flashcards, study guides, RLS).
 | Julius-style Excel canvas | `GET /documents/{id}/excel/preview` | Split preview + sticky chat layout |
 | Onboarding tour | — | Route-aware tour + **Show tour** in sidebar |
 
-## Next up — Phase 6
+## Phase 6 (implemented)
 
-- Team / shared study sets
-- Course pack generator (one-click bundle)
-- Semantic cache for repeat questions
-- Export PDF / LMS formats
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Course pack generator | `POST /workspaces/{id}/course-pack/generate` | `CoursePackPanel` on set detail |
+| Export Anki CSV | `GET /flashcards/{set_id}/export/anki` | Anki CSV button on flashcard study |
+| Export study guide PDF | `GET /study-guides/{guide_id}/export/markdown` | Export PDF (print) on study guide |
+| Semantic cache | `semantic_cache.py` + document `POST /ask` | Cached badge in chat (when returned) |
+| HITL quiz edit | `GET/PATCH /quizzes/{id}/edit`, `POST /publish` | Inline edit + publish in quiz panel |
+| Shared study sets | `workspace_members`, invites, member RLS | Share panel + invite accept page |
+
+Migration: `009_phase6_sharing_quiz_edit.sql` (members, invites, quiz `published`, RLS updates).
+
+## Next up — Phase 7
+
+- Team roles (editor vs viewer enforcement in UI)
+- LMS export bundles (SCORM / Canvas)
+- Semantic cache for multi-doc and Excel chat
+- Quiz edit for set-wide adaptive quizzes
 
 ## Security & resilience checklist
 

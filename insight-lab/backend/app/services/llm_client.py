@@ -549,3 +549,7 @@ def workspace_adaptive_quiz_cache_key(
     weak_hash: str,
 ) -> str:
     return f"workspace_adaptive_quiz:{user_id}:{workspace_id}:{weak_hash}"
+
+
+def semantic_chat_index_key(user_id: str, document_id: str) -> str:
+    return f"semantic_chat:{user_id}:{document_id}"

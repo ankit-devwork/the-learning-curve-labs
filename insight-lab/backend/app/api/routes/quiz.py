@@ -10,7 +10,10 @@ from app.services.quiz_service import (
     generate_adaptive_quiz,
     generate_document_quiz,
     get_document_quiz,
+    publish_quiz,
     submit_quiz_attempt,
+    update_quiz_question,
+    get_quiz_for_edit,
 )
 from app.services.mastery_service import get_concept_mastery, get_weak_concepts
 
@@ -25,6 +28,13 @@ class GenerateQuizRequest(BaseModel):
 
 class SubmitQuizRequest(BaseModel):
     answers: dict[str, int] = Field(default_factory=dict)
+
+
+class UpdateQuizQuestionRequest(BaseModel):
+    question_text: str | None = Field(default=None, min_length=1, max_length=2000)
+    options: list[str] | None = Field(default=None, min_length=2, max_length=6)
+    correct_option_index: int | None = Field(default=None, ge=0)
+    explanation: str | None = Field(default=None, max_length=4000)
 
 
 @router.post("/documents/{document_id}/quiz/generate")
@@ -129,3 +139,50 @@ async def get_weak_concepts_route(
         "concepts": concepts,
         "correlation_id": correlation_id,
     }
+
+
+@router.get("/quizzes/{quiz_id}/edit")
+@with_observability("get_quiz_for_edit")
+async def get_quiz_for_edit_route(
+    quiz_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await get_quiz_for_edit(get_supabase_client(), quiz_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.patch("/quizzes/{quiz_id}/questions/{question_id}")
+@with_observability("update_quiz_question")
+async def update_quiz_question_route(
+    quiz_id: str,
+    question_id: str,
+    body: UpdateQuizQuestionRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await update_quiz_question(
+        get_supabase_client(),
+        quiz_id,
+        question_id,
+        user,
+        question_text=body.question_text,
+        options=body.options,
+        correct_option_index=body.correct_option_index,
+        explanation=body.explanation,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.post("/quizzes/{quiz_id}/publish")
+@with_observability("publish_quiz")
+async def publish_quiz_route(
+    quiz_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await publish_quiz(get_supabase_client(), quiz_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}

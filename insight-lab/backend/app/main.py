@@ -13,6 +13,7 @@ from app.api.routes.graph import router as graph_router
 from app.api.routes.workspaces import router as workspaces_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.excel import router as excel_router
+from app.api.routes.invites import router as invites_router
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.upload import router as upload_router
@@ -82,6 +83,7 @@ app.include_router(me_router, tags=["auth"])
 app.include_router(upload_router, tags=["documents"])
 app.include_router(documents_router, tags=["documents"])
 app.include_router(workspaces_router)
+app.include_router(invites_router)
 app.include_router(artifacts_router)
 app.include_router(graph_router, tags=["graph"])
 app.include_router(excel_router, tags=["excel"])
