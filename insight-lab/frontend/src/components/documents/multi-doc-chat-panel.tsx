@@ -12,12 +12,12 @@ import {
   type MultiRetrieveResponse,
   type SourceCitation,
 } from "@/lib/api";
+import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
 import { DocumentReviewPicker } from "@/components/documents/document-review-picker";
-import { SourceCitations } from "@/components/documents/source-citations";
 import { cacheResponseLabel } from "@/lib/workspace-roles";
 
 type ChatMessage = {
@@ -219,7 +219,7 @@ export function MultiDocChatPanel({
   }
 
   return (
-    <Card className="shadow-sm" data-tour="compare-docs">
+    <Card className="notebook-surface border-0 shadow-none" data-tour="compare-docs">
       <CardHeader>
         <CardTitle className="text-lg">Compare documents</CardTitle>
         <CardDescription>
@@ -340,17 +340,14 @@ export function MultiDocChatPanel({
 
         <div className="space-y-4">
           {messages.map((message, index) => (
-            <div key={`${message.question}-${index}`} className="rounded-md border p-4 text-sm">
-              <p className="font-medium">Q: {message.question}</p>
-              <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{message.answer}</p>
-              {message.sources && message.sources.length > 0 && (
-                <SourceCitations sources={message.sources} className="mt-3" />
-              )}
-              {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity) ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
-                </p>
-              ) : null}
+            <div key={`${message.question}-${index}`} className="space-y-3">
+              <ChatMessageBubble role="user" question={message.question} />
+              <ChatMessageBubble
+                role="assistant"
+                answer={message.answer}
+                sources={message.sources}
+                footer={cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
+              />
             </div>
           ))}
         </div>

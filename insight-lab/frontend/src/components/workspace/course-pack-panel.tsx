@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiFetch, type CoursePackResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CoursePackResults } from "@/components/workspace/course-pack-results";
 import { useToast } from "@/components/ui/toast";
 
 export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canEdit?: boolean }) {
@@ -34,19 +35,19 @@ export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canE
       }
       const data = (await response.json()) as CoursePackResponse;
       setPack(data);
-      toast({ title: "Course pack generated", variant: "success" });
+      toast({ title: "Course pack generated", description: "Open artifacts from the cards below.", variant: "success" });
     } finally {
       setGenerating(false);
     }
   }
 
   return (
-    <Card className="shadow-sm" data-tour="course-pack">
+    <Card className="notebook-surface border-0 shadow-none" data-tour="course-pack">
       <CardHeader>
         <CardTitle>Course pack</CardTitle>
         <CardDescription>
-          One click to generate summary, quiz, flashcards, study guide, and audio overview for every
-          ready document in this set.
+          Generate summary, quiz, flashcards, study guide, and audio for every ready document — then open each from
+          the gallery.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -60,24 +61,7 @@ export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canE
           </p>
         )}
 
-        {pack ? (
-          <ul className="space-y-3 text-sm">
-            {pack.documents.map((item) => (
-              <li key={item.document_id} className="rounded-md border p-3">
-                <p className="font-medium">{item.filename}</p>
-                <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
-                  {item.artifacts.quiz_id ? <li>Quiz ready</li> : null}
-                  {item.artifacts.flashcard_set_id ? <li>Flashcards ready</li> : null}
-                  {item.artifacts.study_guide_id ? <li>Study guide ready</li> : null}
-                  {item.artifacts.audio_script ? <li>Audio script ready</li> : null}
-                </ul>
-                {item.errors.length > 0 ? (
-                  <p className="mt-2 text-xs text-destructive">{item.errors.join("; ")}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        {pack ? <CoursePackResults setId={setId} documents={pack.documents} /> : null}
       </CardContent>
     </Card>
   );

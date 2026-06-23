@@ -17,6 +17,8 @@ import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
 import { WorkspaceStatsPanel } from "@/components/workspace/workspace-stats-panel";
 import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
+import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
+import { SourcesStrip } from "@/components/workspace/sources-strip";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { useToast } from "@/components/ui/toast";
@@ -194,13 +196,17 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const isOwner = workspace.access_role === "owner" || Boolean(workspace.is_owner);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
+      <ContextBreadcrumb
+        items={[
+          { label: "Notebooks", href: "/dashboard/sets" },
+          { label: workspace.name },
+        ]}
+      />
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/dashboard/sets" className="text-sm text-muted-foreground hover:text-primary">
-            ← All study sets
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{workspace.name}</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">{workspace.name}</h1>
           {workspace.access_role ? (
             <p className="mt-1 text-sm text-muted-foreground">
               Your role: {workspaceRoleLabel(workspace.access_role)}
@@ -229,6 +235,8 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           </Button>
         </div>
       </div>
+
+      <SourcesStrip setId={setId} documents={documents} />
 
       {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
 

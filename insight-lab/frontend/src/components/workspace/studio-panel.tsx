@@ -74,7 +74,7 @@ export function StudioPanel({
   }
 
   return (
-    <Card className={cn("shadow-sm", className)} data-tour="studio-panel">
+    <Card className={cn("notebook-surface border-0 shadow-none", className)} data-tour="studio-panel">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
