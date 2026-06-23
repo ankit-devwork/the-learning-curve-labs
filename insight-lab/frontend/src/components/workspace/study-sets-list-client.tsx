@@ -90,7 +90,7 @@ export function StudySetsListClient() {
           <CardDescription>For example: Biology 101, Midterm prep, or Q3 sales data.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreate} className="flex flex-wrap gap-2">
+          <form onSubmit={handleCreate} className="flex flex-wrap gap-2" data-tour="create-set">
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -106,7 +106,7 @@ export function StudySetsListClient() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2" data-tour="sets-list">
         {workspaces.map((workspace) => (
           <Link
             key={workspace.id}

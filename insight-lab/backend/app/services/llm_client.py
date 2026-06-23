@@ -512,3 +512,40 @@ def study_guide_cache_key(user_id: str, document_id: str) -> str:
 
 def suggested_questions_cache_key(user_id: str, document_id: str) -> str:
     return f"suggested_questions:{user_id}:{document_id}"
+
+
+async def generate_audio_overview_script(*, summary: str, filename: str) -> str:
+    cfg = get_yaml_config().audio_overview
+    prompt = (
+        "Write a spoken audio overview script for a learner based on the document summary below. "
+        "Use conversational language suitable for text-to-speech. "
+        "Structure with a brief intro, 3-5 key points, and a short closing. "
+        "Do not use markdown, bullet symbols, or section headers — write flowing paragraphs only. "
+        f"Target about {cfg.target_words} words.\n\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('summary', summary[:8000])}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt(
+                    "You write clear, engaging educational narration scripts.",
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.max_tokens,
+    )
+
+
+def audio_overview_cache_key(user_id: str, document_id: str, content_hash: str) -> str:
+    return f"audio_overview:{user_id}:{document_id}:{content_hash}"
+
+
+def workspace_adaptive_quiz_cache_key(
+    user_id: str,
+    workspace_id: str,
+    weak_hash: str,
+) -> str:
+    return f"workspace_adaptive_quiz:{user_id}:{workspace_id}:{weak_hash}"

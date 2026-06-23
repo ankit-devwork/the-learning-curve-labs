@@ -25,7 +25,13 @@ type ChatMessage = {
   cached?: boolean;
 };
 
-export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] }) {
+export function MultiDocChatPanel({
+  documents,
+  workspaceId,
+}: {
+  documents: DocumentSummary[];
+  workspaceId?: string;
+}) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
   const [pendingDocuments, setPendingDocuments] = useState<DocumentReviewOption[]>([]);
@@ -128,7 +134,11 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
       const response = await apiFetch("/documents/multi/retrieve", accessToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document_ids: selectedIds, question: trimmed }),
+        body: JSON.stringify({
+          document_ids: selectedIds,
+          question: trimmed,
+          workspace_id: workspaceId,
+        }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -168,6 +178,7 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
           document_ids: selectedIds,
           question: pendingQuestion,
           approved_document_ids: approved,
+          workspace_id: workspaceId,
         }),
       });
       if (!response.ok) {

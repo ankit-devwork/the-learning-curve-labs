@@ -3,13 +3,21 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch, type ExcelAnalysisResponse, type ExcelAskResponse, type ExcelChart } from "@/lib/api";
+import {
+  apiFetch,
+  type ExcelAnalysisResponse,
+  type ExcelAskResponse,
+  type ExcelChart,
+  type ExcelPreviewResponse,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
+import { ChartCardWithExport } from "@/components/excel/chart-export-actions";
 import { ExcelChartView } from "@/components/excel/excel-chart-view";
 import { ExcelChartBuilder } from "@/components/excel/excel-chart-builder";
+import { ExcelPreviewTable } from "@/components/excel/excel-preview-table";
 import {
   ChartBuilderSkeleton,
   ExcelDetailSkeleton,
@@ -23,8 +31,15 @@ type ExcelChatMessage = {
   sources?: string[];
 };
 
-export function ExcelDetailClient({ documentId }: { documentId: string }) {
+type ExcelDetailClientProps = {
+  documentId: string;
+  setId?: string;
+};
+
+export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps) {
   const [analysis, setAnalysis] = useState<ExcelAnalysisResponse | null>(null);
+  const [preview, setPreview] = useState<ExcelPreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [customCharts, setCustomCharts] = useState<ExcelChart[]>([]);
   const [filename, setFilename] = useState<string>("");
   const [status, setStatus] = useState<string>("pending");
@@ -64,6 +79,16 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     return { token: session.access_token, status: doc.status as string };
   }, [documentId]);
 
+  const loadPreview = useCallback(async (token: string) => {
+    setPreviewLoading(true);
+    const response = await apiFetch(`/documents/${documentId}/excel/preview?limit=50`, token);
+    setPreviewLoading(false);
+    if (!response.ok) {
+      return;
+    }
+    setPreview((await response.json()) as ExcelPreviewResponse);
+  }, [documentId]);
+
   const loadCharts = useCallback(async (token: string) => {
     const response = await apiFetch(`/documents/${documentId}/charts`, token);
     if (!response.ok) {
@@ -73,8 +98,9 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     setAnalysis(data);
     setStatus(data.status);
     setCustomCharts([]);
+    await loadPreview(token);
     return true;
-  }, [documentId]);
+  }, [documentId, loadPreview]);
 
   const handleCustomChartCreated = useCallback((chart: ExcelChart) => {
     setCustomCharts((current) => {
@@ -99,8 +125,9 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     setAnalysis(data);
     setStatus(data.status);
     setCustomCharts([]);
+    await loadPreview(token);
     return true;
-  }, [documentId]);
+  }, [documentId, loadPreview]);
 
   useEffect(() => {
     async function init() {
@@ -171,15 +198,17 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
     return <ExcelDetailSkeleton />;
   }
 
+  const backHref = setId ? `/dashboard/sets/${setId}` : "/dashboard/sets";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="excel-canvas">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
         <div className="min-w-0">
           <Link
-            href="/dashboard"
+            href={backHref}
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
           >
-            ← Back to workspace
+            ← Back to study set
           </Link>
           <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight">{filename}</h2>
           <span className="mt-2 inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
@@ -206,133 +235,156 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {analyzing && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Insights</CardTitle>
-            <CardDescription>Analyzing your spreadsheet…</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProcessingContentSkeleton lines={5} />
-          </CardContent>
-        </Card>
-      )}
 
       {status === "ready" && (
         <FeatureGuide
-          title="What you can do here"
+          title="Excel canvas"
           steps={[
-            "Read Insights for a narrative summary of trends and outliers in your data.",
-            "Browse suggested charts below — use Build custom chart to pick columns yourself.",
-            "Use Ask this spreadsheet to query the data in plain English (e.g. highest sales by region).",
+            "Preview your data and charts on the left.",
+            "Chat on the right to ask questions in plain English.",
+            "Export any chart as CSV or PNG for reports and slides.",
           ]}
         />
       )}
 
-      {analysis?.summary && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Insights</CardTitle>
-            <CardDescription>
-              AI summary of patterns in your data {analysis.cached ? "(cached)" : ""}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{analysis.summary}</div>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+        <div className="space-y-6 min-w-0">
+          {analyzing && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Insights</CardTitle>
+                <CardDescription>Analyzing your spreadsheet…</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProcessingContentSkeleton lines={5} />
+              </CardContent>
+            </Card>
+          )}
 
-      {status === "ready" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ask this spreadsheet</CardTitle>
-            <CardDescription>
-              Questions use your column names, chart data, and the insights summary — not raw row
-              dumps.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form onSubmit={handleAsk} className="flex gap-2">
-              <Input
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                placeholder="e.g. Which month had the highest revenue?"
-                disabled={asking}
-              />
-              <Button type="submit" disabled={asking}>
-                {asking ? "Thinking..." : "Ask"}
-              </Button>
-            </form>
+          {analysis?.summary && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Insights</CardTitle>
+                <CardDescription>
+                  AI summary of patterns in your data {analysis.cached ? "(cached)" : ""}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">{analysis.summary}</div>
+              </CardContent>
+            </Card>
+          )}
 
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div key={`${message.question}-${index}`} className="rounded-md border p-4 text-sm">
-                  <p className="font-medium">Q: {message.question}</p>
-                  <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{message.answer}</p>
-                  {message.cached && (
-                    <p className="mt-2 text-xs text-muted-foreground">Cached response</p>
-                  )}
-                  {message.sources && message.sources.length > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Sources: {message.sources.join(", ")}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Data preview</CardTitle>
+              <CardDescription>First rows from your spreadsheet</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ExcelPreviewTable preview={preview} loading={previewLoading || analyzing} />
+            </CardContent>
+          </Card>
 
-      {analysis?.profile?.columns && accessToken && (
-        <ExcelChartBuilder
-          documentId={documentId}
-          columns={analysis.profile.columns}
-          accessToken={accessToken}
-          onChartCreated={handleCustomChartCreated}
-        />
-      )}
+          {analysis?.profile?.columns && accessToken && (
+            <ExcelChartBuilder
+              documentId={documentId}
+              columns={analysis.profile.columns}
+              accessToken={accessToken}
+              onChartCreated={handleCustomChartCreated}
+            />
+          )}
 
-      {customCharts.map((chart) => (
-        <Card key={chart.id}>
-          <CardHeader>
-            <CardTitle>{chart.title}</CardTitle>
-            <CardDescription>
-              Custom · {chart.chart_type} · {chart.x_column}
-              {chart.y_column ? ` vs ${chart.y_column}` : ""}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ExcelChartView chart={chart} />
-          </CardContent>
-        </Card>
-      ))}
+          {customCharts.map((chart) => (
+            <Card key={chart.id}>
+              <CardHeader>
+                <CardTitle>{chart.title}</CardTitle>
+                <CardDescription>
+                  Custom · {chart.chart_type} · {chart.x_column}
+                  {chart.y_column ? ` vs ${chart.y_column}` : ""}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartCardWithExport chart={chart}>
+                  <ExcelChartView chart={chart} />
+                </ChartCardWithExport>
+              </CardContent>
+            </Card>
+          ))}
 
-      {analysis && analysis.charts.length > 0 && (
-        <h3 className="text-lg font-semibold">Suggested charts</h3>
-      )}
+          {analysis && analysis.charts.length > 0 && (
+            <h3 className="text-lg font-semibold">Suggested charts</h3>
+          )}
 
-      {analysis?.charts.map((chart) => (
-        <Card key={chart.id}>
-          <CardHeader>
-            <CardTitle>{chart.title}</CardTitle>
-            <CardDescription>
-              Suggested · {chart.chart_type} · {chart.x_column}
-              {chart.y_column ? ` vs ${chart.y_column}` : ""}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ExcelChartView chart={chart} />
-          </CardContent>
-        </Card>
-      ))}
+          {analysis?.charts.map((chart) => (
+            <Card key={chart.id}>
+              <CardHeader>
+                <CardTitle>{chart.title}</CardTitle>
+                <CardDescription>
+                  Suggested · {chart.chart_type} · {chart.x_column}
+                  {chart.y_column ? ` vs ${chart.y_column}` : ""}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartCardWithExport chart={chart}>
+                  <ExcelChartView chart={chart} />
+                </ChartCardWithExport>
+              </CardContent>
+            </Card>
+          ))}
 
-      {analyzing && !analysis && <ChartBuilderSkeleton />}
+          {analyzing && !analysis && <ChartBuilderSkeleton />}
 
-      {!analyzing && !analysis && status !== "ready" && (
-        <p className="text-sm text-muted-foreground">Charts will appear after analysis.</p>
-      )}
+          {!analyzing && !analysis && status !== "ready" && (
+            <p className="text-sm text-muted-foreground">Charts will appear after analysis.</p>
+          )}
+        </div>
+
+        <aside className="xl:sticky xl:top-6 xl:self-start">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Ask this spreadsheet</CardTitle>
+              <CardDescription>
+                Julius-style chat grounded in your columns, charts, and insights.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={handleAsk} className="flex gap-2">
+                <Input
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  placeholder="e.g. Which month had the highest revenue?"
+                  disabled={asking || status !== "ready"}
+                />
+                <Button type="submit" disabled={asking || status !== "ready"}>
+                  {asking ? "Thinking..." : "Ask"}
+                </Button>
+              </form>
+
+              <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+                {messages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Ask about trends, outliers, or comparisons in your data.
+                  </p>
+                ) : null}
+                {messages.map((message, index) => (
+                  <div key={`${message.question}-${index}`} className="rounded-md border p-4 text-sm">
+                    <p className="font-medium">Q: {message.question}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{message.answer}</p>
+                    {message.cached && (
+                      <p className="mt-2 text-xs text-muted-foreground">Cached response</p>
+                    )}
+                    {message.sources && message.sources.length > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Sources: {message.sources.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 }

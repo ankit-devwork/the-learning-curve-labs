@@ -151,6 +151,17 @@ class ArtifactsSection(BaseModel):
     chunk_preview_max_chars: int = 1200
 
 
+class AudioOverviewSection(BaseModel):
+    generate_rate_limit_per_min: int = 5
+    max_tokens: int = 1200
+    target_words: int = 450
+
+
+class ExcelPreviewSection(BaseModel):
+    default_limit: int = 50
+    max_limit: int = 200
+
+
 class YamlConfig(BaseModel):
     app: AppSection
     logging: LoggingSection
@@ -165,6 +176,8 @@ class YamlConfig(BaseModel):
     adaptive_quiz: AdaptiveQuizSection
     multi_doc: MultiDocSection
     artifacts: ArtifactsSection
+    audio_overview: AudioOverviewSection
+    excel_preview: ExcelPreviewSection
     resilience: ResilienceSection
 
 

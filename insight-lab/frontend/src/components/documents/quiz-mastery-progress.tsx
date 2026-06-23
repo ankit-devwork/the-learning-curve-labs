@@ -34,6 +34,7 @@ type QuizMasteryProgressProps = {
   migrationRequired?: boolean;
   notice?: string;
   className?: string;
+  title?: string;
 };
 
 export function QuizMasteryProgress({
@@ -41,6 +42,7 @@ export function QuizMasteryProgress({
   migrationRequired,
   notice,
   className,
+  title = "Your progress by topic",
 }: QuizMasteryProgressProps) {
   if (migrationRequired && notice) {
     return (
@@ -66,7 +68,7 @@ export function QuizMasteryProgress({
   return (
     <div className={cn("space-y-3", className)}>
       <div className="space-y-1">
-        <p className="text-sm font-medium">Your progress by topic</p>
+        <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-muted-foreground">
           {practiced.length} of {concepts.length} topics attempted
           {needsPractice.length > 0
@@ -79,14 +81,20 @@ export function QuizMasteryProgress({
       <ul className="space-y-2">
         {concepts.map((item) => {
           const status = masteryStatus(item);
+          const itemKey = item.document_id
+            ? `${item.document_id}:${item.concept_id}`
+            : item.concept_id;
           return (
             <li
-              key={item.concept_id}
+              key={itemKey}
               className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
             >
               <div className="min-w-0">
                 <p className="font-medium">{item.name}</p>
                 {item.topic && <p className="text-xs text-muted-foreground">{item.topic}</p>}
+                {item.document_filename ? (
+                  <p className="text-xs text-muted-foreground">{item.document_filename}</p>
+                ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {item.percent != null && (

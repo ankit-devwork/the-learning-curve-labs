@@ -13,6 +13,7 @@ from app.services.artifact_service import (
     get_document_study_guide,
     review_flashcard,
 )
+from app.services.audio_overview_service import generate_audio_overview, get_audio_overview
 
 router = APIRouter(tags=["artifacts"])
 
@@ -97,3 +98,33 @@ async def get_study_guide_route(
     result = await get_document_study_guide(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {"study_guide": result, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/audio-overview/generate")
+@with_observability("generate_audio_overview")
+async def generate_audio_overview_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await generate_audio_overview(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/audio-overview")
+@with_observability("get_audio_overview")
+async def get_audio_overview_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await get_audio_overview(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    if result is None:
+        return {
+            "document_id": document_id,
+            "audio_overview": None,
+            "correlation_id": correlation_id,
+        }
+    return {"audio_overview": result, "correlation_id": correlation_id}

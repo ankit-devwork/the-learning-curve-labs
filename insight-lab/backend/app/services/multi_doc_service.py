@@ -25,6 +25,8 @@ def _validate_owned_documents(
     client: Client,
     document_ids: list[str],
     user: AuthUser,
+    *,
+    workspace_id: str | None = None,
 ) -> list[dict[str, Any]]:
     if not document_ids:
         raise FileException("At least one document is required")
@@ -36,7 +38,7 @@ def _validate_owned_documents(
 
     result = (
         client.table("documents")
-        .select("id, filename, file_type, status, summary")
+        .select("id, filename, file_type, status, summary, workspace_id")
         .in_("id", unique_ids)
         .eq("owner_id", user.id)
         .execute()
@@ -44,6 +46,11 @@ def _validate_owned_documents(
     rows = result.data or []
     if len(rows) != len(unique_ids):
         raise NotFoundException("One or more documents were not found")
+
+    if workspace_id:
+        for row in rows:
+            if row.get("workspace_id") != workspace_id:
+                raise FileException("All documents must belong to the selected study set")
 
     for row in rows:
         if row["file_type"] != "document":
@@ -234,6 +241,7 @@ async def retrieve_multiple_documents(
     *,
     document_ids: list[str],
     question: str,
+    workspace_id: str | None = None,
 ) -> dict[str, Any]:
     question = question.strip()
     if not question:
@@ -251,7 +259,7 @@ async def retrieve_multiple_documents(
             retry_after=retry_after,
         )
 
-    docs = _validate_owned_documents(client, document_ids, user)
+    docs = _validate_owned_documents(client, document_ids, user, workspace_id=workspace_id)
     doc_map = {row["id"]: row["filename"] for row in docs}
     sorted_ids = sorted(doc_map.keys())
 
@@ -278,6 +286,7 @@ async def retrieve_multiple_documents(
         "question": question,
         "documents": list(review_options),
         "hitl_required": True,
+        "workspace_id": workspace_id,
     }
 
 
@@ -288,6 +297,7 @@ async def ask_multiple_documents(
     document_ids: list[str],
     question: str,
     approved_document_ids: list[str],
+    workspace_id: str | None = None,
 ) -> dict[str, Any]:
     question = question.strip()
     if not question:
@@ -307,7 +317,7 @@ async def ask_multiple_documents(
             retry_after=retry_after,
         )
 
-    docs = _validate_owned_documents(client, document_ids, user)
+    docs = _validate_owned_documents(client, document_ids, user, workspace_id=workspace_id)
     doc_map = {row["id"]: row["filename"] for row in docs}
     sorted_ids = sorted(doc_map.keys())
     allowed_ids = set(sorted_ids)

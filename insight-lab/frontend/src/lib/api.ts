@@ -117,6 +117,8 @@ export type ConceptMasteryItem = {
   correct: number;
   percent?: number | null;
   last_attempt_at?: string | null;
+  document_id?: string;
+  document_filename?: string;
 };
 
 export type ConceptMasteryResponse = {
@@ -338,4 +340,23 @@ export type DocumentChunkResponse = {
   content: string;
   preview: string;
   truncated: boolean;
+};
+
+export type AudioOverviewResponse = {
+  document_id: string;
+  title: string;
+  script: string;
+  estimated_minutes?: number;
+  cached?: boolean;
+  correlation_id?: string;
+};
+
+export type ExcelPreviewResponse = {
+  document_id: string;
+  columns: string[];
+  rows: string[][];
+  preview_rows: number;
+  total_rows: number;
+  total_columns: number;
+  correlation_id?: string;
 };
