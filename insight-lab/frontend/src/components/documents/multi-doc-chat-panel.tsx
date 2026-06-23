@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -48,6 +49,10 @@ export function MultiDocChatPanel({
 
   const readyDocuments = documents.filter(
     (doc) => doc.file_type === "document" && doc.status === "ready",
+  );
+  const excelDocuments = documents.filter((doc) => doc.file_type === "excel");
+  const processingTextDocuments = documents.filter(
+    (doc) => doc.file_type === "document" && doc.status !== "ready",
   );
   const hitlMode = selectedIds.length > 1;
 
@@ -231,9 +236,46 @@ export function MultiDocChatPanel({
           ]}
         />
         {readyDocuments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Upload and process at least one document to use document chat.
-          </p>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Compare works with <strong className="font-medium text-foreground">ready PDF and Word files</strong>{" "}
+              in this study set. Excel spreadsheets use a separate chat and chart view.
+            </p>
+            {processingTextDocuments.length > 0 ? (
+              <p>
+                {processingTextDocuments.length} document file
+                {processingTextDocuments.length === 1 ? "" : "s"} still processing — open them from the study set and
+                wait for status <strong className="font-medium text-foreground">Ready</strong>.
+              </p>
+            ) : null}
+            {excelDocuments.length > 0 ? (
+              <div className="rounded-md border bg-muted/30 p-4">
+                <p className="font-medium text-foreground">Excel files in this set</p>
+                <ul className="mt-2 space-y-2">
+                  {excelDocuments.map((doc) => (
+                    <li key={doc.id}>
+                      <Link
+                        href={
+                          workspaceId
+                            ? `/dashboard/sets/${workspaceId}/excel/${doc.id}`
+                            : `/dashboard/excel/${doc.id}`
+                        }
+                        className="text-primary hover:underline"
+                      >
+                        {doc.filename}
+                      </Link>
+                      <span className="ml-2 capitalize">· {doc.status}</span>
+                      {doc.status !== "ready" ? (
+                        <span className="ml-1">— open to analyze</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p>Upload at least one PDF or Word file to this study set to compare documents here.</p>
+            )}
+          </div>
         ) : (
           <>
             <div className="space-y-2">
