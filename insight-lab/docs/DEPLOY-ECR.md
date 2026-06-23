@@ -1,96 +1,112 @@
-# Deploy InsightLab with ECR + EC2
+# Deploy InsightLab with ECR + EC2 + Vercel
 
-**Recommended production pilot:** build the API image on your **Windows** machine, push to **Amazon ECR**, pull and run on **EC2** with Docker Compose. Frontend on **Vercel**; Supabase hosted.
+**Recommended pilot setup (no custom domain):**
+
+1. Build API image on **Windows** → push to **Amazon ECR**
+2. Run API + Redis + Neo4j on **EC2** (Docker)
+3. Deploy **frontend only** on **Vercel** (HTTPS)
+4. Proxy API calls through Vercel → EC2 over HTTP (port **8080**)
 
 **Repository:** [github.com/ankit-devwork/insight-lab](https://github.com/ankit-devwork/insight-lab)
 
-For the manual git-clone + Python venv path, see [DEPLOY-EC2.md](DEPLOY-EC2.md).
+Manual venv deploy (fallback): [DEPLOY-EC2.md](DEPLOY-EC2.md)
 
 ---
 
-## Architecture
+## Architecture (no domain)
 
 ```text
-Windows (local)                         AWS
-───────────────                         ───
-docker build  ──►  ECR                  EC2
-docker push         insight-lab:api-latest   ├── docker compose -f docker-compose.ecr.yml
-                                             │     ├── api (ECR image) → 127.0.0.1:8000
-                                             │     ├── redis
-                                             │     └── neo4j
-                                             └── nginx :443 → localhost:8000
+Windows                          AWS EC2                         Vercel
+───────                          ───────                         ──────
+push-ecr.ps1 ──► ECR             docker-compose.ecr.yml          Next.js (HTTPS)
+                 insight-lab       ├── insightlab-api :8000       └── /api-backend/*
+                                   ├── redis                         (proxy rewrite)
+                                   ├── neo4j                              │
+                                   └── nginx :8080 ◄──────────────────────┘
+                                         ▲
+                                   Security group :8080
 
-Vercel (Next.js) ──► Supabase + EC2 API
+Supabase (hosted) ◄── Auth + DB + Storage
 ```
 
 | Component | Where |
 |-----------|-------|
-| Frontend | Vercel |
-| API | **Docker image from ECR** — no Python/venv on EC2 |
-| Redis + Neo4j | Same EC2 (`docker-compose.ecr.yml`) |
-| Auth, Postgres, Storage | Supabase (hosted) |
-| TLS | nginx + Certbot on EC2 |
+| Frontend | **Vercel** — root directory `frontend` only |
+| API | **ECR → Docker** on EC2 — no Python/venv on host |
+| Redis + Neo4j | Docker on same EC2 |
+| Auth / Postgres / Storage | Supabase |
+| Public API access | nginx **8080** (for Vercel proxy) — **not** port 8000 |
+
+---
+
+## Before you start
+
+| Task | Where |
+|------|-------|
+| Run Supabase migrations **001–007** | Supabase SQL Editor |
+| Create Supabase project keys | Settings → API |
+| Groq API key | [console.groq.com](https://console.groq.com) |
+| AWS CLI configured | `aws configure` on Windows |
+| Docker Desktop | Windows (build/push image) |
+| EC2 Ubuntu instance | t3.medium recommended, 20–30 GB disk |
+
+---
+
+## Complete walkthrough (checklist)
+
+Use this order — matches a real pilot deploy.
+
+### Phase A — Push API image (Windows)
+
+- [ ] **A1.** `cd insight-lab` → `aws configure`
+- [ ] **A2.** `.\scripts\push-ecr.ps1` — creates ECR repo if missing
+- [ ] **A3.** Confirm push: `…/insight-lab:api-latest` digest printed
+
+### Phase B — EC2 backend
+
+- [ ] **B1.** Security group inbound: **22** (My IP), **8080** (Anywhere). Optional: **80**, **443** for future domain
+- [ ] **B2.** Attach IAM role **AmazonEC2ContainerRegistryReadOnly** to EC2
+- [ ] **B3.** SSH: `ssh -i key.pem ubuntu@EC2_IP`
+- [ ] **B4.** Install packages (see [Part 2](#part-2--ec2-backend))
+- [ ] **B5.** `docker compose version` works (space, not hyphen)
+- [ ] **B6.** Clone repo, configure `backend/.env` and `.env.ecr`
+- [ ] **B7.** Confirm `docker-compose.ecr.yml` exists (`git pull` if missing)
+- [ ] **B8.** Stop conflicting containers on port 8000 (`docker ps`)
+- [ ] **B9.** ECR login → `docker compose -f docker-compose.ecr.yml … pull && up -d`
+- [ ] **B10.** Verify 3 containers + `curl localhost:8000/health` and `/ready`
+- [ ] **B11.** nginx on **8080** → `curl EC2_IP:8080/health` from Windows
+
+### Phase C — Vercel frontend
+
+- [ ] **C1.** Import GitHub repo — **Root Directory = `frontend`** (do **not** deploy FastAPI on Vercel)
+- [ ] **C2.** Next.js **≥ 15.5.18** (Vercel blocks vulnerable versions)
+- [ ] **C3.** Set Vercel env vars (see [Part 4](#part-4--vercel-frontend))
+- [ ] **C4.** Redeploy after env vars
+- [ ] **C5.** Test `https://YOUR-APP.vercel.app/api-backend/health`
+
+### Phase D — Supabase Auth
+
+- [ ] **D1.** Site URL = `https://YOUR-APP.vercel.app` (**not** localhost)
+- [ ] **D2.** Redirect URLs include `https://YOUR-APP.vercel.app/**`
+- [ ] **D3.** Login/signup on Vercel — lands on dashboard, not localhost
+
+### Phase E — Smoke test
+
+- [ ] **E1.** Upload PDF → opens document page → summary
+- [ ] **E2.** Ask a question → answer with sources
+- [ ] **E3.** Generate quiz → submit
+- [ ] **E4.** Multi-doc chat with 2+ files
 
 ---
 
 ## What you do **not** need on EC2
 
-| Skip this | Why |
-|-----------|-----|
-| `python3 -m venv` | API runs inside the Docker image |
-| `pip install -r requirements.txt` | Already baked into the ECR image |
-| `uvicorn` / systemd for API | Container runs uvicorn |
-| `docker compose up -d` (default file) | Only starts Redis + Neo4j — **not** the API |
-
----
-
-## Prerequisites
-
-| Requirement | Notes |
-|-------------|-------|
-| AWS account | ECR + EC2 |
-| AWS CLI | `aws configure` on Windows |
-| Docker Desktop | Windows — build and push |
-| EC2 IAM role | **AmazonEC2ContainerRegistryReadOnly** (pull from ECR) |
-| Supabase | Migrations **001–007** applied |
-| Groq API key | LLM provider |
-| Security group | Inbound: **22** (My IP), **80**, **443**. **Do not** open **8000** publicly |
-
-### Recommended EC2 sizing
-
-| Resource | Recommendation |
-|----------|----------------|
-| Instance | **t3.medium** (4 GB RAM) |
-| AMI | Ubuntu 22.04 or 24.04 LTS |
-| EBS | **20–30 GB** (Docker images + Neo4j + logs) |
-
----
-
-## Part 0 — Connect to EC2 from Windows
-
-```powershell
-ssh -i "D:\path\to\your-key.pem" ubuntu@YOUR_EC2_PUBLIC_IP
-```
-
-| Item | Value |
-|------|-------|
-| Username | `ubuntu` (Ubuntu AMI) |
-| Port | 22 (security group: **My IP** only) |
-
-**Connection timed out?** Update the SSH rule — your home IP may have changed.
-
-**Permission denied?** Wrong `.pem` file or wrong username.
-
-Optional `~/.ssh/config` entry:
-
-```text
-Host insightlab-ec2
-    HostName YOUR_EC2_PUBLIC_IP
-    User ubuntu
-    IdentityFile D:\path\to\your-key.pem
-```
-
-Then: `ssh insightlab-ec2`
+| Skip | Why |
+|------|-----|
+| `python3 -m venv` | API runs in Docker image |
+| `pip install` / uvicorn on host | Baked into ECR image |
+| `docker compose up -d` (default) | Only starts Redis + Neo4j — **not** the API |
+| Opening port **8000** publicly | API stays on `127.0.0.1:8000`; nginx uses **8080** |
 
 ---
 
@@ -98,29 +114,53 @@ Then: `ssh insightlab-ec2`
 
 ```powershell
 cd D:\Mine\Learining\GenAI\python\insight-lab
-aws configure   # once
+aws configure
 .\scripts\push-ecr.ps1
 ```
 
-Success looks like:
+Success:
 
 ```text
+Login Succeeded
 Pushing 321204595484.dkr.ecr.us-east-1.amazonaws.com/insight-lab:api-latest ...
 api-latest: digest: sha256:... size: ...
+```
+
+**`push-ecr.ps1` fails on “describe-repositories”?** Pull latest script (PR #47) — or create repo manually:
+
+```powershell
+aws ecr create-repository --repository-name insight-lab --region us-east-1
 ```
 
 Linux/macOS: `./scripts/push-ecr.sh`
 
 ---
 
-## Part 2 — EC2 setup (once)
+## Part 2 — EC2 backend
 
-### 1. Security group + IAM
+### Connect from Windows
 
-- Inbound: **22** (My IP), **80**, **443**
-- Attach IAM role **AmazonEC2ContainerRegistryReadOnly** to the instance
+```powershell
+ssh -i "D:\path\to\your-key.pem" ubuntu@YOUR_EC2_PUBLIC_IP
+```
 
-### 2. Install Docker + nginx
+Get public IP on EC2: `curl -s ifconfig.me`
+
+### Security group
+
+| Port | Source | Purpose |
+|------|--------|---------|
+| **22** | My IP | SSH |
+| **8080** | Anywhere | Vercel → API proxy (required without domain) |
+| 80, 443 | Anywhere | Optional — for custom domain later |
+
+**Do not** open port **8000** to the internet.
+
+### IAM
+
+EC2 → Instance → **Modify IAM role** → **AmazonEC2ContainerRegistryReadOnly**
+
+### Install Docker + nginx
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -129,29 +169,18 @@ sudo apt install -y git nginx certbot python3-certbot-nginx docker.io docker-com
 sudo usermod -aG docker ubuntu
 ```
 
-Log out and SSH back in. Verify Compose (note the **space**, not a hyphen):
+Log out and SSH back in:
 
 ```bash
 docker --version
-docker compose version
+docker compose version    # space — NOT docker-compose
 ```
 
-**Do not** rely on `docker-compose` (hyphen) — on Ubuntu it is often **not** installed. Use **`docker compose`**.
+If `docker compose` missing: `sudo apt install -y docker-compose-v2`
 
-If `docker compose` is missing:
+Reboot if **“System restart required”**: `sudo reboot`
 
-```bash
-sudo apt install -y docker-compose-v2
-# or install docker-compose-plugin from Docker's official apt repo (see Troubleshooting)
-```
-
-Reboot if apt reports **"System restart required"**:
-
-```bash
-sudo reboot
-```
-
-### 3. Clone repo (compose files + env only)
+### Clone and configure env
 
 ```bash
 git clone https://github.com/ankit-devwork/insight-lab.git
@@ -163,7 +192,7 @@ nano backend/.env
 nano .env.ecr
 ```
 
-**`.env.ecr` example:**
+**`.env.ecr`:**
 
 ```bash
 ECR_REGISTRY=321204595484.dkr.ecr.us-east-1.amazonaws.com
@@ -173,7 +202,7 @@ AWS_REGION=us-east-1
 NEO4J_AUTH=neo4j/insightlab_dev_password
 ```
 
-**`backend/.env` essentials:**
+**`backend/.env` (minimum):**
 
 ```bash
 APP_APP__ENV=production
@@ -188,36 +217,29 @@ NEO4J_PASSWORD=insightlab_dev_password
 
 GROQ_API_KEY=gsk_...
 
-CORS_ALLOW_ORIGINS=https://your-app.vercel.app
+# Optional with Vercel proxy (browser hits Vercel, not EC2 directly)
+CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-Compose sets `REDIS_HOST=redis` and `NEO4J_URI=bolt://neo4j:7687` inside the API container.
+### If `docker-compose.ecr.yml` is missing
 
-### 4. Free port 8000 (if another app uses it)
+After clone, run `ls docker-compose.ecr.yml`. If missing, `git pull origin main` or copy the file from the repo. The ECR compose file defines **api + redis + neo4j** together.
 
-Check what's bound to 8000:
+### Free port 8000
 
 ```bash
 docker ps
+# If genai or other stack uses 8000:
+docker stop genai_backend genai_streamlit
 ```
 
-If another stack (e.g. genai capstone) uses **8000**, stop it or InsightLab API will fail to start:
-
-```bash
-docker stop genai_backend genai_streamlit   # example names
-```
-
-To run **both** apps on one box, change the API port in `docker-compose.ecr.yml` to `127.0.0.1:8002:8000` and point nginx at **8002**.
-
-### 5. Pull and start the **full** stack
-
-Use **`docker-compose.ecr.yml`** — not the default `docker compose up -d`:
+### Pull and start (full stack)
 
 ```bash
 cd ~/insight-lab
 
 aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin 321204595484.dkr.ecr.us-east-1.amazonaws.com
+  docker login --username AWS --password-stdin YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com
 
 docker compose -f docker-compose.ecr.yml \
   --env-file backend/.env \
@@ -230,34 +252,30 @@ docker compose -f docker-compose.ecr.yml \
   up -d
 ```
 
-### 6. Verify — expect **3** containers
+Always pass **both** env files. Without `.env.ecr`, `docker compose ps` warns `ECR_REGISTRY variable is not set`.
+
+**Shell alias (recommended):**
 
 ```bash
-docker compose -f docker-compose.ecr.yml ps
+echo "alias ilab='docker compose -f ~/insight-lab/docker-compose.ecr.yml --env-file ~/insight-lab/backend/.env --env-file ~/insight-lab/.env.ecr'" >> ~/.bashrc
+source ~/.bashrc
 ```
 
-| Container | Status |
-|-----------|--------|
-| `insightlab-api` | Up (healthy) |
-| `insightlab-redis` | Up (healthy) |
-| `insightlab-neo4j` | Up (healthy) |
+Then: `ilab ps`, `ilab logs -f api`, `ilab up -d`
+
+### Verify backend
 
 ```bash
-curl -s http://127.0.0.1:8000/health
-curl -s http://127.0.0.1:8000/ready
+ilab ps
+# Expect: insightlab-api, insightlab-redis, insightlab-neo4j — all healthy
+
+curl -s http://127.0.0.1:8000/health    # "status":"ok"
+curl -s http://127.0.0.1:8000/ready     # "status":"ready"
 ```
 
-If you only see **redis** and **neo4j**, you ran the wrong compose file — go back to step 5.
+**Only redis + neo4j?** You ran `docker compose up -d` without `-f docker-compose.ecr.yml`.
 
-Logs:
-
-```bash
-docker compose -f docker-compose.ecr.yml logs -f api
-```
-
-### 7. Expose API for Vercel (no domain — port 8080)
-
-If the frontend is on **Vercel (HTTPS)** and the API has **no domain**, use nginx on **8080** and a **Next.js proxy rewrite** (Part 4). The browser never calls HTTP EC2 directly.
+### nginx on port 8080 (for Vercel)
 
 ```bash
 sudo tee /etc/nginx/sites-available/insightlab-api << 'EOF'
@@ -285,30 +303,29 @@ sudo ln -sf /etc/nginx/sites-available/insightlab-api /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Security group: add inbound **8080** from **Anywhere** (Vercel’s proxy servers need to reach EC2).
-
-Test:
+Test from EC2 and Windows:
 
 ```bash
 curl -s http://127.0.0.1:8080/health
-curl -s http://YOUR_EC2_PUBLIC_IP:8080/health
 ```
 
-### 8. nginx + HTTPS (optional — when you have a domain)
+```powershell
+curl http://YOUR_EC2_PUBLIC_IP:8080/health
+```
 
-Proxy `api.yourdomain.com` → `http://127.0.0.1:8000` with 300s timeouts. Full config: [DEPLOY-EC2.md — nginx](DEPLOY-EC2.md#6-nginx-reverse-proxy).
+### Backend logs
 
 ```bash
-sudo certbot --nginx -d api.yourdomain.com
+ilab logs -f api
+ilab logs --tail 100 api
+docker exec insightlab-api tail -f /app/logs/*.log
 ```
-
-Then you can set `NEXT_PUBLIC_API_URL=https://api.yourdomain.com` on Vercel and skip the proxy rewrite.
 
 ---
 
-## Part 3 — Deploy updates
+## Part 3 — Deploy API updates
 
-**Windows** (after code changes):
+**Windows** (after backend code changes):
 
 ```powershell
 .\scripts\push-ecr.ps1
@@ -318,91 +335,109 @@ Then you can set `NEXT_PUBLIC_API_URL=https://api.yourdomain.com` on Vercel and 
 
 ```bash
 cd ~/insight-lab
-docker compose -f docker-compose.ecr.yml --env-file backend/.env --env-file .env.ecr pull
-docker compose -f docker-compose.ecr.yml --env-file backend/.env --env-file .env.ecr up -d
+ilab pull
+ilab up -d
 ```
 
 ---
 
-## Part 4 — Frontend on Vercel (HTTP EC2 via proxy)
+## Part 4 — Vercel frontend
 
-Browsers block **HTTPS → HTTP** calls. InsightLab proxies API requests through Vercel so the browser only talks to **same-origin HTTPS** (`/api-backend/*`); Vercel forwards to your EC2 nginx on **8080**.
+### Import project correctly
 
-```text
-Browser  →  https://your-app.vercel.app/api-backend/upload
-         →  Vercel rewrite (server)
-         →  http://EC2-IP:8080/upload
-         →  nginx → insightlab-api :8000
+Vercel → **Add New Project** → import `ankit-devwork/insight-lab`
+
+| Setting | Value |
+|---------|-------|
+| **Root Directory** | `frontend` |
+| **Framework** | Next.js |
+
+**Do not** use “Services” preset that deploys FastAPI on Vercel. Backend stays on EC2.
+
+### Next.js version
+
+Vercel **blocks** vulnerable Next.js (CVE-2025-66478). Use **≥ 15.5.18**:
+
+```powershell
+cd frontend
+npm install next@15.5.18 eslint-config-next@15.5.18
 ```
 
-### 1. EC2 nginx on 8080
+Commit and push before deploying.
 
-Complete [step 7](#7-expose-api-for-vercel--no-domain--port-8080) above first.
+### API proxy (no domain)
 
-### 2. Vercel project env vars
+The repo includes `frontend/next.config.ts` rewrite:
 
-In Vercel → Project → Settings → Environment Variables:
+```text
+Browser → https://your-app.vercel.app/api-backend/*
+       → Vercel server (BACKEND_PROXY_URL)
+       → http://EC2-IP:8080/*
+       → nginx → Docker API
+```
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Public |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | Public |
-| `NEXT_PUBLIC_API_URL` | `/api-backend` | Same-origin proxy path |
-| `BACKEND_PROXY_URL` | `http://YOUR_EC2_PUBLIC_IP:8080` | **Server-only** — not `NEXT_PUBLIC_` |
-| `NEXT_PUBLIC_SHOW_DEV_PANEL` | `false` | |
+Browsers cannot call `http://EC2-IP` directly from an HTTPS Vercel page (mixed content). The proxy fixes this.
 
-Redeploy after changing env vars (rewrites read `BACKEND_PROXY_URL` at build time).
+### Vercel environment variables
 
-### 3. Supabase Auth
+Settings → Environment Variables → **Production**:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key |
+| `NEXT_PUBLIC_API_URL` | `/api-backend` |
+| `BACKEND_PROXY_URL` | `http://YOUR_EC2_PUBLIC_IP:8080` |
+| `NEXT_PUBLIC_SHOW_DEV_PANEL` | `false` |
+
+- `BACKEND_PROXY_URL` has **no** `NEXT_PUBLIC_` prefix
+- Use `http://` and port **8080**
+- **Redeploy** after adding or changing env vars
+
+### Verify proxy
+
+```text
+https://YOUR-APP.vercel.app/api-backend/health
+```
+
+Expected: `{"status":"ok",...}`
+
+### Supabase Auth (fix localhost redirect)
+
+If signup/login redirects to **localhost**, Supabase Site URL is wrong.
+
+Authentication → **URL configuration**:
 
 | Field | Value |
 |-------|-------|
-| Site URL | `https://your-app.vercel.app` |
-| Redirect URLs | `https://your-app.vercel.app/**`, `http://localhost:3000/**` |
+| **Site URL** | `https://YOUR-APP.vercel.app` |
+| **Redirect URLs** | `https://YOUR-APP.vercel.app/**` |
+| | `http://localhost:3000/**` (keep for local dev) |
 
-Google OAuth: add Supabase callback URL in Google Cloud Console (unchanged).
+Use incognito to test after saving. Old confirmation emails may still point to localhost — sign up again or sign in directly.
 
-### 4. CORS on EC2
+### Upload size note
 
-With the proxy, the browser does **not** call EC2 directly — **CORS is optional** for Vercel traffic. Keep localhost in CORS for local dev:
-
-```bash
-CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
-
-### 5. Verify proxy
-
-After Vercel deploy:
-
-```text
-https://your-app.vercel.app/api-backend/health
-```
-
-Should return `{"status":"ok",...}`.
-
-### 6. Upload size note
-
-Vercel may limit proxied request bodies (~**4.5 MB** on Hobby). InsightLab allows up to **10 MB** uploads. If uploads fail on Vercel but work via `curl` to EC2, use a **HTTPS API** (domain or Cloudflare Tunnel) or host the frontend on EC2.
-
-### Alternative — domain + HTTPS API
-
-If you have a domain, skip the proxy and set:
-
-```bash
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-```
+Vercel Hobby may limit proxied uploads to ~**4.5 MB**. InsightLab allows **10 MB**. If uploads fail on Vercel but work via `curl` to EC2, use HTTPS API (domain / Cloudflare Tunnel) or host frontend on EC2.
 
 ---
 
-## Smoke test
+## Part 5 — Optional paths
 
-| Step | Verify |
-|------|--------|
-| `curl http://EC2-IP:8080/health` | API reachable from internet |
-| `https://your-app.vercel.app/api-backend/health` | Vercel proxy works |
-| Login on Vercel app | Dashboard loads |
-| Upload PDF | Summary appears (watch 4.5 MB Vercel limit) |
-| Ask / Quiz / Multi-doc | End-to-end works |
+### Custom domain + HTTPS API
+
+Skip the Vercel proxy. Point `api.yourdomain.com` → EC2 nginx on **443**, set:
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+CORS_ALLOW_ORIGINS=https://your-app.vercel.app
+```
+
+See [DEPLOY-EC2.md — nginx](DEPLOY-EC2.md#6-nginx-reverse-proxy).
+
+### Frontend on EC2 (no Vercel)
+
+Run Next.js on EC2 port 3000 + nginx port 80. No mixed-content issue. See discussion in team docs or host both on same IP (80 → frontend, 8080 → API).
 
 ---
 
@@ -410,35 +445,55 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 
 | Symptom | Fix |
 |---------|-----|
-| `Unable to locate package docker-compose-plugin` | Use `sudo apt install docker.io docker-compose-v2` instead |
-| `docker-compose: command not found` | Use **`docker compose`** (space). Run `docker compose version` |
-| Only redis + neo4j running, no API | You ran `docker compose up -d` — use **`-f docker-compose.ecr.yml`** with env files |
-| `python3-venv` / venv errors | **Skip venv** — ECR path does not install Python on EC2 |
-| Port 8000 already in use | `docker ps` — stop conflicting container or use port **8002** |
-| `Cannot pull image` | IAM role **AmazonEC2ContainerRegistryReadOnly**; run ECR `docker login` |
-| `push-ecr.ps1` fails on Windows | Repo missing — script creates it; ensure PowerShell fix is pulled (PR #47) |
-| API exits on start | `docker compose -f docker-compose.ecr.yml logs api` — check `backend/.env` |
-| `/ready` 503 | Redis or Neo4j unhealthy — `docker compose -f docker-compose.ecr.yml ps` |
-| CORS errors | With Vercel proxy, browser hits same origin — check proxy URL first |
-| Vercel `/api-backend/health` fails | `BACKEND_PROXY_URL` set? EC2 port **8080** open? nginx running? |
-| Upload fails on Vercel only | Vercel body limit ~4.5 MB — use HTTPS API or EC2 frontend |
-| OOM / slow first request | Use t3.medium; first FastEmbed download is slow |
+| `docker-compose-plugin` not found | `sudo apt install docker.io docker-compose-v2` |
+| `docker-compose: command not found` | Use **`docker compose`** (space) |
+| `open docker-compose.ecr.yml: no such file` | `git pull origin main` or copy file from repo |
+| Only redis + neo4j, no API | Use `-f docker-compose.ecr.yml` with env files |
+| `python3-venv` error | Skip — no Python on EC2 for ECR path |
+| Port 8000 in use | `docker ps` → stop other stacks |
+| `Cannot pull image` | IAM **AmazonEC2ContainerRegistryReadOnly** + ECR login |
+| Vercel build: vulnerable Next.js | Upgrade to **15.5.18+** |
+| Vercel shows frontend + FastAPI | Root directory = **`frontend`** only |
+| Redirect to localhost after auth | Supabase **Site URL** = Vercel URL |
+| `/api-backend/health` fails | EC2 **8080** open? nginx running? `BACKEND_PROXY_URL` correct? |
+| Upload fails on Vercel only | ~4.5 MB proxy limit |
+| `/ready` 503 | `ilab ps` — check redis/neo4j; `ilab logs api` |
 
 ---
 
 ## Command cheat sheet
 
+```bash
+# EC2 — always use ilab alias or full compose command with both env files
+ilab ps
+ilab logs -f api
+ilab pull && ilab up -d
+
+curl -s http://127.0.0.1:8000/health
+curl -s http://EC2_PUBLIC_IP:8080/health
+```
+
+```powershell
+# Windows — push new API image
+.\scripts\push-ecr.ps1
+```
+
+```text
+# Vercel — test proxy
+https://YOUR-APP.vercel.app/api-backend/health
+```
+
 | Wrong | Correct |
 |-------|---------|
 | `docker compose up -d` | `docker compose -f docker-compose.ecr.yml --env-file backend/.env --env-file .env.ecr up -d` |
-| `docker-compose up -d` | `docker compose ...` (space, not hyphen) |
-| `cd backend && python3 -m venv .venv` | Not needed on ECR path |
-| Expose port 8000 in security group | Keep 8000 on **127.0.0.1** only; use nginx on **443** |
+| Deploy backend on Vercel | Backend on EC2 only |
+| `NEXT_PUBLIC_API_URL=http://EC2-IP:8080` | `NEXT_PUBLIC_API_URL=/api-backend` + `BACKEND_PROXY_URL` |
+| Supabase Site URL = localhost | Site URL = Vercel URL |
 
 ---
 
 ## Related docs
 
 - [DEPLOY-EC2.md](DEPLOY-EC2.md) — manual venv deploy (fallback)
+- [frontend/README.md](../frontend/README.md) — local dev + Vercel env
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design
-- [backend/README.md](../backend/README.md) — API and env reference
