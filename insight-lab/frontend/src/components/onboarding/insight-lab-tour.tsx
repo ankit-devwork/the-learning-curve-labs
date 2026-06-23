@@ -42,8 +42,29 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share-members",
     title: "Manage members",
-    body: "If you are the owner, each editor or viewer has a Remove button. Use it when someone should no longer access this set.",
+    body: "Owners can change roles (viewer ↔ editor), remove members, or revoke pending invites. Members who are not owners can leave the set.",
     target: '[data-tour="share-members"]',
+    placement: "bottom",
+  },
+  {
+    id: "share-invites",
+    title: "Pending invites",
+    body: "Revoke an invite link anytime before it is accepted — useful if you sent it to the wrong email.",
+    target: '[data-tour="share-invites"]',
+    placement: "bottom",
+  },
+  {
+    id: "share-leave",
+    title: "Leave a shared set",
+    body: "Editors and viewers can leave when they no longer need access. Owners delete the set instead.",
+    target: '[data-tour="share-leave"]',
+    placement: "bottom",
+  },
+  {
+    id: "delete-set",
+    title: "Delete study set",
+    body: "Owners can permanently delete a study set from the header. You must keep at least one set on your account.",
+    target: '[data-tour="delete-set"]',
     placement: "bottom",
   },
   {

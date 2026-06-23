@@ -72,6 +72,13 @@ class CoursePackSection(BaseModel):
     generate_rate_limit_per_hour: int = 3
 
 
+class SharingSection(BaseModel):
+    invite_preview_rate_limit_per_min: int = 15
+    invite_accept_rate_limit_per_min: int = 5
+    invite_create_rate_limit_per_min: int = 10
+    member_change_rate_limit_per_min: int = 20
+
+
 class ExcelSection(BaseModel):
     analyze_rate_limit_per_min: int = 10
     chat_rate_limit_per_min: int = 20
@@ -185,6 +192,7 @@ class YamlConfig(BaseModel):
     audio_overview: AudioOverviewSection
     excel_preview: ExcelPreviewSection
     course_pack: CoursePackSection
+    sharing: SharingSection
     resilience: ResilienceSection
 
 

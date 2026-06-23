@@ -12,9 +12,12 @@ from app.services.mastery_service import get_workspace_concept_mastery, get_work
 from app.services.quiz_service import generate_workspace_adaptive_quiz
 from app.services.sharing_service import (
     create_workspace_invite,
+    leave_workspace,
     list_workspace_invites,
     list_workspace_members,
     remove_workspace_member,
+    revoke_workspace_invite,
+    update_member_role,
 )
 from app.services.workspace_service import (
     create_workspace,
@@ -42,6 +45,10 @@ class WorkspaceUpdateRequest(BaseModel):
 class WorkspaceInviteRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
     role: str = Field(default="viewer", pattern=r"^(editor|viewer)$")
+
+
+class MemberRoleUpdateRequest(BaseModel):
+    role: str = Field(..., pattern=r"^(editor|viewer)$")
 
 
 class CoursePackRequest(BaseModel):
@@ -247,7 +254,7 @@ async def create_workspace_invite_route(
     request: Request,
     user: AuthUser = Depends(get_current_user),
 ):
-    invite = create_workspace_invite(
+    invite = await create_workspace_invite(
         get_supabase_client(),
         workspace_id,
         user,
@@ -266,7 +273,7 @@ async def remove_workspace_member_route(
     request: Request,
     user: AuthUser = Depends(get_current_user),
 ):
-    remove_workspace_member(
+    await remove_workspace_member(
         get_supabase_client(),
         workspace_id,
         user,
@@ -274,3 +281,53 @@ async def remove_workspace_member_route(
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {"deleted": True, "correlation_id": correlation_id}
+
+
+@router.delete("/{workspace_id}/invites/{invite_id}")
+@with_observability("revoke_workspace_invite")
+async def revoke_workspace_invite_route(
+    workspace_id: str,
+    invite_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    await revoke_workspace_invite(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        invite_id=invite_id,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"deleted": True, "correlation_id": correlation_id}
+
+
+@router.post("/{workspace_id}/leave")
+@with_observability("leave_workspace")
+async def leave_workspace_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    await leave_workspace(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"left": True, "workspace_id": workspace_id, "correlation_id": correlation_id}
+
+
+@router.patch("/{workspace_id}/members/{member_user_id}")
+@with_observability("update_member_role")
+async def update_member_role_route(
+    workspace_id: str,
+    member_user_id: str,
+    body: MemberRoleUpdateRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    member = await update_member_role(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        member_user_id=member_user_id,
+        role=body.role,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**member, "correlation_id": correlation_id}

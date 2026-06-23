@@ -9,8 +9,68 @@ from pycorekit.exceptions.file import FileException
 from supabase import Client
 
 from app.core.auth import AuthUser
-from app.core.exceptions import NotFoundException
+from app.core.cache import check_rate_limit
+from app.core.exceptions import NotFoundException, RateLimitException
+from app.core.yaml_config import get_yaml_config
+from app.services.cache_invalidation import invalidate_user_workspace_access_caches
 from app.services.workspace_access import get_workspace_membership_role, require_workspace_role
+
+
+async def _check_member_change_rate(user_id: str) -> None:
+    cfg = get_yaml_config().sharing
+    allowed, retry_after = await check_rate_limit(
+        key=f"sharing:member_change:{user_id}",
+        limit=cfg.member_change_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Too many membership changes ({cfg.member_change_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+
+async def _check_invite_create_rate(user_id: str) -> None:
+    cfg = get_yaml_config().sharing
+    allowed, retry_after = await check_rate_limit(
+        key=f"sharing:invite_create:{user_id}",
+        limit=cfg.invite_create_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Invite limit reached ({cfg.invite_create_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+
+async def _check_invite_preview_rate(token: str) -> None:
+    cfg = get_yaml_config().sharing
+    token_key = token.strip()[:16] or "unknown"
+    allowed, retry_after = await check_rate_limit(
+        key=f"sharing:invite_preview:{token_key}",
+        limit=cfg.invite_preview_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Too many invite preview requests ({cfg.invite_preview_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+
+async def _check_invite_accept_rate(user_id: str) -> None:
+    cfg = get_yaml_config().sharing
+    allowed, retry_after = await check_rate_limit(
+        key=f"sharing:invite_accept:{user_id}",
+        limit=cfg.invite_accept_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Invite accept limit reached ({cfg.invite_accept_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
 
 
 def list_workspace_members(client: Client, workspace_id: str, user: AuthUser) -> list[dict]:
@@ -61,7 +121,7 @@ def list_workspace_invites(client: Client, workspace_id: str, user: AuthUser) ->
     )
 
 
-def create_workspace_invite(
+async def create_workspace_invite(
     client: Client,
     workspace_id: str,
     user: AuthUser,
@@ -69,6 +129,7 @@ def create_workspace_invite(
     email: str,
     role: str = "viewer",
 ) -> dict:
+    await _check_invite_create_rate(user.id)
     require_workspace_role(client, workspace_id, user, min_role="editor")
     normalized_email = email.strip().lower()
     if not normalized_email or "@" not in normalized_email:
@@ -109,25 +170,116 @@ def create_workspace_invite(
     return inserted.data[0]
 
 
-def remove_workspace_member(
+async def revoke_workspace_invite(
+    client: Client,
+    workspace_id: str,
+    user: AuthUser,
+    *,
+    invite_id: str,
+) -> None:
+    await _check_member_change_rate(user.id)
+    require_workspace_role(client, workspace_id, user, min_role="editor")
+    invite = (
+        client.table("workspace_invites")
+        .select("id, accepted_at")
+        .eq("id", invite_id)
+        .eq("workspace_id", workspace_id)
+        .limit(1)
+        .execute()
+    )
+    if not invite.data:
+        raise NotFoundException("Invite not found")
+    if invite.data[0].get("accepted_at"):
+        raise FileException("Cannot revoke an accepted invite", status_code=409)
+    client.table("workspace_invites").delete().eq("id", invite_id).eq(
+        "workspace_id", workspace_id
+    ).execute()
+
+
+async def remove_workspace_member(
     client: Client,
     workspace_id: str,
     user: AuthUser,
     *,
     member_user_id: str,
 ) -> None:
+    await _check_member_change_rate(user.id)
     require_workspace_role(client, workspace_id, user, min_role="owner")
     if member_user_id == user.id:
         raise FileException("Use leave workspace instead of removing yourself", status_code=400)
     target_role = get_workspace_membership_role(client, workspace_id, AuthUser(id=member_user_id))
     if target_role == "owner":
         raise FileException("Cannot remove the study set owner", status_code=409)
+    if target_role is None:
+        raise NotFoundException("Member not found")
     client.table("workspace_members").delete().eq("workspace_id", workspace_id).eq(
         "user_id", member_user_id
     ).execute()
+    await invalidate_user_workspace_access_caches(
+        client,
+        user_id=member_user_id,
+        workspace_id=workspace_id,
+    )
 
 
-def accept_workspace_invite(client: Client, user: AuthUser, *, token: str) -> dict:
+async def leave_workspace(
+    client: Client,
+    workspace_id: str,
+    user: AuthUser,
+) -> None:
+    await _check_member_change_rate(user.id)
+    role = require_workspace_role(client, workspace_id, user, min_role="viewer")
+    if role == "owner":
+        raise FileException("Owners cannot leave their study set — delete it or transfer ownership first", status_code=409)
+    deleted = (
+        client.table("workspace_members")
+        .delete()
+        .eq("workspace_id", workspace_id)
+        .eq("user_id", user.id)
+        .execute()
+    )
+    if not deleted.data:
+        raise NotFoundException("Membership not found")
+    await invalidate_user_workspace_access_caches(
+        client,
+        user_id=user.id,
+        workspace_id=workspace_id,
+    )
+
+
+async def update_member_role(
+    client: Client,
+    workspace_id: str,
+    user: AuthUser,
+    *,
+    member_user_id: str,
+    role: str,
+) -> dict:
+    await _check_member_change_rate(user.id)
+    require_workspace_role(client, workspace_id, user, min_role="owner")
+    if role not in {"editor", "viewer"}:
+        raise FileException("Role must be editor or viewer")
+    if member_user_id == user.id:
+        raise FileException("Cannot change your own role", status_code=400)
+    target_role = get_workspace_membership_role(client, workspace_id, AuthUser(id=member_user_id))
+    if target_role is None:
+        raise NotFoundException("Member not found")
+    if target_role == "owner":
+        raise FileException("Cannot change the owner's role", status_code=409)
+    updated = (
+        client.table("workspace_members")
+        .update({"role": role})
+        .eq("workspace_id", workspace_id)
+        .eq("user_id", member_user_id)
+        .execute()
+    )
+    if not updated.data:
+        raise FileException("Failed to update member role", status_code=500)
+    return updated.data[0]
+
+
+async def accept_workspace_invite(client: Client, user: AuthUser, *, token: str) -> dict:
+    await _check_invite_accept_rate(user.id)
     invite = (
         client.table("workspace_invites")
         .select("*")
@@ -182,7 +334,8 @@ def accept_workspace_invite(client: Client, user: AuthUser, *, token: str) -> di
     }
 
 
-def get_invite_preview(client: Client, token: str) -> dict:
+async def get_invite_preview(client: Client, token: str) -> dict:
+    await _check_invite_preview_rate(token)
     invite = (
         client.table("workspace_invites")
         .select("id, role, expires_at, accepted_at, workspace_id")

@@ -436,22 +436,33 @@ Migration: `009_phase6_sharing_quiz_edit.sql` (members, invites, quiz `published
 
 Migration: `010_security_hardening.sql` (RLS member insert fix, workspace chunks RPC lockdown).
 
-## Next up — Phase 8
+## Phase 8 (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Revoke pending invite | `DELETE /workspaces/{id}/invites/{invite_id}` (editor+) | Revoke button on pending invites |
+| Leave workspace | `POST /workspaces/{id}/leave` (non-owner) | Leave study set in share panel |
+| Delete study set UI | Existing `DELETE /workspaces/{id}` (owner, keep ≥1 set) | Delete button on set detail header |
+| Invite rate limits | Preview/accept/create/member-change limits in `config.yaml` | — |
+| Cache invalidation on remove/leave | `cache_invalidation.py` clears semantic indexes | — |
+| Role change UI | `PATCH /workspaces/{id}/members/{user_id}` (owner) | Role dropdown in share panel |
+| Deeper artifact RLS | Migration 011 member-aware SELECT/INSERT policies | — |
+
+Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guides, member role updates).
+
+## Next up — Phase 9
 
 - LMS export bundles (SCORM / Canvas)
-- Revoke pending invite UI
-- Leave workspace (member self-remove)
-- Owner-only delete study set in UI
 - Storage read policies for workspace members (optional if all reads stay backend-only)
 
 ## Security & resilience checklist
 
 | Control | Status |
 |---------|--------|
-| Supabase RLS + Storage policies (migrations 005–010) | Required in prod |
+| Supabase RLS + Storage policies (migrations 005–011) | Required in prod |
 | JWT auth on all document/quiz/excel routes | Done |
 | User-scoped cache keys (summary, chat, quiz, excel) | Done |
-| Rate limits (upload, process, chat, quiz generate/submit, excel) | Done |
+| Rate limits (upload, process, chat, quiz generate/submit, excel, sharing invites) | Done |
 | Grounded LLM prompts + excerpt marker stripping | Done |
 | Retry + circuit breaker on LLM/Storage | Done |
 | Phase 2 migration guard (graceful degradation) | Done |
