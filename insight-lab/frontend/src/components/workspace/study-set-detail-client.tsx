@@ -178,6 +178,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       <ShareWorkspacePanel
         setId={setId}
         canManage={canEdit}
+        isOwner={workspace.access_role === "owner" || Boolean(workspace.is_owner)}
       />
 
       {canEdit ? (
