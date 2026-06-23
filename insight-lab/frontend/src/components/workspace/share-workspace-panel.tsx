@@ -156,7 +156,7 @@ export function ShareWorkspacePanel({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
+        <div data-tour="share-members">
           <p className="mb-2 text-sm font-medium">Members</p>
           <ul className="space-y-2 text-sm">
             {members.map((member) => (
@@ -210,7 +210,7 @@ export function ShareWorkspacePanel({
               </div>
             ) : null}
 
-            <form onSubmit={handleInvite} className="space-y-3">
+            <form onSubmit={handleInvite} className="space-y-3" data-tour="share-invite">
               <div className="space-y-2">
                 <Label htmlFor="invite-email">Email</Label>
                 <Input

@@ -34,9 +34,23 @@ const SETS_TOUR: TourStep[] = [
 const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share",
-    title: "Share with teammates",
-    body: "Editors and owners can invite collaborators. Owners can remove members who no longer need access.",
+    title: "Share this study set",
+    body: "Open the share panel to invite classmates. Editors and owners can send invite links; viewers can see who has access.",
     target: '[data-tour="share-panel"]',
+    placement: "bottom",
+  },
+  {
+    id: "share-members",
+    title: "Manage members",
+    body: "If you are the owner, each editor or viewer has a Remove button. Use it when someone should no longer access this set.",
+    target: '[data-tour="share-members"]',
+    placement: "bottom",
+  },
+  {
+    id: "share-invite",
+    title: "Invite by email",
+    body: "Choose viewer (study only) or editor (upload + generate), then copy the invite link to send to a classmate.",
+    target: '[data-tour="share-invite"]',
     placement: "bottom",
   },
   {
