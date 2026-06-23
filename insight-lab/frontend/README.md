@@ -75,7 +75,15 @@ Or call the API directly: `NEXT_PUBLIC_API_URL=http://localhost:8000`
 | `/login` | Email + Google sign in |
 | `/signup` | Email + Google sign up |
 | `/auth/callback` | OAuth / email confirm callback |
-| `/dashboard` | Protected home (requires login) |
+| `/invite/[token]` | Accept workspace invite |
+| `/dashboard` | Redirects to `/dashboard/sets` |
+| `/dashboard/sets` | Notebook gallery |
+| `/dashboard/sets/[setId]` | Study set home — upload, course pack, share |
+| `/dashboard/sets/[setId]/documents/[docId]` | Document notebook workspace |
+| `/dashboard/sets/[setId]/excel/[docId]` | Excel notebook workspace |
+| `/dashboard/compare` | Multi-document chat (documents only) |
+
+Workspace pages support hash tab links (e.g. `#brief`, `#quiz`, `#charts`).
 
 ## Stack
 

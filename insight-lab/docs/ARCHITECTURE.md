@@ -146,13 +146,41 @@ flowchart TB
 
 | Route | Purpose |
 |-------|---------|
-| `/login`, `/signup` | Supabase Auth |
-| `/dashboard` | Recent uploads and actions |
-| `/workspace/[id]/upload` | File upload |
-| `/workspace/[id]/excel/[docId]` | Charts and insights |
-| `/workspace/[id]/document/[docId]` | Summary, chat, quiz |
-| `/workspace/[id]/graph` | Neo4j concept map |
-| `/settings` | Profile |
+| `/login`, `/signup` | Supabase Auth (email + Google) |
+| `/auth/callback` | OAuth / email confirm callback |
+| `/invite/[token]` | Accept workspace invite |
+| `/dashboard` | Redirects to `/dashboard/sets` |
+| `/dashboard/sets` | Notebook gallery — create and open study sets |
+| `/dashboard/sets/[setId]` | Set home — upload, sources strip, course pack, share, compare link |
+| `/dashboard/sets/[setId]/documents/[docId]` | **Document notebook** — sources rail, chat, Studio tabs |
+| `/dashboard/sets/[setId]/excel/[docId]` | **Excel notebook** — sources rail, chat, spreadsheet tabs |
+| `/dashboard/compare` | Multi-document chat (PDF/Word only; Excel opens spreadsheet canvas) |
+| `/dashboard/documents/[id]`, `/dashboard/excel/[id]` | Legacy redirects → set-scoped workspace URLs |
+
+Hash fragments on workspace pages deep-link tabs (e.g. `#brief`, `#quiz`, `#charts`, `#builder`).
+
+### 5.1 Notebook workspace layout
+
+Document and Excel canvases share the same three-column **NotebookLM-style** shell:
+
+```mermaid
+flowchart LR
+  subgraph notebook [Notebook workspace]
+    direction LR
+    Sources[Sources rail]
+    Main[Chat + NotebookTabs]
+    Tools[Sticky tools panel]
+    Sources --- Main --- Tools
+  end
+```
+
+| Column | Document workspace | Excel workspace |
+|--------|-------------------|-----------------|
+| Left | `SourcesRail` — files in the study set | Same |
+| Center | Chat first, then tabs: Brief, Quiz, Flashcards, Study guide, Audio, Topics | Chat first, then tabs: Insights, Preview, Charts, Builder |
+| Right | `StudioPanel` — generate quiz, flashcards, study guide, audio, graph | `ExcelToolsPanel` — Ask shortcuts, stats, re-analyze |
+
+Compare (`/dashboard/compare`) lists **document** files only; Excel files open via the Excel notebook route above.
 
 ## 6. Auth flow
 

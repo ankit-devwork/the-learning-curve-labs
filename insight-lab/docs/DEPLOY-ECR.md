@@ -43,12 +43,32 @@ Supabase (hosted) ◄── Auth + DB + Storage
 
 | Task | Where |
 |------|-------|
-| Run Supabase migrations **001–007** | Supabase SQL Editor |
+| Run Supabase migrations **001–011** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
 | Create Supabase project keys | Settings → API |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 | AWS CLI configured | `aws configure` on Windows |
 | Docker Desktop | Windows (build/push image) |
 | EC2 Ubuntu instance | t3.medium recommended, 20–30 GB disk |
+
+### Supabase migrations (001–011)
+
+Run in order in the Supabase SQL Editor (or `supabase db push`):
+
+| # | File | Required for |
+|---|------|--------------|
+| 001 | `001_initial.sql` | Core schema, workspaces, documents |
+| 002 | `002_document_chunks.sql` | Summary + chat chunks |
+| 003 | `003_pgvector_embeddings.sql` | Semantic RAG |
+| 004 | `004_excel_charts.sql` | Excel analysis |
+| 005 | `005_rls_policies.sql` | Table RLS |
+| 006 | `006_storage_and_rpc_security.sql` | Storage + RPC lockdown |
+| 007 | `007_phase2_graph_mastery_multi_doc.sql` | Graph, mastery, multi-doc |
+| 008 | `008_phase3_4_study_features.sql` | Flashcards, study guides |
+| 009 | `009_phase6_sharing_quiz_edit.sql` | Sharing, invites, quiz publish |
+| 010 | `010_security_hardening.sql` | RLS fixes, editor checks |
+| 011 | `011_phase8_member_rls.sql` | Member-aware artifact RLS |
+
+Also create a private Storage bucket named **`uploads`**.
 
 ---
 
@@ -92,10 +112,12 @@ Use this order — matches a real pilot deploy.
 
 ### Phase E — Smoke test
 
-- [ ] **E1.** Upload PDF → opens document page → summary
-- [ ] **E2.** Ask a question → answer with sources
-- [ ] **E3.** Generate quiz → submit
-- [ ] **E4.** Multi-doc chat with 2+ files
+- [ ] **E1.** Create or open a study set → upload PDF → opens **document notebook** → Brief tab shows summary
+- [ ] **E2.** Ask a question in chat → answer with citations / **Based on** filename
+- [ ] **E3.** Studio → Generate quiz → submit → score
+- [ ] **E4.** Compare: select 2+ **document** files → multi-doc answer
+- [ ] **E5.** Upload Excel → opens **Excel notebook** → Insights, Preview, and Charts tabs after analysis
+- [ ] **E6.** (Optional) Share study set → invite link → second user can view sources
 
 ---
 
