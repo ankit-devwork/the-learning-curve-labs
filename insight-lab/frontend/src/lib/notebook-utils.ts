@@ -26,6 +26,8 @@ export function documentHref(setId: string, doc: Pick<DocumentSummary, "id" | "f
 
 export type StudioTab = "brief" | "quiz" | "flashcards" | "guide" | "audio" | "graph";
 
+export type ExcelCanvasTab = "brief" | "preview" | "charts" | "builder";
+
 export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   brief: "Brief",
   quiz: "Quiz",
@@ -33,4 +35,11 @@ export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   guide: "Study guide",
   audio: "Audio",
   graph: "Topics",
+};
+
+export const EXCEL_TAB_LABELS: Record<ExcelCanvasTab, string> = {
+  brief: "Insights",
+  preview: "Preview",
+  charts: "Charts",
+  builder: "Builder",
 };

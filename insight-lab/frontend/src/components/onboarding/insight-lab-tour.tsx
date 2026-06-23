@@ -131,10 +131,17 @@ const DOCUMENT_TOUR: TourStep[] = [
 const EXCEL_TOUR: TourStep[] = [
   {
     id: "excel-canvas",
-    title: "Excel canvas",
-    body: "Preview data and charts on the left, chat on the right. Ask questions in plain English about your spreadsheet.",
+    title: "Excel notebook",
+    body: "Same layout as document sources: chat first, then Insights, Preview, Charts, and Builder tabs below.",
     target: '[data-tour="excel-canvas"]',
     placement: "center",
+  },
+  {
+    id: "excel-tools",
+    title: "Spreadsheet tools",
+    body: "Use the sticky panel for quick stats, re-analyze, and a shortcut back to chat.",
+    target: '[data-tour="excel-tools"]',
+    placement: "left",
   },
   {
     id: "excel-export",
