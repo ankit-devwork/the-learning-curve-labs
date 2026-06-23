@@ -165,9 +165,9 @@ export function DocumentQuizPanel({
   const canPracticeWeakAreas = hasWeakConcepts(mastery);
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
-        <CardTitle>Quiz</CardTitle>
+        <CardTitle className="text-lg">Quiz</CardTitle>
         <CardDescription>
           Check your understanding — questions are generated from this document&apos;s content.
         </CardDescription>

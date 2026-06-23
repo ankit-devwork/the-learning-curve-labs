@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FileSpreadsheet, FileText, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -13,15 +14,21 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FeatureGuide } from "@/components/ui/feature-guide";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-function statusLabel(status: string): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
+function FileTypeIcon({ fileType }: { fileType: string }) {
+  const isExcel = fileType === "excel";
+  const Icon = isExcel ? FileSpreadsheet : FileText;
+  return (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <Icon className="h-5 w-5" aria-hidden />
+    </span>
+  );
 }
 
 export function FileUploadCard() {
@@ -149,24 +156,15 @@ export function FileUploadCard() {
     : "Loading upload settings...";
 
   return (
-    <div className="space-y-4">
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>Your files</CardTitle>
+    <div className="space-y-6">
+    <Card className="shadow-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl">Your files</CardTitle>
         <CardDescription>
-          {description}. After upload, open a file to explore it — processing usually takes a
-          minute.
+          {description}. Processing usually takes about a minute after upload.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <FeatureGuide
-          title="File types"
-          steps={[
-            "PDF, TXT, DOCX — summary, ask questions, and take a quiz on the document page.",
-            "XLSX, XLS, CSV — auto charts, insights, and spreadsheet Q&A on the excel page.",
-            "Status Pending means still processing; Ready means you can open and use the file.",
-          ]}
-        />
+      <CardContent className="space-y-5">
         <div className="flex flex-wrap items-center gap-3">
           <input
             ref={inputRef}
@@ -180,51 +178,68 @@ export function FileUploadCard() {
             type="button"
             disabled={uploading || !uploadConfig}
             onClick={() => inputRef.current?.click()}
+            className="gap-2"
           >
-            {uploading ? "Uploading..." : "Choose file"}
+            <Upload className="h-4 w-4" aria-hidden />
+            {uploading ? "Uploading..." : "Upload file"}
           </Button>
           <Button type="button" variant="outline" disabled={loading} onClick={() => loadDocuments()}>
             Refresh
           </Button>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
+        {error && (
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+            {success}
+          </p>
+        )}
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading your files...</p>
         ) : documents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No uploads yet. Choose a file above to get started — try a PDF lecture note or a CSV
-            dataset.
-          </p>
+          <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-10 text-center">
+            <Upload className="mx-auto h-8 w-8 text-muted-foreground/60" aria-hidden />
+            <p className="mt-3 font-medium">No files yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Upload a PDF lecture note, Word doc, or spreadsheet to get started.
+            </p>
+          </div>
         ) : (
-          <ul className="divide-y rounded-md border">
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
             {documents.map((doc) => (
-              <li key={doc.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                <div>
-                  {doc.file_type === "document" ? (
-                    <Link
-                      href={`/dashboard/documents/${doc.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {doc.filename}
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/dashboard/excel/${doc.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {doc.filename}
-                    </Link>
-                  )}
-                  <p className="text-muted-foreground">
-                    {doc.file_type} · {formatDate(doc.created_at)}
-                  </p>
+              <li
+                key={doc.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileTypeIcon fileType={doc.file_type} />
+                  <div className="min-w-0">
+                    {doc.file_type === "document" ? (
+                      <Link
+                        href={`/dashboard/documents/${doc.id}`}
+                        className="truncate font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {doc.filename}
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/dashboard/excel/${doc.id}`}
+                        className="truncate font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {doc.filename}
+                      </Link>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {doc.file_type} · {formatDate(doc.created_at)}
+                    </p>
+                  </div>
                 </div>
-                <span className="rounded-full bg-muted px-2 py-1 text-xs capitalize">
-                  {statusLabel(doc.status)}
-                </span>
+                <StatusBadge status={doc.status} />
               </li>
             ))}
           </ul>

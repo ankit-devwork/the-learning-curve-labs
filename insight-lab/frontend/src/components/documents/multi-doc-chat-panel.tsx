@@ -196,9 +196,9 @@ export function MultiDocChatPanel({ documents }: { documents: DocumentSummary[] 
   }
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
-        <CardTitle>Compare documents</CardTitle>
+        <CardTitle className="text-lg">Compare documents</CardTitle>
         <CardDescription>
           Ask one question across multiple files — useful for comparing readings or lecture notes.
         </CardDescription>
