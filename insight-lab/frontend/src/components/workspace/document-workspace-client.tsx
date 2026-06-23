@@ -462,7 +462,7 @@ export function DocumentWorkspaceClient({
           </div>
         </section>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
           <StudioPanel
             ready={ready}
             busy={studioBusy}
