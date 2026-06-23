@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DocumentDetailClient } from "@/components/documents/document-detail-client";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default async function DocumentDetailPage({
   params,
@@ -18,10 +19,8 @@ export default async function DocumentDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-muted/40">
-      <main className="mx-auto max-w-6xl p-4 py-6">
-        <DocumentDetailClient documentId={id} />
-      </main>
-    </div>
+    <AppShell userEmail={user.email} wide>
+      <DocumentDetailClient documentId={id} />
+    </AppShell>
   );
 }

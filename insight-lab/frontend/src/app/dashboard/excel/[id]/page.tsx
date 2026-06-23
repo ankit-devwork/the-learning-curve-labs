@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { ExcelDetailClient } from "@/components/excel/excel-detail-client";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default async function ExcelDetailPage({
   params,
@@ -6,9 +9,18 @@ export default async function ExcelDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   return (
-    <main className="container mx-auto max-w-4xl px-4 py-8">
+    <AppShell userEmail={user.email} wide>
       <ExcelDetailClient documentId={id} />
-    </main>
+    </AppShell>
   );
 }

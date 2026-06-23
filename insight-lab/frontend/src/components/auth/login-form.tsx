@@ -46,10 +46,10 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Welcome to InsightLab</CardTitle>
-        <CardDescription>Sign in to analyze documents and data</CardDescription>
+    <Card className="border-border/80 shadow-lg">
+      <CardHeader className="space-y-1 text-center">
+        <CardTitle className="text-2xl">Sign in</CardTitle>
+        <CardDescription>Use your account to access your workspace</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <GoogleSignInButton />
