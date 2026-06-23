@@ -87,11 +87,11 @@ npm run dev
 
 See [frontend/README.md](frontend/README.md) for Google OAuth setup in Supabase.
 
-## Deploy (ECR + EC2 pilot)
+## Deploy (ECR + EC2 + Vercel pilot)
 
-**Recommended:** build the API Docker image locally, push to **Amazon ECR**, run on EC2 with `docker compose -f docker-compose.ecr.yml`. Frontend on **Vercel**, Supabase hosted. **No Python or venv needed on EC2.**
+**Recommended (no domain):** API on EC2 via ECR → frontend on Vercel → proxy via `/api-backend`.
 
-See **[docs/DEPLOY-ECR.md](docs/DEPLOY-ECR.md)** for SSH, build/push scripts, Docker install, and troubleshooting.
+See **[docs/DEPLOY-ECR.md](docs/DEPLOY-ECR.md)** for the full step-by-step checklist (EC2, nginx :8080, Vercel env, Supabase Auth).
 
 Fallback (git clone + uvicorn on host): [docs/DEPLOY-EC2.md](docs/DEPLOY-EC2.md).
 
