@@ -1,4 +1,4 @@
-export const ONBOARDING_VERSION = "phase7-remove-member-v1";
+export const ONBOARDING_VERSION = "phase8-sharing-lifecycle-v1";
 export const ONBOARDING_STORAGE_KEY = "insightlab_onboarding_done";
 
 export function isOnboardingComplete(): boolean {

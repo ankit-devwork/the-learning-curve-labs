@@ -30,6 +30,10 @@ async def cache_delete(key: str) -> None:
         await _unified_redis.delete_pattern(_prefix(key))
 
 
+async def cache_delete_pattern(pattern: str) -> int:
+    return await cache_service.delete_pattern(_prefix(pattern))
+
+
 async def _incr(key: str, ttl: int) -> int:
     full_key = _prefix(key)
     if _unified_redis.use_upstash:

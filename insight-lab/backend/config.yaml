@@ -57,6 +57,12 @@ cache:
 course_pack:
   generate_rate_limit_per_hour: 3
 
+sharing:
+  invite_preview_rate_limit_per_min: 15
+  invite_accept_rate_limit_per_min: 5
+  invite_create_rate_limit_per_min: 10
+  member_change_rate_limit_per_min: 20
+
 documents:
   chunk_size: 1200
   chunk_overlap: 200

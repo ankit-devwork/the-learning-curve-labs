@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ export function ShareWorkspacePanel({
   canManage: boolean;
   isOwner?: boolean;
 }) {
+  const router = useRouter();
   const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -45,7 +47,13 @@ export function ShareWorkspacePanel({
   const [loading, setLoading] = useState(true);
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+  const [updatingRoleMemberId, setUpdatingRoleMemberId] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const currentMember = members.find((member) => member.user_id === currentUserId);
+  const canLeave = Boolean(currentMember && currentMember.role !== "owner");
 
   const loadAll = useCallback(async () => {
     const supabase = createClient();
@@ -92,7 +100,7 @@ export function ShareWorkspacePanel({
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      toast({ title: "Invite failed", description: body.error, variant: "error" });
+      toast({ title: "Invite failed", description: body.error || body.detail, variant: "error" });
       return;
     }
     const data = await response.json();
@@ -143,6 +151,126 @@ export function ShareWorkspacePanel({
     }
   }
 
+  async function handleRoleChange(member: Member, nextRole: "viewer" | "editor") {
+    if (!isOwner || member.role === "owner" || member.role === nextRole) {
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+
+    setUpdatingRoleMemberId(member.user_id);
+    try {
+      const response = await apiFetch(
+        `/workspaces/${setId}/members/${member.user_id}`,
+        session.access_token,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: nextRole }),
+        },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({
+          title: "Could not update role",
+          description: body.error || body.detail,
+          variant: "error",
+        });
+        return;
+      }
+      toast({ title: "Role updated", variant: "success" });
+      await loadAll();
+    } finally {
+      setUpdatingRoleMemberId(null);
+    }
+  }
+
+  async function handleRevokeInvite(invite: Invite) {
+    if (!canManage) {
+      return;
+    }
+    if (!window.confirm(`Revoke the invite for ${invite.email}? The link will stop working.`)) {
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+
+    setRevokingInviteId(invite.id);
+    try {
+      const response = await apiFetch(
+        `/workspaces/${setId}/invites/${invite.id}`,
+        session.access_token,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({
+          title: "Could not revoke invite",
+          description: body.error || body.detail,
+          variant: "error",
+        });
+        return;
+      }
+      toast({ title: "Invite revoked", variant: "success" });
+      await loadAll();
+    } finally {
+      setRevokingInviteId(null);
+    }
+  }
+
+  async function handleLeaveWorkspace() {
+    if (!canLeave) {
+      return;
+    }
+    if (
+      !window.confirm(
+        "Leave this study set? You will lose access to its files and shared progress.",
+      )
+    ) {
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+
+    setLeaving(true);
+    try {
+      const response = await apiFetch(`/workspaces/${setId}/leave`, session.access_token, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({
+          title: "Could not leave study set",
+          description: body.error || body.detail,
+          variant: "error",
+        });
+        return;
+      }
+      toast({ title: "Left study set", variant: "success" });
+      router.push("/dashboard/sets");
+    } finally {
+      setLeaving(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading sharing settings…</p>;
   }
@@ -171,7 +299,22 @@ export function ShareWorkspacePanel({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs capitalize text-muted-foreground">{member.role}</span>
+                  {isOwner && member.role !== "owner" && member.user_id !== currentUserId ? (
+                    <select
+                      className={cn(selectClassName, "h-8 w-auto min-w-[6.5rem] text-xs capitalize")}
+                      value={member.role}
+                      disabled={updatingRoleMemberId === member.user_id}
+                      onChange={(event) =>
+                        void handleRoleChange(member, event.target.value as "viewer" | "editor")
+                      }
+                      aria-label={`Role for ${member.email || member.full_name || "member"}`}
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="editor">Editor</option>
+                    </select>
+                  ) : (
+                    <span className="text-xs capitalize text-muted-foreground">{member.role}</span>
+                  )}
                   {isOwner && member.role !== "owner" && member.user_id !== currentUserId ? (
                     <Button
                       type="button"
@@ -190,20 +333,50 @@ export function ShareWorkspacePanel({
           </ul>
           {isOwner ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              As owner, you can remove editors and viewers. You cannot remove yourself here.
+              As owner, you can change roles or remove editors and viewers.
             </p>
           ) : null}
         </div>
 
+        {canLeave ? (
+          <div data-tour="share-leave">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              disabled={leaving}
+              onClick={() => void handleLeaveWorkspace()}
+            >
+              {leaving ? "Leaving…" : "Leave study set"}
+            </Button>
+          </div>
+        ) : null}
+
         {canManage ? (
           <>
             {invites.length > 0 ? (
-              <div>
+              <div data-tour="share-invites">
                 <p className="mb-2 text-sm font-medium">Pending invites</p>
-                <ul className="space-y-1 text-xs text-muted-foreground">
+                <ul className="space-y-2 text-sm">
                   {invites.map((invite) => (
-                    <li key={invite.id}>
-                      {invite.email} · {invite.role}
+                    <li
+                      key={invite.id}
+                      className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                    >
+                      <span className="min-w-0 truncate text-muted-foreground">
+                        {invite.email} · {invite.role}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 shrink-0 text-destructive hover:text-destructive"
+                        disabled={revokingInviteId === invite.id}
+                        onClick={() => void handleRevokeInvite(invite)}
+                      >
+                        {revokingInviteId === invite.id ? "Revoking…" : "Revoke"}
+                      </Button>
                     </li>
                   ))}
                 </ul>

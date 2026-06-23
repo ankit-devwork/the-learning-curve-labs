@@ -14,7 +14,7 @@ router = APIRouter(prefix="/invites", tags=["invites"])
 @router.get("/{token}")
 @with_observability("get_invite_preview")
 async def get_invite_preview_route(token: str, request: Request):
-    result = get_invite_preview(get_supabase_client(), token)
+    result = await get_invite_preview(get_supabase_client(), token)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
 
@@ -26,6 +26,6 @@ async def accept_workspace_invite_route(
     request: Request,
     user: AuthUser = Depends(get_current_user),
 ):
-    result = accept_workspace_invite(get_supabase_client(), user, token=token)
+    result = await accept_workspace_invite(get_supabase_client(), user, token=token)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}

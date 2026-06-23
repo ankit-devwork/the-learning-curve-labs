@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -33,6 +34,7 @@ function FileTypeIcon({ fileType }: { fileType: string }) {
 }
 
 export function StudySetDetailClient({ setId }: { setId: string }) {
+  const router = useRouter();
   const { toast } = useToast();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -42,6 +44,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadAll = useCallback(async () => {
     setError(null);
@@ -138,6 +141,47 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     }
   }
 
+  async function handleDeleteStudySet() {
+    if (!workspace?.is_owner && workspace?.access_role !== "owner") {
+      return;
+    }
+    if (
+      !window.confirm(
+        `Delete "${workspace?.name}" permanently? All files, quizzes, and sharing settings will be removed.`,
+      )
+    ) {
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await apiFetch(`/workspaces/${setId}`, session.access_token, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({
+          title: "Could not delete study set",
+          description: body.error || body.detail,
+          variant: "error",
+        });
+        return;
+      }
+      toast({ title: "Study set deleted", variant: "success" });
+      router.push("/dashboard/sets");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading study set…</p>;
   }
@@ -147,6 +191,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   }
 
   const canEdit = canEditWorkspace(workspace.access_role);
+  const isOwner = workspace.access_role === "owner" || Boolean(workspace.is_owner);
 
   return (
     <div className="space-y-6">
@@ -166,9 +211,23 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
             <p className="mt-1 max-w-2xl text-muted-foreground">{workspace.description}</p>
           ) : null}
         </div>
-        <Button type="button" variant="outline" onClick={() => void loadAll()}>
-          Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isOwner ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              data-tour="delete-set"
+              onClick={() => void handleDeleteStudySet()}
+            >
+              {deleting ? "Deleting…" : "Delete study set"}
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" onClick={() => void loadAll()}>
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
@@ -178,7 +237,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       <ShareWorkspacePanel
         setId={setId}
         canManage={canEdit}
-        isOwner={workspace.access_role === "owner" || Boolean(workspace.is_owner)}
+        isOwner={isOwner}
       />
 
       {canEdit ? (
