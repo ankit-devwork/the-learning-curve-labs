@@ -21,7 +21,7 @@ Part of [The Learning Curve Labs](https://github.com/ankit-devwork/the-learning-
 | Auth & data | Supabase (Auth, Postgres, Storage, pgvector) |
 | Knowledge graph | Neo4j |
 | Cache & resilience | Redis / Upstash (cache, rate limit, retry) |
-| Backend | FastAPI, LangGraph, LiteLLM |
+| Backend | FastAPI, LiteLLM (service-layer orchestration) |
 | Observability | pycorekit, Langfuse |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design. For production, see [docs/DEPLOY-ECR.md](docs/DEPLOY-ECR.md) (recommended) or [docs/DEPLOY-EC2.md](docs/DEPLOY-EC2.md) (manual venv).
@@ -31,7 +31,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design. For
 ```text
 insight-lab/
 ├── frontend/          # Next.js app (auth, dashboard, UI)
-├── backend/           # FastAPI + LangGraph agents
+├── backend/           # FastAPI services + LiteLLM
 ├── supabase/          # SQL migrations and RLS policies
 ├── docs/              # Architecture and runbooks
 └── docker-compose.yml # Local Neo4j + Redis

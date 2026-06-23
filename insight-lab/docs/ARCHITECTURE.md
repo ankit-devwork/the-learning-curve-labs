@@ -58,12 +58,13 @@ flowchart TB
     CacheLayer[Cache Layer]
     RetryLayer[Retry + Exponential Backoff]
 
-    subgraph agents [LangGraph Agents]
-      FileRouter[File Type Router]
-      ExcelAgent[Excel Analyzer]
-      DocAgent[Doc Summary + Chat]
-      QuizAgent[Quiz Generator]
-      GraphSync[Concept Extractor]
+    subgraph services [Application services]
+      UploadSvc[Upload + validation]
+      DocSvc[Document process / RAG / ask]
+      ExcelSvc[Excel analyze / ask / charts]
+      QuizSvc[Quiz generate / score / adaptive]
+      GraphSvc[Concept extract + Neo4j sync]
+      PackSvc[Course pack orchestration]
     end
   end
 
@@ -76,14 +77,33 @@ flowchart TB
 
   NextJS --> Auth
   NextJS --> Gateway
-  Gateway --> AuthMW --> RL --> CacheLayer --> RetryLayer --> agents
+  Gateway --> AuthMW --> RL --> CacheLayer --> RetryLayer --> services
   CacheLayer --> Redis
   RL --> Redis
   RetryLayer --> LiteLLM
-  agents --> PG
-  agents --> Neo4j
+  services --> PG
+  services --> Neo4j
   Gateway --> PyCore
 ```
+
+**Note:** AI workflows are implemented as **async Python services** (`app/services/*`) calling **LiteLLM** directly — not LangGraph graphs. See [§2.1 AI orchestration](#21-ai-orchestration).
+
+### 2.1 AI orchestration
+
+InsightLab does **not** currently use [LangGraph](https://github.com/langchain-ai/langgraph). Early docs planned LangGraph agents under `app/agents/`; that folder is still a placeholder.
+
+| Pipeline | Service module | How it runs |
+|----------|----------------|-------------|
+| Document ingest | `document_service.py` | Parse → chunk → embed (fastembed) → summarize → optional Neo4j sync |
+| RAG chat | `document_service.py`, `multi_doc_service.py` | pgvector retrieval → LiteLLM answer with citations |
+| Excel analysis | `excel_service.py`, `excel_charts.py` | pandas profile → LLM chart plan → render series |
+| Quiz | `quiz_service.py`, `llm_client.py` | Retrieve chunks → LLM JSON quiz → validate → store |
+| Course pack | `course_pack_service.py` | Sequential calls to summary, quiz, flashcards, study guide, audio services |
+| Semantic cache | `semantic_cache.py` | Embedding similarity before LLM (not a graph) |
+
+Orchestration is **imperative** (functions calling functions), with **pycorekit** for cache, rate limits, retry, and circuit breaker on LLM calls.
+
+**LangGraph in this monorepo:** the [genai-doc-assistant-capstone](../genai-doc-assistant-capstone/) project uses `StateGraph` in `app/core/agent_graph.py`. InsightLab may adopt LangGraph later for multi-step agent flows (e.g. HITL quiz review loops); it is not a runtime dependency today.
 
 ## 3. Data ownership
 
@@ -284,7 +304,7 @@ Local dev: `docker compose` for Redis + Neo4j; hosted Supabase project.
 | Graph | Neo4j |
 | Cache | Upstash (prod), Redis (local) |
 | LLM gateway | LiteLLM |
-| Backend | FastAPI + LangGraph |
+| Backend | FastAPI + service layer + LiteLLM |
 | Observability | **pycorekit** (logging, tracing, exceptions) |
 
 ## 11. Backend JWT auth (implemented — Step 1.5)
