@@ -17,6 +17,10 @@ import { Input } from "@/components/ui/input";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
 import { SourceCitations } from "@/components/documents/source-citations";
 import { cn } from "@/lib/utils";
+import {
+  DocumentDetailSkeleton,
+  ProcessingContentSkeleton,
+} from "@/components/ui/loading-skeletons";
 import type { SourceCitation } from "@/lib/api";
 
 type DetailPanel = "quiz" | "ask";
@@ -179,7 +183,7 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading document...</p>;
+    return <DocumentDetailSkeleton />;
   }
 
   if (!document) {
@@ -289,7 +293,7 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {processing && <p className="text-sm text-muted-foreground">Processing document...</p>}
+          {processing && <ProcessingContentSkeleton lines={6} />}
           {!processing && summary && (
             <div className="max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
               {summary}

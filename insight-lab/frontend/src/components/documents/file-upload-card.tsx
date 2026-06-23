@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
+import { FileListSkeleton } from "@/components/ui/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -153,7 +155,7 @@ export function FileUploadCard() {
 
   const description = uploadConfig
     ? `Allowed: ${uploadConfig.allowed_extensions.join(", ")} — up to ${uploadConfig.max_mb} MB`
-    : "Loading upload settings...";
+    : null;
 
   return (
     <div className="space-y-6">
@@ -161,7 +163,15 @@ export function FileUploadCard() {
       <CardHeader className="pb-4">
         <CardTitle className="text-xl">Your files</CardTitle>
         <CardDescription>
-          {description}. Processing usually takes about a minute after upload.
+          {description ? (
+            <>
+              {description}. Processing usually takes about a minute after upload.
+            </>
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <Skeleton className="inline-block h-4 w-48" />
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -179,6 +189,7 @@ export function FileUploadCard() {
             disabled={uploading || !uploadConfig}
             onClick={() => inputRef.current?.click()}
             className="gap-2"
+            data-tour="upload-btn"
           >
             <Upload className="h-4 w-4" aria-hidden />
             {uploading ? "Uploading..." : "Upload file"}
@@ -200,9 +211,14 @@ export function FileUploadCard() {
         )}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading your files...</p>
+          <div data-tour="file-list">
+            <FileListSkeleton />
+          </div>
         ) : documents.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-10 text-center">
+          <div
+            className="rounded-xl border border-dashed bg-muted/30 px-6 py-10 text-center"
+            data-tour="file-list"
+          >
             <Upload className="mx-auto h-8 w-8 text-muted-foreground/60" aria-hidden />
             <p className="mt-3 font-medium">No files yet</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -210,7 +226,10 @@ export function FileUploadCard() {
             </p>
           </div>
         ) : (
-          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
+          <ul
+            className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm"
+            data-tour="file-list"
+          >
             {documents.map((doc) => (
               <li
                 key={doc.id}
