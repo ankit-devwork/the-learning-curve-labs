@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiFetch, type ExcelAnalysisResponse, type ExcelAskResponse, type ExcelChart } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
 import { ExcelChartView } from "@/components/excel/excel-chart-view";
 import { ExcelChartBuilder } from "@/components/excel/excel-chart-builder";
@@ -197,12 +198,23 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {analyzing && <p className="text-sm text-muted-foreground">Analyzing spreadsheet...</p>}
 
+      {status === "ready" && (
+        <FeatureGuide
+          title="What you can do here"
+          steps={[
+            "Read Insights for a narrative summary of trends and outliers in your data.",
+            "Browse suggested charts below — use Build custom chart to pick columns yourself.",
+            "Use Ask this spreadsheet to query the data in plain English (e.g. highest sales by region).",
+          ]}
+        />
+      )}
+
       {analysis?.summary && (
         <Card>
           <CardHeader>
             <CardTitle>Insights</CardTitle>
             <CardDescription>
-              LLM narrative {analysis.cached ? "(cached)" : ""}
+              AI summary of patterns in your data {analysis.cached ? "(cached)" : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -216,7 +228,8 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
           <CardHeader>
             <CardTitle>Ask this spreadsheet</CardTitle>
             <CardDescription>
-              Answers use column profile, analysis summary, and chart data from your upload
+              Questions use your column names, chart data, and the insights summary — not raw row
+              dumps.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -224,7 +237,7 @@ export function ExcelDetailClient({ documentId }: { documentId: string }) {
               <Input
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Ask a question about this data..."
+                placeholder="e.g. Which month had the highest revenue?"
                 disabled={asking}
               />
               <Button type="submit" disabled={asking}>

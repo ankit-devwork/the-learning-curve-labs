@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureGuide } from "@/components/ui/feature-guide";
 import { Input } from "@/components/ui/input";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
 import { SourceCitations } from "@/components/documents/source-citations";
@@ -251,10 +252,33 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
         <p className="text-sm text-destructive">{document.error_message}</p>
       )}
 
+      {document.status === "ready" && (
+        <FeatureGuide
+          title="What you can do here"
+          steps={[
+            "Read the Summary for a quick overview of the document.",
+            "Use Ask (right panel) to type questions — answers cite which file they came from.",
+            "Use Quiz (left panel) to generate questions, submit answers, and track weak topics.",
+          ]}
+        />
+      )}
+
+      {document.status !== "ready" && !processing && (
+        <FeatureGuide
+          title="Processing"
+          steps={[
+            "We extract text, build search embeddings, and generate a summary — this runs automatically.",
+            "When status shows Ready, refresh if needed and the summary, Ask, and Quiz panels will unlock.",
+          ]}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Summary</CardTitle>
-          <CardDescription>Overview of this document</CardDescription>
+          <CardDescription>
+            AI-generated overview — read this first before asking questions or taking a quiz.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {processing && <p className="text-sm text-muted-foreground">Processing document...</p>}
@@ -314,7 +338,8 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
               <CardHeader>
                 <CardTitle>Ask this document</CardTitle>
                 <CardDescription>
-                  Ask a question and get an answer grounded in this file.
+                  Type a question in plain English. The answer is based on this file only — sources
+                  appear below each reply.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -322,7 +347,7 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
                   <Input
                     value={question}
                     onChange={(event) => setQuestion(event.target.value)}
-                    placeholder="Ask a question..."
+                    placeholder="e.g. What are the main conclusions?"
                     disabled={asking || document.status !== "ready"}
                   />
                   <Button type="submit" disabled={asking || document.status !== "ready"}>
