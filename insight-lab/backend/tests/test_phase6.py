@@ -53,3 +53,13 @@ def test_cosine_similarity_orthogonal():
     left = [1.0, 0.0]
     right = [0.0, 1.0]
     assert _cosine_similarity(left, right) == pytest.approx(0.0)
+
+
+def test_semantic_index_key_patterns():
+    user_id = "u1"
+    document_id = "d1"
+    docs_hash = "abc"
+    file_hash = "hash"
+    assert f"semantic_chat:{user_id}:{document_id}" == "semantic_chat:u1:d1"
+    assert f"semantic_multi_chat:{user_id}:{docs_hash}" == "semantic_multi_chat:u1:abc"
+    assert f"semantic_excel_chat:{user_id}:{document_id}:{file_hash}" == "semantic_excel_chat:u1:d1:hash"

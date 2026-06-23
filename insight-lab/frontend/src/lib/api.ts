@@ -55,6 +55,8 @@ export type AskResponse = {
   retrieval_method?: "vector" | "keyword";
   chunk_similarities?: number[];
   cached?: boolean;
+  cache_match?: string;
+  similarity?: number;
   correlation_id?: string;
 };
 
@@ -187,6 +189,8 @@ export type MultiAskResponse = {
   cited_documents?: string[];
   retrieval_method?: "vector" | "keyword";
   cached?: boolean;
+  cache_match?: string;
+  similarity?: number;
   correlation_id?: string;
 };
 
@@ -247,6 +251,8 @@ export type ExcelAskResponse = {
   answer: string;
   sources?: string[];
   cached?: boolean;
+  cache_match?: string;
+  similarity?: number;
   correlation_id?: string;
 };
 
@@ -283,7 +289,7 @@ export type WorkspaceSummary = {
   description?: string | null;
   created_at: string;
   updated_at: string;
-  access_role?: string | null;
+  access_role?: "owner" | "editor" | "viewer" | null;
   is_owner?: boolean;
   shared?: boolean;
 };

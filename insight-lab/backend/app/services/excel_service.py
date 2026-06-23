@@ -25,6 +25,11 @@ from app.services.llm_client import (
     excel_question_cache_key,
     generate_excel_chart_plan,
     generate_excel_summary,
+    semantic_excel_chat_index_key,
+)
+from app.services.semantic_cache import (
+    get_semantic_cached_answer_by_index,
+    store_semantic_cached_answer_by_index,
 )
 
 log = get_logger("excel")
@@ -262,6 +267,18 @@ async def ask_excel(
     if cached:
         return {**cached, "cached": True}
 
+    semantic_index_key = semantic_excel_chat_index_key(
+        user.id,
+        document_id,
+        doc.get("file_hash"),
+    )
+    semantic_cached = await get_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+    )
+    if semantic_cached:
+        return semantic_cached
+
     profile = doc.get("excel_profile") or {}
     charts = doc.get("excel_charts") or []
     summary = doc.get("excel_summary") or ""
@@ -286,6 +303,11 @@ async def ask_excel(
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
+    await store_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+        payload=payload,
+    )
     log.info("Excel chat answered", document_id=document_id, user_id=user.id)
     return payload
 

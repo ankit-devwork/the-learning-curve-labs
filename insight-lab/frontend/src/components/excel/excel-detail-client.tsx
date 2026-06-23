@@ -9,6 +9,7 @@ import {
   type ExcelAskResponse,
   type ExcelChart,
   type ExcelPreviewResponse,
+  type WorkspaceSummary,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,11 +24,14 @@ import {
   ExcelDetailSkeleton,
   ProcessingContentSkeleton,
 } from "@/components/ui/loading-skeletons";
+import { cacheResponseLabel, canEditWorkspace } from "@/lib/workspace-roles";
 
 type ExcelChatMessage = {
   question: string;
   answer: string;
   cached?: boolean;
+  cacheMatch?: string;
+  similarity?: number;
   sources?: string[];
 };
 
@@ -50,6 +54,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ExcelChatMessage[]>([]);
   const [asking, setAsking] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
   const autoAnalyzed = useRef(false);
 
   const loadDocument = useCallback(async () => {
@@ -75,9 +80,20 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
     setFilename(doc.filename);
     setStatus(doc.status);
     setAccessToken(session.access_token);
+
+    let accessRole: WorkspaceSummary["access_role"];
+    if (setId) {
+      const workspaceResponse = await apiFetch(`/workspaces/${setId}`, session.access_token);
+      if (workspaceResponse.ok) {
+        const workspaceData = (await workspaceResponse.json()) as WorkspaceSummary;
+        accessRole = workspaceData.access_role;
+        setCanEdit(canEditWorkspace(accessRole));
+      }
+    }
+
     setLoading(false);
-    return { token: session.access_token, status: doc.status as string };
-  }, [documentId]);
+    return { token: session.access_token, status: doc.status as string, accessRole };
+  }, [documentId, setId]);
 
   const loadPreview = useCallback(async (token: string) => {
     setPreviewLoading(true);
@@ -135,12 +151,12 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
       if (!result) {
         return;
       }
-      const { token, status: docStatus } = result;
+      const { token, status: docStatus, accessRole } = result;
       if (docStatus === "ready") {
         await loadCharts(token);
         return;
       }
-      if ((docStatus === "pending" || docStatus === "failed") && !autoAnalyzed.current) {
+      if ((docStatus === "pending" || docStatus === "failed") && !autoAnalyzed.current && canEditWorkspace(accessRole)) {
         autoAnalyzed.current = true;
         await analyzeSpreadsheet(token);
       }
@@ -185,6 +201,8 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
           question: trimmed,
           answer: data.answer,
           cached: data.cached,
+          cacheMatch: data.cache_match,
+          similarity: data.similarity,
           sources: data.sources,
         },
       ]);
@@ -215,23 +233,25 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
             excel · {status}
           </span>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={analyzing}
-          onClick={async () => {
-            const supabase = createClient();
-            const {
-              data: { session },
-            } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-              return;
-            }
-            await analyzeSpreadsheet(session.access_token);
-          }}
-        >
-          {analyzing ? "Analyzing..." : "Re-analyze"}
-        </Button>
+        {canEdit ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={analyzing}
+            onClick={async () => {
+              const supabase = createClient();
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+              if (!session?.access_token) {
+                return;
+              }
+              await analyzeSpreadsheet(session.access_token);
+            }}
+          >
+            {analyzing ? "Analyzing..." : "Re-analyze"}
+          </Button>
+        ) : null}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -285,14 +305,14 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
             </CardContent>
           </Card>
 
-          {analysis?.profile?.columns && accessToken && (
+          {analysis?.profile?.columns && accessToken && canEdit ? (
             <ExcelChartBuilder
               documentId={documentId}
               columns={analysis.profile.columns}
               accessToken={accessToken}
               onChartCreated={handleCustomChartCreated}
             />
-          )}
+          ) : null}
 
           {customCharts.map((chart) => (
             <Card key={chart.id}>
@@ -370,9 +390,11 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
                   <div key={`${message.question}-${index}`} className="rounded-md border p-4 text-sm">
                     <p className="font-medium">Q: {message.question}</p>
                     <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{message.answer}</p>
-                    {message.cached && (
-                      <p className="mt-2 text-xs text-muted-foreground">Cached response</p>
-                    )}
+                    {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity) ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
+                      </p>
+                    ) : null}
                     {message.sources && message.sources.length > 0 && (
                       <p className="mt-1 text-xs text-muted-foreground">
                         Sources: {message.sources.join(", ")}

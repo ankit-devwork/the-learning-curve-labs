@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 type StudioPanelProps = {
   ready: boolean;
   busy?: boolean;
+  canEdit?: boolean;
   onGenerateQuiz: () => void;
   onGenerateFlashcards: () => void;
   onGenerateStudyGuide: () => void;
@@ -26,17 +27,18 @@ type StudioPanelProps = {
 };
 
 const actions = [
-  { id: "ask", label: "Ask", icon: MessageSquare, description: "Chat with this document" },
-  { id: "quiz", label: "Quiz", icon: Brain, description: "Generate practice questions" },
-  { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards" },
-  { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview" },
-  { id: "audio", label: "Audio overview", icon: Volume2, description: "Listen to a narrated summary" },
-  { id: "graph", label: "Topic graph", icon: Network, description: "Explore key concepts" },
+  { id: "ask", label: "Ask", icon: MessageSquare, description: "Chat with this document", requiresEdit: false },
+  { id: "quiz", label: "Quiz", icon: Brain, description: "Generate practice questions", requiresEdit: true },
+  { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards", requiresEdit: true },
+  { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview", requiresEdit: true },
+  { id: "audio", label: "Audio overview", icon: Volume2, description: "Listen to a narrated summary", requiresEdit: true },
+  { id: "graph", label: "Topic graph", icon: Network, description: "Explore key concepts", requiresEdit: false },
 ] as const;
 
 export function StudioPanel({
   ready,
   busy,
+  canEdit = true,
   onGenerateQuiz,
   onGenerateFlashcards,
   onGenerateStudyGuide,
@@ -81,13 +83,13 @@ export function StudioPanel({
         <CardDescription>One-click learning tools from this document</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
-        {actions.map(({ id, label, icon: Icon, description }) => (
+        {actions.map(({ id, label, icon: Icon, description, requiresEdit }) => (
           <Button
             key={id}
             type="button"
             variant="outline"
             className="h-auto justify-start gap-3 px-3 py-3 text-left"
-            disabled={!ready || busy}
+            disabled={!ready || busy || (requiresEdit && !canEdit)}
             onClick={() => handleAction(id)}
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

@@ -30,12 +30,16 @@ import { StudyGuideView } from "@/components/workspace/study-guide-view";
 import { AudioOverviewPanel } from "@/components/workspace/audio-overview-panel";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
 import type { SourceCitation } from "@/lib/api";
+import { cacheResponseLabel, canEditWorkspace } from "@/lib/workspace-roles";
+import type { WorkspaceSummary } from "@/lib/api";
 
 type ChatMessage = {
   question: string;
   answer: string;
   sources?: SourceCitation[];
   cached?: boolean;
+  cacheMatch?: string;
+  similarity?: number;
 };
 
 export function DocumentWorkspaceClient({
@@ -62,6 +66,7 @@ export function DocumentWorkspaceClient({
   const [studioBusy, setStudioBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [workspaceRole, setWorkspaceRole] = useState<WorkspaceSummary["access_role"]>(undefined);
   const [existingQuiz, setExistingQuiz] = useState<QuizResponse | null>(null);
   const [flashcards, setFlashcards] = useState<FlashcardSetResponse | null>(null);
   const [studyGuide, setStudyGuide] = useState<StudyGuideResponse | null>(null);
@@ -91,12 +96,20 @@ export function DocumentWorkspaceClient({
       return null;
     }
 
+    const workspaceResponse = await apiFetch(`/workspaces/${setId}`, session.access_token);
+    let accessRole: WorkspaceSummary["access_role"];
+    if (workspaceResponse.ok) {
+      const workspaceData = (await workspaceResponse.json()) as WorkspaceSummary;
+      setWorkspaceRole(workspaceData.access_role);
+      accessRole = workspaceData.access_role;
+    }
+
     const data = (await response.json()) as DocumentDetail;
     setDocument(data);
     setAccessToken(session.access_token);
     setLoading(false);
-    return { data, token: session.access_token };
-  }, [documentId]);
+    return { data, token: session.access_token, accessRole };
+  }, [documentId, setId]);
 
   const refreshStatus = useCallback(async (token: string) => {
     const response = await apiFetch(`/documents/${documentId}/status`, token);
@@ -149,13 +162,13 @@ export function DocumentWorkspaceClient({
       if (!result) {
         return;
       }
-      const { data, token } = result;
+      const { data, token, accessRole } = result;
       await refreshStatus(token);
       if (data.status === "ready") {
         await Promise.all([loadSummary(token), loadQuiz(token), loadSuggested(token)]);
         return;
       }
-      if (data.status === "pending" && !autoProcessed.current) {
+      if (data.status === "pending" && !autoProcessed.current && canEditWorkspace(accessRole)) {
         autoProcessed.current = true;
         const ok = await processDocument(token);
         if (ok) {
@@ -201,7 +214,14 @@ export function DocumentWorkspaceClient({
       const data = (await response.json()) as AskResponse;
       setMessages((prev) => [
         ...prev,
-        { question: trimmed, answer: data.answer, sources: data.sources, cached: data.cached },
+        {
+          question: trimmed,
+          answer: data.answer,
+          sources: data.sources,
+          cached: data.cached,
+          cacheMatch: data.cache_match,
+          similarity: data.similarity,
+        },
       ]);
       setQuestion("");
     } finally {
@@ -281,6 +301,7 @@ export function DocumentWorkspaceClient({
   }
 
   const ready = document.status === "ready";
+  const canEdit = canEditWorkspace(workspaceRole);
 
   return (
     <div className="space-y-4">
@@ -363,6 +384,11 @@ export function DocumentWorkspaceClient({
                   <div key={`${message.question}-${index}`} className="rounded-md border p-4 text-sm">
                     <p className="font-medium">Q: {message.question}</p>
                     <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{message.answer}</p>
+                    {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity) ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
+                      </p>
+                    ) : null}
                     {message.sources && message.sources.length > 0 ? (
                       <div className="mt-3 space-y-2">
                         <SourceCitations sources={message.sources} />
@@ -390,6 +416,7 @@ export function DocumentWorkspaceClient({
               ready={ready}
               accessToken={accessToken}
               initialQuiz={existingQuiz}
+              canEdit={canEdit}
             />
           </div>
 
@@ -439,6 +466,7 @@ export function DocumentWorkspaceClient({
           <StudioPanel
             ready={ready}
             busy={studioBusy}
+            canEdit={canEdit}
             onFocusAsk={() => askRef.current?.scrollIntoView({ behavior: "smooth" })}
             onGenerateQuiz={() => quizRef.current?.scrollIntoView({ behavior: "smooth" })}
             onGenerateFlashcards={() => void generateFlashcards()}

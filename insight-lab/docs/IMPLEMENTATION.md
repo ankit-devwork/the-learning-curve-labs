@@ -424,12 +424,20 @@ Migration: `008_phase3_4_study_features.sql` (flashcards, study guides, RLS).
 
 Migration: `009_phase6_sharing_quiz_edit.sql` (members, invites, quiz `published`, RLS updates).
 
-## Next up — Phase 7
+## Phase 7 (implemented)
 
-- Team roles (editor vs viewer enforcement in UI)
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Team roles in UI | Set adaptive quiz requires editor; role on workspace API | Upload, studio, course pack, quiz generate/edit gated by `canEdit` |
+| Semantic cache expansion | Multi-doc + Excel ask use embedding index | Cache match label in document, multi-doc, and Excel chat |
+| Set-wide quiz HITL edit | Reuses `/quizzes/{id}/edit`, publish | Edit + publish in `SetQuizPanel` |
+
+## Next up — Phase 8
+
 - LMS export bundles (SCORM / Canvas)
-- Semantic cache for multi-doc and Excel chat
-- Quiz edit for set-wide adaptive quizzes
+- Remove member UI (API exists)
+- Backend editor enforcement on all artifact generate routes
+- Owner-only delete study set in UI
 
 ## Security & resilience checklist
 

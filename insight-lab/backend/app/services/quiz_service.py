@@ -361,7 +361,7 @@ async def generate_workspace_adaptive_quiz(
     num_questions: int,
 ) -> dict[str, Any]:
     from app.services.mastery_service import get_workspace_weak_concepts
-    from app.services.workspace_service import _get_owned_workspace
+    from app.services.workspace_access import require_workspace_role
 
     cfg = get_yaml_config().adaptive_quiz
     allowed, retry_after = await check_rate_limit(
@@ -375,7 +375,7 @@ async def generate_workspace_adaptive_quiz(
             retry_after=retry_after,
         )
 
-    _get_owned_workspace(client, workspace_id, user)
+    require_workspace_role(client, workspace_id, user, min_role="editor")
     weak = await get_workspace_weak_concepts(client, workspace_id, user)
     if not weak:
         raise FileException(

@@ -16,6 +16,11 @@ from app.services.llm_client import (
     answer_multi_document_question,
     generate_document_relevance_summary,
     multi_chat_cache_key,
+    semantic_multi_chat_index_key,
+)
+from app.services.semantic_cache import (
+    get_semantic_cached_answer_by_index,
+    store_semantic_cached_answer_by_index,
 )
 
 log = get_logger("multi_doc")
@@ -334,6 +339,14 @@ async def ask_multiple_documents(
     if cached:
         return {**cached, "cached": True}
 
+    semantic_index_key = semantic_multi_chat_index_key(user.id, docs_hash)
+    semantic_cached = await get_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+    )
+    if semantic_cached:
+        return semantic_cached
+
     context_rows = _retrieve_rows_for_documents(
         client,
         document_ids=approved_sorted,
@@ -357,6 +370,11 @@ async def ask_multiple_documents(
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
+    await store_semantic_cached_answer_by_index(
+        index_key=semantic_index_key,
+        question=question,
+        payload=payload,
+    )
     log.info(
         "Multi-doc chat answered after document selection",
         user_id=user.id,
