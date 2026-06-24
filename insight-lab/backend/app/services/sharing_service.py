@@ -110,9 +110,9 @@ def list_workspace_members(client: Client, workspace_id: str, user: AuthUser) ->
 
 def list_workspace_invites(client: Client, workspace_id: str, user: AuthUser) -> list[dict]:
     require_workspace_role(client, workspace_id, user, min_role="editor")
-    return (
+    rows = (
         client.table("workspace_invites")
-        .select("id, email, role, token, expires_at, accepted_at, created_at")
+        .select("id, email, role, expires_at, accepted_at, created_at")
         .eq("workspace_id", workspace_id)
         .is_("accepted_at", "null")
         .order("created_at", desc=True)
@@ -120,6 +120,32 @@ def list_workspace_invites(client: Client, workspace_id: str, user: AuthUser) ->
         .data
         or []
     )
+    return rows
+
+
+def get_workspace_invite_link(
+    client: Client,
+    workspace_id: str,
+    invite_id: str,
+    user: AuthUser,
+) -> dict[str, str]:
+    """Return invite URL for editors — token is not exposed in list responses."""
+    require_workspace_role(client, workspace_id, user, min_role="editor")
+    row = (
+        client.table("workspace_invites")
+        .select("token")
+        .eq("workspace_id", workspace_id)
+        .eq("id", invite_id)
+        .is_("accepted_at", "null")
+        .limit(1)
+        .execute()
+    )
+    if not row.data or not row.data[0].get("token"):
+        raise NotFoundException("Invite not found or already accepted")
+    token = row.data[0]["token"]
+    from app.services.email_service import _frontend_base_url
+
+    return {"url": f"{_frontend_base_url()}/invite/{token}"}
 
 
 async def create_workspace_invite(

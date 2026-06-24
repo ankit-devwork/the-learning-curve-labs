@@ -21,6 +21,7 @@ from app.api.routes.public_quiz import router as public_quiz_router
 from app.api.routes.quiz import router as quiz_router
 from app.core.cache import close_cache
 from app.core.config import ENV_PATH, config_diagnostics, settings
+from app.core.security import is_production, validate_cors_origins_at_startup
 from app.core.yaml_config import get_yaml_config
 from app.core.neo4j_client import neo4j_client
 from app.core.redis_client import redis_client
@@ -53,14 +54,18 @@ async def lifespan(app: FastAPI):
     await neo4j_client.close()
 
 
+validate_cors_origins_at_startup()
+
+_show_api_docs = not is_production()
+
 app = FastAPI(
     title=get_yaml_config().app.name,
     description="InsightLab — Excel insights, document chat, and AI quizzes",
     version="0.2.0",
     lifespan=lifespan,
-    docs_url="/docs" if get_yaml_config().app.env.lower() in {"development", "dev", "local"} else None,
-    redoc_url="/redoc" if get_yaml_config().app.env.lower() in {"development", "dev", "local"} else None,
-    openapi_url="/openapi.json" if get_yaml_config().app.env.lower() in {"development", "dev", "local"} else None,
+    docs_url="/docs" if _show_api_docs else None,
+    redoc_url="/redoc" if _show_api_docs else None,
+    openapi_url="/openapi.json" if _show_api_docs else None,
 )
 
 _cors_origins = os.getenv(
@@ -102,26 +107,11 @@ app.include_router(public_quiz_router)
 
 @app.get("/")
 async def root():
-    return {
+    payload = {
         "name": "InsightLab API",
         "version": "0.2.0",
-        "docs": "/docs",
         "health": "/health",
-        "me": "/me",
-        "upload": "/upload",
-        "upload_config": "/upload/config",
-        "documents": "/documents",
-        "excel_analyze": "/documents/{id}/analyze",
-        "excel_charts": "/documents/{id}/charts",
-        "excel_custom_chart": "/documents/{id}/charts/custom",
-        "excel_ask": "/documents/{id}/excel/ask",
-        "multi_doc_retrieve": "/documents/multi/retrieve",
-        "multi_doc_ask": "/documents/multi/ask",
-        "graph_sync": "/documents/{id}/graph/sync",
-        "graph_get": "/documents/{id}/graph",
-        "quiz_generate": "/documents/{id}/quiz/generate",
-        "quiz_adaptive": "/documents/{id}/quiz/adaptive/generate",
-        "concept_mastery": "/documents/{id}/concepts/mastery",
-        "quiz_get": "/documents/{id}/quiz",
-        "quiz_submit": "/quizzes/{id}/submit",
     }
+    if _show_api_docs:
+        payload["docs"] = "/docs"
+    return payload

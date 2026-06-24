@@ -138,25 +138,29 @@ export function CoursePackPanel({
             Course pack generation requires editor or owner access.
           </p>
         )}
-        <Button type="button" variant="outline" disabled={exporting} onClick={() => void handleExportMarkdown()}>
-          {exporting ? "Exporting…" : "Export Markdown"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={exportingCanvas}
-          onClick={() => void handleExportCanvasCartridge()}
-        >
-          {exportingCanvas ? "Exporting…" : "Export Canvas (.imscc)"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={exportingBundle}
-          onClick={() => void handleExportLmsBundle()}
-        >
-          {exportingBundle ? "Exporting…" : "Export LMS zip"}
-        </Button>
+        {canEdit ? (
+          <>
+            <Button type="button" variant="outline" disabled={exporting} onClick={() => void handleExportMarkdown()}>
+              {exporting ? "Exporting…" : "Export Markdown"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={exportingCanvas}
+              onClick={() => void handleExportCanvasCartridge()}
+            >
+              {exportingCanvas ? "Exporting…" : "Export Canvas (.imscc)"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={exportingBundle}
+              onClick={() => void handleExportLmsBundle()}
+            >
+              {exportingBundle ? "Exporting…" : "Export LMS zip"}
+            </Button>
+          </>
+        ) : null}
       </div>
 
       {pack ? <CoursePackResults setId={setId} documents={pack.documents} /> : null}

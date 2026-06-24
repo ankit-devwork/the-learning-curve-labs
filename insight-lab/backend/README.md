@@ -2,6 +2,8 @@
 
 AI pipelines run as **async services** in `app/services/` (document RAG, Excel analysis, quiz generation, course packs), with **LiteLLM** for model calls and **pycorekit** for cache, tracing, and resilience. LangGraph is **not** used in InsightLab today — see [docs/ARCHITECTURE.md §2.1](../docs/ARCHITECTURE.md#21-ai-orchestration).
 
+Production security: [docs/SECURITY.md](../docs/SECURITY.md).
+
 ## Python environment (Conda — recommended)
 
 Requires [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or Anaconda.

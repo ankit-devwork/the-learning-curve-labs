@@ -8,6 +8,15 @@ function escapeCsvValue(value: string | number): string {
   return text;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function downloadChartCsv(chart: ExcelChart, filename?: string): void {
   const lines = [
     "label,value",
@@ -172,15 +181,16 @@ export function downloadStudyGuidePdf(title: string, content: {
   sections?: Array<{ heading: string; bullets: string[] }>;
   sample_questions?: string[];
 }): void {
+  const safeTitle = escapeHtml(title);
   const html = `
-    <!DOCTYPE html><html><head><title>${title}</title>
+    <!DOCTYPE html><html><head><title>${safeTitle}</title>
     <style>body{font-family:system-ui,sans-serif;padding:2rem;line-height:1.5}h1,h2{margin-top:1.5rem}</style>
     </head><body>
-    <h1>${title}</h1>
-    ${content.overview ? `<h2>Overview</h2><p>${content.overview}</p>` : ""}
-    ${content.key_terms?.length ? `<h2>Key terms</h2><ul>${content.key_terms.map((t) => `<li><strong>${t.term}</strong>: ${t.definition}</li>`).join("")}</ul>` : ""}
-    ${content.sections?.map((s) => `<h2>${s.heading}</h2><ul>${s.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>`).join("") ?? ""}
-    ${content.sample_questions?.length ? `<h2>Sample questions</h2><ul>${content.sample_questions.map((q) => `<li>${q}</li>`).join("")}</ul>` : ""}
+    <h1>${safeTitle}</h1>
+    ${content.overview ? `<h2>Overview</h2><p>${escapeHtml(content.overview)}</p>` : ""}
+    ${content.key_terms?.length ? `<h2>Key terms</h2><ul>${content.key_terms.map((t) => `<li><strong>${escapeHtml(t.term)}</strong>: ${escapeHtml(t.definition)}</li>`).join("")}</ul>` : ""}
+    ${content.sections?.map((s) => `<h2>${escapeHtml(s.heading)}</h2><ul>${s.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`).join("") ?? ""}
+    ${content.sample_questions?.length ? `<h2>Sample questions</h2><ul>${content.sample_questions.map((q) => `<li>${escapeHtml(q)}</li>`).join("")}</ul>` : ""}
     </body></html>`;
   const win = window.open("", "_blank");
   if (!win) {

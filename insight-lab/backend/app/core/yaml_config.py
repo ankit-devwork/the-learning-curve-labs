@@ -103,6 +103,9 @@ class ExcelSection(BaseModel):
 class QuizzesSection(BaseModel):
     generate_rate_limit_per_min: int = 5
     submit_rate_limit_per_min: int = 30
+    public_get_rate_limit_per_min: int = 30
+    public_submit_rate_limit_per_min: int = 10
+    public_max_answers_bytes: int = 4096
     default_num_questions: int = 5
     max_questions: int = 10
     max_context_chunks: int = 8

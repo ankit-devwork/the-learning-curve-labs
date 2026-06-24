@@ -9,7 +9,7 @@ Minimal production setup: **FastAPI on EC2** (nginx + uvicorn + systemd), **Next
 
 ## Before you deploy
 
-1. **Run Supabase migrations** `001` through `011` on your project (SQL Editor or CLI). See [supabase/README.md](../supabase/README.md) for the ordered list. Migration **007** is required for multi-doc search; **008–011** are required for study features, sharing, and member RLS.
+1. **Run Supabase migrations** `001` through `015` on your project (SQL Editor or CLI). See [supabase/README.md](../supabase/README.md) for the ordered list. Migration **007** is required for multi-doc search; **008–011** for study features and sharing; **014–015** for public quiz and security hardening.
 2. Choose domains, for example:
    - Frontend: `https://app.yourdomain.com` (Vercel)
    - API: `https://api.yourdomain.com` (EC2 + nginx)
@@ -91,6 +91,7 @@ Copy `backend/.env.example` to `backend/.env` and set:
 ```bash
 # Production — hides /docs and limits /ready detail
 APP_APP__ENV=production
+APP_ENV=production
 APP_DEBUG=false
 
 # Supabase (Project Settings → API)
@@ -297,4 +298,5 @@ Neo4j still needs to run for graph sync and adaptive quiz unless you defer those
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design
 - [IMPLEMENTATION.md](IMPLEMENTATION.md) — feature checklist
+- [SECURITY.md](SECURITY.md) — production security checklist
 - [backend/README.md](../backend/README.md) — local backend setup and API routes
