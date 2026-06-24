@@ -443,22 +443,24 @@ Use incognito to test after saving. Old confirmation emails may still point to l
 
 InsightLab uses **Supabase Auth** for email signup. The app cannot send those emails itself — Supabase (or your custom SMTP) does.
 
+**See [SUPABASE-AUTH-EMAIL.md](SUPABASE-AUTH-EMAIL.md)** for the full guide (built-in 2/hour limit, Resend SMTP setup, manual confirm).
+
 **Quick checks (Supabase dashboard):**
 
 1. **Authentication → Users** — find `ankitsrivastava4u@gmail.com`. If the user exists but is unconfirmed, use **Confirm user** (three-dot menu) to activate immediately, then sign in.
-2. **Authentication → Logs** — look for `user.signup` / mail events and any SMTP errors.
-3. **Authentication → URL configuration** — **Site URL** must be your Vercel URL; **Redirect URLs** must include `https://YOUR-APP.vercel.app/**`.
-4. **Gmail** — check **Spam** and **Promotions**. Supabase’s default sender often lands there.
+2. **Authentication → Logs** — look for `user.signup` / mail events, **`Email rate limit exceeded`**, or SMTP errors. Built-in mail stops after ~2 emails/hour with **no error in the app**.
+3. **Authentication → URL configuration** — **Site URL** must be `https://insight-lab-pi.vercel.app`; **Redirect URLs** must include `https://insight-lab-pi.vercel.app/**`.
+4. **Gmail** — check **Spam** and **Promotions**. Supabase’s default sender often never reaches the inbox.
 
-**If emails never arrive (common on free tier):**
+**If emails never arrive (expected on default Supabase mail):**
 
-Supabase’s built-in mail has low volume and deliverability. For production, configure custom SMTP:
+Supabase’s built-in mail is **not production-grade** (~2/hour). Configure custom SMTP:
 
 **Project Settings → Authentication → SMTP Settings** → enable custom SMTP (Resend, SendGrid, AWS SES, etc.).
 
 Or, for internal testing only: **Authentication → Providers → Email** → disable **Confirm email** (users can sign in immediately after signup).
 
-The signup and login pages include **Resend confirmation email** after signup or when login fails with “Email not confirmed”.
+The signup and login pages include **Resend confirmation email** and explain when Supabase is not actually delivering mail.
 
 ### Upload size note
 
@@ -499,7 +501,7 @@ Run Next.js on EC2 port 3000 + nginx port 80. No mixed-content issue. See discus
 | Vercel build: vulnerable Next.js | Upgrade to **15.5.18+** |
 | Vercel shows frontend + FastAPI | Root directory = **`frontend`** only |
 | Redirect to localhost after auth | Supabase **Site URL** = Vercel URL |
-| No signup confirmation email | Supabase **Auth logs**; confirm user manually; configure **SMTP**; check spam |
+| No signup confirmation email | [SUPABASE-AUTH-EMAIL.md](SUPABASE-AUTH-EMAIL.md); Auth logs for rate limit; custom **SMTP**; manual confirm |
 | Login: “Email not confirmed” | Use **Resend confirmation email** on login, or confirm user in Supabase |
 | `/api-backend/health` fails | EC2 **8080** open? nginx running? `BACKEND_PROXY_URL` correct? |
 | Upload fails on Vercel only | ~4.5 MB proxy limit |

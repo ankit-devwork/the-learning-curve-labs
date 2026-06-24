@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { resendSignupConfirmation } from "@/lib/supabase/auth-email";
+import { resendSignupConfirmation, formatAuthEmailError } from "@/lib/supabase/auth-email";
 import { Button } from "@/components/ui/button";
 
 type ResendConfirmationButtonProps = {
@@ -30,9 +30,11 @@ export function ResendConfirmationButton({ email, className }: ResendConfirmatio
     const { error: resendError } = await resendSignupConfirmation(supabase, trimmed);
 
     if (resendError) {
-      setError(resendError);
+      setError(formatAuthEmailError(resendError));
     } else {
-      setMessage("Confirmation email sent. Check your inbox and spam folder.");
+      setMessage(
+        "Supabase accepted the resend request. If nothing arrives in a few minutes, the project is likely still on built-in mail (2/hour cap) — see the notes below or ask the owner to confirm you manually."
+      );
     }
     setLoading(false);
   };

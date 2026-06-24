@@ -17,7 +17,15 @@ import {
 } from "@/components/ui/card";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { ResendConfirmationButton } from "@/components/auth/resend-confirmation-button";
-import { authEmailRedirectTo } from "@/lib/supabase/auth-email";
+import { AuthEmailHelp } from "@/components/auth/auth-email-help";
+import {
+  authEmailRedirectTo,
+  formatAuthEmailError,
+  isAuthEmailRateLimitError,
+  isSignupDuplicateResponse,
+  SIGNUP_INCOMPLETE_HYBRID_MESSAGE,
+  SUPABASE_BUILTIN_EMAIL_NOTE,
+} from "@/lib/supabase/auth-email";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -45,7 +53,10 @@ export function SignUpForm() {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(formatAuthEmailError(signUpError.message));
+      if (isAuthEmailRateLimitError(signUpError.message)) {
+        setAwaitingConfirmation(true);
+      }
       setLoading(false);
       return;
     }
@@ -56,9 +67,17 @@ export function SignUpForm() {
       return;
     }
 
+    if (isSignupDuplicateResponse(data.user, data.session)) {
+      setAwaitingConfirmation(true);
+      setMessage(SIGNUP_INCOMPLETE_HYBRID_MESSAGE);
+      setLoading(false);
+      return;
+    }
+
     setAwaitingConfirmation(true);
     setMessage(
-      "Check your email to confirm your account, then sign in. If nothing arrives within a few minutes, check spam or resend below."
+      "Check your email to confirm your account, then sign in. Nothing arrives? " +
+        SUPABASE_BUILTIN_EMAIL_NOTE
     );
     setLoading(false);
   };
@@ -107,7 +126,13 @@ export function SignUpForm() {
           {error && <p className="text-sm text-destructive">{error}</p>}
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {awaitingConfirmation ? (
-            <ResendConfirmationButton email={email} />
+            <>
+              <Button type="button" variant="outline" className="w-full" asChild>
+                <Link href="/login">Go to sign in</Link>
+              </Button>
+              <ResendConfirmationButton email={email} />
+              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" />
+            </>
           ) : (
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : "Sign up"}
