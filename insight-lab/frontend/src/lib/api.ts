@@ -22,6 +22,40 @@ export async function apiFetch(
   return fetch(getApiUrl(path), { ...init, headers });
 }
 
+/** Extract a user-facing message from FastAPI / backend JSON error bodies. */
+export function parseApiError(body: unknown, fallback = "Request failed"): string {
+  if (!body || typeof body !== "object") {
+    return fallback;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.error === "string" && record.error.trim()) {
+    return record.error;
+  }
+  if (typeof record.detail === "string" && record.detail.trim()) {
+    return record.detail;
+  }
+  if (Array.isArray(record.detail)) {
+    const parts = record.detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item && typeof item === "object" && "msg" in item) {
+          return String((item as { msg: unknown }).msg);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join(". ");
+    }
+  }
+  if (record.message && typeof record.message === "string") {
+    return record.message;
+  }
+  return fallback;
+}
+
 export type DocumentSummary = {
   id: string;
   filename: string;

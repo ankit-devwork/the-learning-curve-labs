@@ -16,8 +16,9 @@ SQL migrations and RLS policies for InsightLab.
 10. Run `009_phase6_sharing_quiz_edit.sql` for workspace members, invites, and quiz publish.
 11. Run `010_security_hardening.sql` for RLS fixes and RPC lockdown updates.
 12. Run `011_phase8_member_rls.sql` for member-aware artifact policies (chunks, quizzes, flashcards, study guides).
-13. Create a Storage bucket named `uploads` (private).
-14. Copy project URL and keys to `.env` files.
+13. Run `012_profiles_email.sql` for profile email sync (required for study sheet invites).
+14. Create a Storage bucket named `uploads` (private).
+15. Copy project URL and keys to `.env` files.
 
 ## Local CLI (optional)
 
