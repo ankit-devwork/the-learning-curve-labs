@@ -12,14 +12,31 @@ export function getApiUrl(path: string): string {
   return `${base}${suffix}`;
 }
 
+/** One ID per user action — send on every related API call so logs grep together. */
+export function generateTrackingId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export type ApiFetchInit = RequestInit & {
+  /** Propagate to backend as X-Tracking-ID (reuse for multi-call user actions). */
+  trackingId?: string;
+};
+
 export async function apiFetch(
   path: string,
   accessToken: string,
-  init: RequestInit = {},
+  init: ApiFetchInit = {},
 ): Promise<Response> {
-  const headers = new Headers(init.headers);
+  const { trackingId, ...fetchInit } = init;
+  const headers = new Headers(fetchInit.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
-  return fetch(getApiUrl(path), { ...init, headers });
+  if (trackingId) {
+    headers.set("X-Tracking-ID", trackingId);
+  }
+  return fetch(getApiUrl(path), { ...fetchInit, headers });
 }
 
 /** Read X-Tracking-ID (or legacy x-correlation-id) from an API response. */
