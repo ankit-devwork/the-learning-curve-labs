@@ -18,6 +18,7 @@ import {
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { ResendConfirmationButton } from "@/components/auth/resend-confirmation-button";
 import { isEmailNotConfirmedError } from "@/lib/supabase/auth-email";
+import { AuthEmailHelp } from "@/components/auth/auth-email-help";
 
 export function LoginForm() {
   const router = useRouter();
@@ -91,7 +92,12 @@ export function LoginForm() {
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {showResendConfirmation ? <ResendConfirmationButton email={email} /> : null}
+          {showResendConfirmation ? (
+            <>
+              <ResendConfirmationButton email={email} />
+              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" />
+            </>
+          ) : null}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </Button>
