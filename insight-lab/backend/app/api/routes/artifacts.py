@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, Response
 
 from pycorekit.tracing.decorators import with_observability
+from pycorekit.correlation.headers import tracking_response_headers
 
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
@@ -149,7 +150,7 @@ async def export_flashcards_anki_route(
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="flashcards-{set_id}.csv"',
-            "X-Correlation-Id": correlation_id or "",
+            **tracking_response_headers(correlation_id),
         },
     )
 
@@ -169,6 +170,6 @@ async def export_study_guide_markdown_route(
         media_type="text/markdown; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="study-guide-{guide_id}.md"',
-            "X-Correlation-Id": correlation_id or "",
+            **tracking_response_headers(correlation_id),
         },
     )

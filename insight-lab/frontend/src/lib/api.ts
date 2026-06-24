@@ -22,6 +22,70 @@ export async function apiFetch(
   return fetch(getApiUrl(path), { ...init, headers });
 }
 
+/** Read X-Tracking-ID (or legacy x-correlation-id) from an API response. */
+export function getTrackingIdFromResponse(response: Response): string | null {
+  return (
+    response.headers.get("X-Tracking-ID") ||
+    response.headers.get("x-tracking-id") ||
+    response.headers.get("X-Correlation-Id") ||
+    response.headers.get("x-correlation-id")
+  );
+}
+
+/** Extract a user-facing message from FastAPI / backend JSON error bodies. */
+export function parseApiError(
+  body: unknown,
+  fallback = "Request failed",
+  trackingId?: string | null,
+): string {
+  let message = fallback;
+  if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    if (typeof record.error === "string" && record.error.trim()) {
+      message = record.error;
+    } else if (typeof record.detail === "string" && record.detail.trim()) {
+      message = record.detail;
+    } else if (Array.isArray(record.detail)) {
+      const parts = record.detail
+        .map((item) => {
+          if (typeof item === "string") {
+            return item;
+          }
+          if (item && typeof item === "object" && "msg" in item) {
+            return String((item as { msg: unknown }).msg);
+          }
+          return null;
+        })
+        .filter(Boolean);
+      if (parts.length > 0) {
+        message = parts.join(". ");
+      }
+    } else if (typeof record.message === "string" && record.message.trim()) {
+      message = record.message;
+    }
+  }
+
+  const id =
+    trackingId ||
+    (body && typeof body === "object"
+      ? (() => {
+          const record = body as Record<string, unknown>;
+          if (typeof record.tracking_id === "string" && record.tracking_id.trim()) {
+            return record.tracking_id;
+          }
+          if (typeof record.correlation_id === "string" && record.correlation_id.trim()) {
+            return record.correlation_id;
+          }
+          return null;
+        })()
+      : null);
+
+  if (id) {
+    return `${message} (Tracking ID: ${id})`;
+  }
+  return message;
+}
+
 export type DocumentSummary = {
   id: string;
   filename: string;

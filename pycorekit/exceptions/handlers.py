@@ -2,6 +2,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from .base import AppException
 from pycorekit.core_logging.logger import get_logger
+from pycorekit.correlation.headers import tracking_response_headers
 
 log = get_logger("exception")
 
@@ -20,8 +21,10 @@ async def app_exception_handler(request: Request, exc: AppException):
         content={
             "error": exc.message,
             "error_type": exc.error_type,
-            "correlation_id": correlation_id
+            "correlation_id": correlation_id,
+            "tracking_id": correlation_id,
         },
+        headers=tracking_response_headers(correlation_id),
     )
 
 
@@ -42,6 +45,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content={
             "error": "Internal Server Error",
             "message": str(exc),
-            "correlation_id": correlation_id
-        }
+            "correlation_id": correlation_id,
+            "tracking_id": correlation_id,
+        },
+        headers=tracking_response_headers(correlation_id),
     )

@@ -71,7 +71,15 @@ app.add_middleware(
     allow_origins=[origin.strip() for origin in _cors_origins.split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-Request-ID",
+        "X-Tracking-ID",
+        "X-Correlation-Id",
+        "x-correlation-id",
+    ],
+    expose_headers=["X-Tracking-ID", "X-Correlation-Id", "x-correlation-id"],
 )
 app.add_middleware(RequestTracingMiddleware)
 

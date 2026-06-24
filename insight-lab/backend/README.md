@@ -52,7 +52,7 @@ InsightLab uses [pycorekit](https://github.com/ankit-devwork/the-learning-curve-
 | Feature | Usage |
 |---------|--------|
 | Structured logging | `init_logger()` in `app/main.py` → `backend/logs/` |
-| Correlation IDs | `RequestTracingMiddleware` → `x-correlation-id` header |
+| Correlation IDs | `RequestTracingMiddleware` → `X-Tracking-ID` + `x-correlation-id` response headers |
 | Route tracing | `@with_observability` on health and auth routes |
 | JSON errors | `AppException` handlers |
 
