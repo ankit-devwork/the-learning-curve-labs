@@ -30,3 +30,14 @@ def test_course_pack_to_markdown_includes_summaries():
     assert "## chapter1.pdf" in markdown
     assert "Cells are the basic unit of life." in markdown
     assert "Photosynthesis converts light to energy." in markdown
+
+
+def test_course_pack_to_markdown_labels_spreadsheets():
+    markdown = course_pack_to_markdown(
+        workspace_name="Lab data",
+        documents=[
+            {"filename": "results.xlsx", "summary": "Sales grew 12% quarter over quarter.", "file_type": "excel"},
+        ],
+    )
+    assert "## results.xlsx (spreadsheet)" in markdown
+    assert "Sales grew 12%" in markdown

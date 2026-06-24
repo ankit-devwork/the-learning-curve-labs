@@ -93,7 +93,12 @@ def quiz_to_qti_xml(*, title: str, questions: list[dict]) -> str:
 def course_pack_to_markdown(*, workspace_name: str, documents: list[dict]) -> str:
     parts = [f"# Course pack — {workspace_name}", ""]
     for doc in documents:
-        parts.append(f"## {doc.get('filename', 'Document')}")
+        filename = doc.get("filename", "Document")
+        file_type = doc.get("file_type")
+        heading = f"## {filename}"
+        if file_type == "excel":
+            heading = f"## {filename} (spreadsheet)"
+        parts.append(heading)
         summary = doc.get("summary") or doc.get("artifacts", {}).get("summary")
         if summary:
             parts.append(str(summary))
