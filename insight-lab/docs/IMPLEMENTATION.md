@@ -465,13 +465,20 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 | Compare page | Explains PDF/Word vs Excel routing; links to spreadsheet canvas |
 | Onboarding tour | Route-aware steps including Excel notebook layout |
 
-## Phase 9 (in progress)
+## Phase 9 (implemented)
 
 | Feature | Backend | Frontend |
 |---------|---------|----------|
 | Classroom analytics | `GET /workspaces/{id}/classroom/analytics` | `ClassroomAnalyticsPanel` on set detail (editors+) |
 | Canvas Common Cartridge | `GET /workspaces/{id}/export/canvas-cartridge` | Course pack drawer — Export Canvas (.imscc) |
 | LMS resource bundle | `GET /workspaces/{id}/export/lms-bundle` | Course pack drawer — Export LMS zip |
+
+## Phase 10 (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Workspace concept graph | `GET /workspaces/{id}/graph` (mastery overlay) | `WorkspaceConceptGraphPanel` on set detail |
+| Set-wide study session | `GET /workspaces/{id}/study-session/plan` | `WorkspaceStudySessionPanel` on set detail |
 
 Still planned:
 

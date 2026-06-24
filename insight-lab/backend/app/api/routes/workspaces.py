@@ -41,7 +41,9 @@ from app.services.workspace_service import (
 )
 from app.services.export_utils import course_pack_to_markdown
 from app.services.classroom_analytics_service import get_classroom_analytics
+from app.services.graph_service import get_workspace_graph
 from app.services.lms_export_service import build_lms_bundle_zip, collect_ready_material_summaries
+from app.services.study_session_service import get_workspace_study_session_plan
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -259,6 +261,30 @@ async def get_workspace_weak_concepts_route(
         "concepts": concepts,
         "correlation_id": correlation_id,
     }
+
+
+@router.get("/{workspace_id}/graph")
+@with_observability("get_workspace_graph")
+async def get_workspace_graph_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await get_workspace_graph(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/study-session/plan")
+@with_observability("get_workspace_study_session_plan")
+async def get_workspace_study_session_plan_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    plan = await get_workspace_study_session_plan(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**plan, "correlation_id": correlation_id}
 
 
 @router.post("/{workspace_id}/quiz/adaptive/generate")
