@@ -36,8 +36,7 @@ export function isSignupDuplicateResponse(user: User | null, session: unknown): 
 
 /** Shown whenever signUp succeeds without a session (new or existing email). */
 export const SIGNUP_INCOMPLETE_HYBRID_MESSAGE =
-  "We couldn't complete registration with this email. If you already signed up, sign in instead. " +
-  "If this is your first time, check your inbox and spam for a confirmation email.";
+  "If you already have an account, sign in below. Otherwise check your email (and spam) for a confirmation link.";
 
 export const SUPABASE_BUILTIN_EMAIL_NOTE =
   "Supabase’s default mail sends about 2 emails per hour and often never reaches Gmail. " +

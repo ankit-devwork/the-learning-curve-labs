@@ -33,7 +33,7 @@ export function ResendConfirmationButton({ email, className }: ResendConfirmatio
       setError(formatAuthEmailError(resendError));
     } else {
       setMessage(
-        "Supabase accepted the resend request. If nothing arrives in a few minutes, the project is likely still on built-in mail (2/hour cap) — see the notes below or ask the owner to confirm you manually."
+        "Supabase accepted the resend request. Check your inbox and spam in a few minutes."
       );
     }
     setLoading(false);
