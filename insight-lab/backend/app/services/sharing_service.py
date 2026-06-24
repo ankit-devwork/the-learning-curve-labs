@@ -11,6 +11,7 @@ from app.core.auth import AuthUser
 from app.core.cache import check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
+from app.services.email_service import send_invite_email
 from app.services.cache_invalidation import invalidate_user_workspace_access_caches
 from app.services.upload import ensure_profile
 from app.services.workspace_access import get_workspace_membership_role, require_workspace_role
@@ -188,7 +189,32 @@ async def create_workspace_invite(
 
     if not inserted.data:
         raise FileException("Failed to create invite", status_code=500)
-    return inserted.data[0]
+    invite_row = inserted.data[0]
+
+    workspace = (
+        client.table("workspaces")
+        .select("name")
+        .eq("id", workspace_id)
+        .limit(1)
+        .execute()
+    )
+    workspace_name = workspace.data[0]["name"] if workspace.data else "Study sheet"
+    inviter = (
+        client.table("profiles")
+        .select("email")
+        .eq("id", user.id)
+        .limit(1)
+        .execute()
+    )
+    inviter_email = inviter.data[0].get("email") if inviter.data else user.email
+    email_sent = await send_invite_email(
+        to_email=normalized_email,
+        workspace_name=workspace_name,
+        invite_token=invite_row["token"],
+        role=role,
+        inviter_email=inviter_email,
+    )
+    return {**invite_row, "email_sent": email_sent}
 
 
 async def revoke_workspace_invite(

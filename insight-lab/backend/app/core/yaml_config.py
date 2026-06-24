@@ -79,6 +79,14 @@ class SharingSection(BaseModel):
     member_change_rate_limit_per_min: int = 20
 
 
+class EmailSection(BaseModel):
+    enabled: bool = False
+    from_address: str = "InsightLab <onboarding@resend.dev>"
+    frontend_base_url: str = "http://localhost:3000"
+    resend_api_key_env: str = "RESEND_API_KEY"
+    notify_artifact_ready: bool = False
+
+
 class ExcelSection(BaseModel):
     analyze_rate_limit_per_min: int = 10
     chat_rate_limit_per_min: int = 20
@@ -194,6 +202,7 @@ class YamlConfig(BaseModel):
     excel_preview: ExcelPreviewSection
     course_pack: CoursePackSection
     sharing: SharingSection
+    email: EmailSection
     resilience: ResilienceSection
 
 

@@ -144,12 +144,15 @@ export function ShareWorkspacePanel({
       });
       return;
     }
+    const invitedEmail = email.trim();
     const link = inviteLinkForToken(data.token);
     setLastInviteLink(link);
     setEmail("");
     toast({
-      title: "Invite link created",
-      description: "InsightLab does not email invites — copy the link and send it yourself.",
+      title: data.email_sent ? "Invite email sent" : "Invite link created",
+      description: data.email_sent
+        ? `We emailed ${invitedEmail} — you can also copy the link below.`
+        : "Email is off — copy the link and send it yourself.",
       variant: "success",
     });
     await loadAll(trackingId);
@@ -502,13 +505,13 @@ export function ShareWorkspacePanel({
       <div data-tour="share-panel">
         {!canManage ? (
           <p className="mb-4 text-sm text-muted-foreground">
-            Invite classmates as viewers or editors. Invites are not emailed — copy a link and send it
-            yourself.
+            Invite classmates as viewers or editors. When email is configured, we send the invite
+            automatically — you can always copy the link below too.
           </p>
         ) : (
           <p className="mb-4 text-sm text-muted-foreground">
-            Invite classmates as viewers (read + study) or editors (upload + generate tools). Invites are
-            not emailed — you copy a link and send it yourself.
+            Invite classmates as viewers (read + study) or editors (upload + generate tools). When email
+            is configured, we send the invite automatically — you can always copy the link below too.
           </p>
         )}
         {content}
@@ -521,8 +524,8 @@ export function ShareWorkspacePanel({
       <CardHeader>
         <CardTitle>Share study sheet</CardTitle>
         <CardDescription>
-          Invite classmates as viewers (read + study) or editors (upload + generate tools). Invites are
-          not emailed — you copy a link and send it yourself.
+          Invite classmates as viewers (read + study) or editors (upload + generate tools). When email is
+          configured, we send the invite automatically — you can always copy the link too.
         </CardDescription>
       </CardHeader>
       <CardContent>{content}</CardContent>

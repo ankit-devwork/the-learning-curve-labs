@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CoursePackResults } from "@/components/workspace/course-pack-results";
 import { useToast } from "@/components/ui/toast";
+import { downloadAuthenticatedText } from "@/lib/export-utils";
 
 export function CoursePackPanel({
   setId,
@@ -19,6 +20,7 @@ export function CoursePackPanel({
 }) {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [pack, setPack] = useState<CoursePackResponse | null>(null);
 
   async function handleGenerate() {
@@ -49,17 +51,45 @@ export function CoursePackPanel({
     }
   }
 
+  async function handleExportMarkdown() {
+    setExporting(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return;
+      }
+      await downloadAuthenticatedText(
+        `/workspaces/${setId}/course-pack/export/markdown`,
+        session.access_token,
+        `course-pack-${setId}.md`,
+      );
+      toast({ title: "Course pack exported", description: "Markdown file downloaded.", variant: "success" });
+    } catch {
+      toast({ title: "Export failed", variant: "error" });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const content = (
     <div className="space-y-4">
-      {canEdit ? (
-        <Button type="button" disabled={generating} onClick={() => void handleGenerate()}>
-          {generating ? "Generating pack…" : "Generate course pack"}
+      <div className="flex flex-wrap gap-2">
+        {canEdit ? (
+          <Button type="button" disabled={generating} onClick={() => void handleGenerate()}>
+            {generating ? "Generating pack…" : "Generate course pack"}
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Course pack generation requires editor or owner access.
+          </p>
+        )}
+        <Button type="button" variant="outline" disabled={exporting} onClick={() => void handleExportMarkdown()}>
+          {exporting ? "Exporting…" : "Export Markdown"}
         </Button>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Course pack generation requires editor or owner access.
-        </p>
-      )}
+      </div>
 
       {pack ? <CoursePackResults setId={setId} documents={pack.documents} /> : null}
     </div>

@@ -9,8 +9,10 @@ import {
   type ExcelAskResponse,
   type ExcelChart,
   type ExcelPreviewResponse,
+  type SourceCitation,
   type WorkspaceSummary,
 } from "@/lib/api";
+import { SourceCitations } from "@/components/documents/source-citations";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { ChartCardWithExport } from "@/components/excel/chart-export-actions";
 import { ExcelChartView } from "@/components/excel/excel-chart-view";
@@ -38,6 +40,7 @@ type ExcelChatMessage = {
   cacheMatch?: string;
   similarity?: number;
   sources?: string[];
+  documentCitations?: SourceCitation[];
 };
 
 type ExcelDetailClientProps = {
@@ -234,6 +237,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
           cacheMatch: data.cache_match,
           similarity: data.similarity,
           sources: data.sources,
+          documentCitations: data.document_citations,
         },
       ]);
       setQuestion("");
@@ -317,6 +321,13 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
                           .filter(Boolean)
                           .join(" · ")}
                       />
+                      {message.documentCitations && message.documentCitations.length > 0 ? (
+                        <SourceCitations
+                          sources={message.documentCitations}
+                          groupByDocument
+                          className="ml-1"
+                        />
+                      ) : null}
                     </div>
                   ))}
                 </div>

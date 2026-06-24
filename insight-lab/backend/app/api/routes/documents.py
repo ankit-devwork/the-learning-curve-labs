@@ -18,6 +18,7 @@ from app.services.document_extras import (
     get_suggested_questions,
 )
 from app.services.multi_doc_service import ask_multiple_documents, retrieve_multiple_documents
+from app.services.study_session_service import get_study_session_plan
 
 router = APIRouter()
 
@@ -165,3 +166,15 @@ async def get_document_chunk_route(
     chunk = await get_document_chunk(get_supabase_client(), document_id, chunk_index, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**chunk, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/study-session/plan")
+@with_observability("get_study_session_plan")
+async def get_study_session_plan_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    plan = await get_study_session_plan(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**plan, "correlation_id": correlation_id}

@@ -63,6 +63,13 @@ sharing:
   invite_create_rate_limit_per_min: 10
   member_change_rate_limit_per_min: 20
 
+email:
+  enabled: false
+  from_address: "InsightLab <onboarding@resend.dev>"
+  frontend_base_url: "http://localhost:3000"
+  resend_api_key_env: RESEND_API_KEY
+  notify_artifact_ready: false
+
 documents:
   chunk_size: 1200
   chunk_overlap: 200

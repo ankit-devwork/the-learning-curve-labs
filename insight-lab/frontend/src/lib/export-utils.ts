@@ -1,4 +1,4 @@
-import type { ExcelChart } from "@/lib/api";
+import { apiFetch, type ExcelChart } from "@/lib/api";
 
 function escapeCsvValue(value: string | number): string {
   const text = String(value);
@@ -131,6 +131,18 @@ export function downloadTextFile(content: string, filename: string): void {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export async function downloadAuthenticatedText(
+  path: string,
+  accessToken: string,
+  filename: string,
+): Promise<void> {
+  const response = await apiFetch(path, accessToken);
+  if (!response.ok) {
+    throw new Error(`Download failed (${response.status})`);
+  }
+  downloadTextFile(await response.text(), filename);
 }
 
 export function downloadStudyGuidePdf(title: string, content: {

@@ -17,6 +17,7 @@ from app.api.routes.invites import router as invites_router
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.upload import router as upload_router
+from app.api.routes.public_quiz import router as public_quiz_router
 from app.api.routes.quiz import router as quiz_router
 from app.core.cache import close_cache
 from app.core.config import ENV_PATH, config_diagnostics, settings
@@ -96,6 +97,7 @@ app.include_router(artifacts_router)
 app.include_router(graph_router, tags=["graph"])
 app.include_router(excel_router, tags=["excel"])
 app.include_router(quiz_router, tags=["quiz"])
+app.include_router(public_quiz_router)
 
 
 @app.get("/")
