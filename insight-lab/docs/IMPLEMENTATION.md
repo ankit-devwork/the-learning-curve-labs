@@ -2,6 +2,8 @@
 
 Living document updated as features land. See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
 
+> **LangGraph:** Not used in InsightLab. AI flows are implemented in `backend/app/services/` with LiteLLM + pycorekit. LangGraph appears in the sibling [genai-doc-assistant-capstone](../genai-doc-assistant-capstone/) project. See [ARCHITECTURE.md §2.1](ARCHITECTURE.md#21-ai-orchestration).
+
 ## Phase 1 — Foundation
 
 | Step | Feature | Status | Docs / endpoints |
