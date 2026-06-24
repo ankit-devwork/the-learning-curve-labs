@@ -35,7 +35,7 @@ const actions = [
   { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview", requiresEdit: true },
   { id: "infographic", label: "Infographic", icon: Image, description: "Visual summary card", requiresEdit: true },
   { id: "audio", label: "Audio overview", icon: Volume2, description: "Listen to a narrated summary", requiresEdit: true },
-  { id: "mindmap", label: "Mind map", icon: Share2, description: "Explore connected concepts", requiresEdit: false },
+  { id: "mindmap", label: "Mind map", icon: Network, description: "Explore connected concepts", requiresEdit: false },
 ] as const;
 
 export function StudioPanel({
