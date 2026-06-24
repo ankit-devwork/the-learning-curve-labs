@@ -3,83 +3,50 @@
 import {
   BookOpen,
   Brain,
+  FileText,
   Image,
   Layers,
-  MessageSquare,
   Network,
   Sparkles,
   Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { StudioTab } from "@/lib/notebook-utils";
 import { cn } from "@/lib/utils";
 
 type StudioPanelProps = {
+  activeTab: StudioTab;
   ready: boolean;
   busy?: boolean;
-  canEdit?: boolean;
-  onGenerateQuiz: () => void;
-  onGenerateFlashcards: () => void;
-  onGenerateStudyGuide: () => void;
-  onGenerateAudioOverview: () => void;
-  onGenerateInfographic: () => void;
-  onOpenMindMap: () => void;
-  onFocusAsk: () => void;
+  badges?: Partial<Record<StudioTab, string | number>>;
+  onSelectTab: (tab: StudioTab) => void;
   className?: string;
 };
 
-const actions = [
-  { id: "ask", label: "Ask", icon: MessageSquare, description: "Chat with this document", requiresEdit: false },
-  { id: "quiz", label: "Quiz", icon: Brain, description: "Generate practice questions", requiresEdit: true },
-  { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards", requiresEdit: true },
-  { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview", requiresEdit: true },
-  { id: "infographic", label: "Infographic", icon: Image, description: "Visual summary card", requiresEdit: true },
-  { id: "audio", label: "Audio overview", icon: Volume2, description: "Listen to a narrated summary", requiresEdit: true },
-  { id: "mindmap", label: "Mind map", icon: Network, description: "Explore connected concepts", requiresEdit: false },
-] as const;
+const actions: Array<{
+  id: StudioTab;
+  label: string;
+  icon: typeof FileText;
+  description: string;
+}> = [
+  { id: "brief", label: "Brief", icon: FileText, description: "AI summary of this source" },
+  { id: "quiz", label: "Quiz", icon: Brain, description: "Practice questions" },
+  { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards" },
+  { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview" },
+  { id: "infographic", label: "Infographic", icon: Image, description: "Visual summary card" },
+  { id: "audio", label: "Audio overview", icon: Volume2, description: "Narrated summary" },
+  { id: "mindmap", label: "Mind map", icon: Network, description: "Connected concepts" },
+];
 
 export function StudioPanel({
+  activeTab,
   ready,
   busy,
-  canEdit = true,
-  onGenerateQuiz,
-  onGenerateFlashcards,
-  onGenerateStudyGuide,
-  onGenerateAudioOverview,
-  onGenerateInfographic,
-  onOpenMindMap,
-  onFocusAsk,
+  badges,
+  onSelectTab,
   className,
 }: StudioPanelProps) {
-  function handleAction(actionId: (typeof actions)[number]["id"]) {
-    if (!ready || busy) {
-      return;
-    }
-    switch (actionId) {
-      case "ask":
-        onFocusAsk();
-        break;
-      case "quiz":
-        onGenerateQuiz();
-        break;
-      case "flashcards":
-        onGenerateFlashcards();
-        break;
-      case "guide":
-        onGenerateStudyGuide();
-        break;
-      case "infographic":
-        onGenerateInfographic();
-        break;
-      case "audio":
-        onGenerateAudioOverview();
-        break;
-      case "mindmap":
-        onOpenMindMap();
-        break;
-    }
-  }
-
   return (
     <Card className={cn("notebook-surface border-0 shadow-none", className)} data-tour="studio-panel">
       <CardHeader className="pb-3">
@@ -87,27 +54,47 @@ export function StudioPanel({
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
           <CardTitle className="text-base">Studio</CardTitle>
         </div>
-        <CardDescription>One-click learning tools from this document</CardDescription>
+        <CardDescription>Outputs from this source</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-2">
-        {actions.map(({ id, label, icon: Icon, description, requiresEdit }) => (
-          <Button
-            key={id}
-            type="button"
-            variant="outline"
-            className="h-auto justify-start gap-3 px-3 py-3 text-left"
-            disabled={!ready || busy || (requiresEdit && !canEdit)}
-            onClick={() => handleAction(id)}
-          >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Icon className="h-4 w-4" aria-hidden />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-medium">{label}</span>
-              <span className="block text-xs font-normal text-muted-foreground">{description}</span>
-            </span>
-          </Button>
-        ))}
+      <CardContent className="grid gap-1.5">
+        {actions.map(({ id, label, icon: Icon, description }) => {
+          const selected = activeTab === id;
+          const badge = badges?.[id];
+          return (
+            <Button
+              key={id}
+              type="button"
+              variant={selected ? "secondary" : "ghost"}
+              className={cn(
+                "h-auto justify-start gap-3 px-3 py-2.5 text-left",
+                selected && "ring-1 ring-primary/20",
+              )}
+              disabled={!ready || busy}
+              aria-current={selected ? "true" : undefined}
+              onClick={() => onSelectTab(id)}
+            >
+              <span
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+                  selected ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary",
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{label}</span>
+                  {badge != null ? (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                      {badge}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">{description}</span>
+              </span>
+            </Button>
+          );
+        })}
       </CardContent>
     </Card>
   );

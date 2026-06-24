@@ -34,6 +34,7 @@ import { ProcessingStepper } from "@/components/workspace/processing-stepper";
 import { SourcesRail } from "@/components/workspace/sources-rail";
 import { SourceViewerDrawer } from "@/components/workspace/source-viewer-drawer";
 import { StudioPanel } from "@/components/workspace/studio-panel";
+import { ArtifactEmptyState } from "@/components/workspace/artifact-empty-state";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
 import { InfographicView } from "@/components/workspace/infographic-view";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
@@ -418,30 +419,32 @@ export function DocumentWorkspaceClient({
 
   const ready = document.status === "ready";
   const canEdit = canEditWorkspace(workspaceRole);
-  const tabItems = [
-    { id: "brief", label: STUDIO_TAB_LABELS.brief },
-    { id: "quiz", label: STUDIO_TAB_LABELS.quiz, badge: existingQuiz ? "✓" : undefined },
-    { id: "flashcards", label: STUDIO_TAB_LABELS.flashcards, badge: flashcards ? flashcards.card_count : undefined },
-    { id: "guide", label: STUDIO_TAB_LABELS.guide, badge: studyGuide ? "✓" : undefined },
-    { id: "infographic", label: STUDIO_TAB_LABELS.infographic, badge: infographic ? "✓" : undefined },
-    { id: "audio", label: STUDIO_TAB_LABELS.audio, badge: audioOverview ? "✓" : undefined },
-    { id: "mindmap", label: STUDIO_TAB_LABELS.mindmap },
-  ];
+  const showSourcesRail = setDocuments.length > 1;
+  const studioBadges: Partial<Record<StudioTab, string | number>> = {
+    quiz: existingQuiz ? "✓" : undefined,
+    flashcards: flashcards ? flashcards.card_count : undefined,
+    guide: studyGuide ? "✓" : undefined,
+    infographic: infographic ? "✓" : undefined,
+    audio: audioOverview ? "✓" : undefined,
+  };
+  const mobileTabs = (Object.keys(STUDIO_TAB_LABELS) as StudioTab[]).map((id) => ({
+    id,
+    label: STUDIO_TAB_LABELS[id],
+    badge: studioBadges[id],
+  }));
 
   return (
     <div className={audioPlaying ? "space-y-4 pb-24" : "space-y-4"}>
-      <ContextBreadcrumb
-        items={[
-          { label: "Study sheets", href: "/dashboard/sets" },
-          { label: workspaceName || "Study sheet", href: `/dashboard/sets/${setId}` },
-          { label: document.filename },
-        ]}
-      />
-
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate font-display text-2xl font-semibold sm:text-3xl">{document.filename}</h1>
-          <p className="mt-1 text-sm text-muted-foreground capitalize">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <ContextBreadcrumb
+            items={[
+              { label: "Study sheets", href: "/dashboard/sets" },
+              { label: workspaceName || "Study sheet", href: `/dashboard/sets/${setId}` },
+              { label: document.filename },
+            ]}
+          />
+          <p className="text-sm text-muted-foreground capitalize">
             {document.file_type} · {document.status}
             {workspaceRole ? ` · ${workspaceRoleLabel(workspaceRole)}` : ""}
           </p>
@@ -457,13 +460,21 @@ export function DocumentWorkspaceClient({
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_260px]">
-        <SourcesRail
-          setId={setId}
-          documents={setDocuments}
-          activeDocumentId={documentId}
-          className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"
-        />
+      <div
+        className={
+          showSourcesRail
+            ? "grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_240px]"
+            : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px]"
+        }
+      >
+        {showSourcesRail ? (
+          <SourcesRail
+            setId={setId}
+            documents={setDocuments}
+            activeDocumentId={documentId}
+            className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"
+          />
+        ) : null}
 
         <section className="min-w-0 space-y-4">
           <Card className="notebook-surface border-0 shadow-none" id="chat">
@@ -513,9 +524,10 @@ export function DocumentWorkspaceClient({
           </Card>
 
           <NotebookTabs
-            tabs={tabItems}
+            tabs={mobileTabs}
             active={activeTab}
             onChange={(id) => selectTab(id as StudioTab)}
+            className="xl:hidden"
           />
 
           {activeTab === "brief" ? (
@@ -574,13 +586,17 @@ export function DocumentWorkspaceClient({
                   }}
                 />
               ) : (
-                <Card className="notebook-surface border-0 shadow-none">
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    {canEdit
-                      ? "Use Studio → Flashcards to generate a deck from this source."
-                      : "No flashcards yet for this source."}
-                  </CardContent>
-                </Card>
+                <ArtifactEmptyState
+                  message={
+                    canEdit
+                      ? "Generate a flashcard deck from this source."
+                      : "No flashcards yet for this source."
+                  }
+                  actionLabel={canEdit ? "Generate flashcards" : undefined}
+                  onAction={canEdit ? () => void generateFlashcards() : undefined}
+                  actionDisabled={!ready}
+                  actionBusy={studioBusy}
+                />
               )}
             </div>
           ) : null}
@@ -590,13 +606,17 @@ export function DocumentWorkspaceClient({
               {studyGuide ? (
                 <StudyGuideView title={studyGuide.title} content={studyGuide.content} />
               ) : (
-                <Card className="notebook-surface border-0 shadow-none">
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    {canEdit
-                      ? "Use Studio → Study guide to generate a structured overview."
-                      : "No study guide yet for this source."}
-                  </CardContent>
-                </Card>
+                <ArtifactEmptyState
+                  message={
+                    canEdit
+                      ? "Generate a structured study guide from this source."
+                      : "No study guide yet for this source."
+                  }
+                  actionLabel={canEdit ? "Generate study guide" : undefined}
+                  onAction={canEdit ? () => void generateStudyGuide() : undefined}
+                  actionDisabled={!ready}
+                  actionBusy={studioBusy}
+                />
               )}
             </div>
           ) : null}
@@ -606,13 +626,17 @@ export function DocumentWorkspaceClient({
               {infographic ? (
                 <InfographicView title={infographic.title} content={infographic.content} />
               ) : (
-                <Card className="notebook-surface border-0 shadow-none">
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    {canEdit
-                      ? "Use Studio → Infographic to generate a visual summary."
-                      : "No infographic yet for this source."}
-                  </CardContent>
-                </Card>
+                <ArtifactEmptyState
+                  message={
+                    canEdit
+                      ? "Generate a visual infographic from this source."
+                      : "No infographic yet for this source."
+                  }
+                  actionLabel={canEdit ? "Generate infographic" : undefined}
+                  onAction={canEdit ? () => void generateInfographic() : undefined}
+                  actionDisabled={!ready}
+                  actionBusy={studioBusy}
+                />
               )}
             </div>
           ) : null}
@@ -645,20 +669,13 @@ export function DocumentWorkspaceClient({
           ) : null}
         </section>
 
-        <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
+        <aside className="hidden space-y-4 xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
           <StudioPanel
+            activeTab={activeTab}
             ready={ready}
             busy={studioBusy}
-            canEdit={canEdit}
-            onFocusAsk={() => {
-              window.document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            onGenerateQuiz={() => selectTab("quiz")}
-            onGenerateFlashcards={() => void generateFlashcards()}
-            onGenerateStudyGuide={() => void generateStudyGuide()}
-            onGenerateInfographic={() => void generateInfographic()}
-            onGenerateAudioOverview={() => selectTab("audio")}
-            onOpenMindMap={() => selectTab("mindmap")}
+            badges={studioBadges}
+            onSelectTab={selectTab}
           />
         </aside>
       </div>
