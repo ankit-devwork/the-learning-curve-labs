@@ -254,7 +254,7 @@ After deploy, logged in as a test user:
 | Quiz | Studio → Generate quiz → submit → score |
 | Compare | Select 2+ **document** files on `/dashboard/compare` → multi-doc answer |
 | Excel notebook | Open `.xlsx` → Insights + Preview + Charts after analysis |
-| Share (optional) | Invite member → accept link → shared sources visible |
+| Share (optional) | Create invite link → copy and send manually → accept link → shared sources visible |
 
 Watch logs during first upload/process (first embedding run downloads the FastEmbed model — expect a slow first request):
 
