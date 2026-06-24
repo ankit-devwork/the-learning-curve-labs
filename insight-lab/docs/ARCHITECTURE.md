@@ -166,7 +166,7 @@ flowchart TB
 
 | Route | Purpose |
 |-------|---------|
-| `/login`, `/signup` | Supabase Auth (email + Google) |
+| `/login`, `/signup` | Supabase Auth (Google only; email/password temporarily disabled) |
 | `/auth/callback` | OAuth / email confirm callback |
 | `/invite/[token]` | Accept workspace invite |
 | `/dashboard` | Redirects to `/dashboard/sets` |

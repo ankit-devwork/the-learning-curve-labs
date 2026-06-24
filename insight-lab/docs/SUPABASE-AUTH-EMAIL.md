@@ -92,11 +92,10 @@ Save, then send a test from the dashboard if available.
 
 Users can sign in right after signup. **Do not use in production** unless you accept unverified addresses.
 
-## InsightLab app behavior (after PR deploy)
+## InsightLab app behavior
 
-- Signup/login explain built-in Supabase limits
-- **Resend confirmation email** calls `auth.resend({ type: 'signup' })` — still subject to Supabase SMTP
-- Google sign-in bypasses email confirmation entirely
+- Sign-up and sign-in use **Google OAuth** only (email/password forms hidden until custom SMTP is ready).
+- Legacy email/password helpers remain in the codebase for a future re-enable.
 
 ## Related docs
 
