@@ -160,6 +160,7 @@ class ArtifactsSection(BaseModel):
     max_context_chunks: int = 8
     flashcard_max_tokens: int = 2000
     study_guide_max_tokens: int = 2500
+    infographic_max_tokens: int = 2500
     suggested_questions_max_tokens: int = 400
     chunk_preview_max_chars: int = 1200
 

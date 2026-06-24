@@ -24,7 +24,7 @@ export function documentHref(setId: string, doc: Pick<DocumentSummary, "id" | "f
   return `/dashboard/sets/${setId}/documents/${doc.id}`;
 }
 
-export type StudioTab = "brief" | "quiz" | "flashcards" | "guide" | "audio" | "graph";
+export type StudioTab = "brief" | "quiz" | "flashcards" | "guide" | "audio" | "infographic" | "mindmap";
 
 export type ExcelCanvasTab = "brief" | "preview" | "charts" | "builder";
 
@@ -34,7 +34,8 @@ export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   flashcards: "Flashcards",
   guide: "Study guide",
   audio: "Audio",
-  graph: "Topics",
+  infographic: "Infographic",
+  mindmap: "Mind map",
 };
 
 export const EXCEL_TAB_LABELS: Record<ExcelCanvasTab, string> = {

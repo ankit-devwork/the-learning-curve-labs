@@ -3,6 +3,7 @@
 import {
   BookOpen,
   Brain,
+  Image,
   Layers,
   MessageSquare,
   Network,
@@ -21,7 +22,8 @@ type StudioPanelProps = {
   onGenerateFlashcards: () => void;
   onGenerateStudyGuide: () => void;
   onGenerateAudioOverview: () => void;
-  onOpenGraph: () => void;
+  onGenerateInfographic: () => void;
+  onOpenMindMap: () => void;
   onFocusAsk: () => void;
   className?: string;
 };
@@ -31,8 +33,9 @@ const actions = [
   { id: "quiz", label: "Quiz", icon: Brain, description: "Generate practice questions", requiresEdit: true },
   { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards", requiresEdit: true },
   { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview", requiresEdit: true },
+  { id: "infographic", label: "Infographic", icon: Image, description: "Visual summary card", requiresEdit: true },
   { id: "audio", label: "Audio overview", icon: Volume2, description: "Listen to a narrated summary", requiresEdit: true },
-  { id: "graph", label: "Topic graph", icon: Network, description: "Explore key concepts", requiresEdit: false },
+  { id: "mindmap", label: "Mind map", icon: Share2, description: "Explore connected concepts", requiresEdit: false },
 ] as const;
 
 export function StudioPanel({
@@ -43,7 +46,8 @@ export function StudioPanel({
   onGenerateFlashcards,
   onGenerateStudyGuide,
   onGenerateAudioOverview,
-  onOpenGraph,
+  onGenerateInfographic,
+  onOpenMindMap,
   onFocusAsk,
   className,
 }: StudioPanelProps) {
@@ -64,11 +68,14 @@ export function StudioPanel({
       case "guide":
         onGenerateStudyGuide();
         break;
+      case "infographic":
+        onGenerateInfographic();
+        break;
       case "audio":
         onGenerateAudioOverview();
         break;
-      case "graph":
-        onOpenGraph();
+      case "mindmap":
+        onOpenMindMap();
         break;
     }
   }

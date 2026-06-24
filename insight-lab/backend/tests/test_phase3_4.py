@@ -2,7 +2,12 @@ import pytest
 
 from pycorekit.exceptions.file import FileException
 
-from app.services.artifact_parsing import parse_flashcard_draft, parse_study_guide_draft
+from app.services.artifact_parsing import (
+    infographic_to_content,
+    parse_flashcard_draft,
+    parse_infographic_draft,
+    parse_study_guide_draft,
+)
 from app.services.workspace_service import _sanitize_workspace_name
 
 
@@ -43,3 +48,22 @@ def test_parse_study_guide_draft():
     draft = parse_study_guide_draft(raw)
     assert draft.title == "Guide"
     assert draft.key_terms[0].term == "RAG"
+
+
+def test_parse_infographic_draft():
+    raw = """
+    {
+      "title": "Key Insights",
+      "subtitle": "At a glance",
+      "theme": "violet",
+      "blocks": [
+        {"type": "stat", "label": "Concepts", "value": "12", "caption": "Core ideas"},
+        {"type": "bullets", "heading": "Takeaways", "items": ["One", "Two"]}
+      ]
+    }
+    """
+    draft = parse_infographic_draft(raw)
+    content = infographic_to_content(draft)
+    assert content["title"] == "Key Insights"
+    assert content["theme"] == "violet"
+    assert len(content["blocks"]) == 2

@@ -470,6 +470,44 @@ async def generate_study_guide_draft(
     )
 
 
+async def generate_infographic_draft(
+    *,
+    context_chunks: list[str],
+    summary: str,
+    filename: str,
+) -> str:
+    cfg = get_yaml_config().artifacts
+    context = "\n\n".join(
+        tag_block(f"excerpt_{index + 1}", chunk) for index, chunk in enumerate(context_chunks)
+    )
+    prompt = (
+        "Create a visual infographic outline from the document below. Return ONLY valid JSON with:\n"
+        "- title (string, short headline)\n"
+        "- subtitle (string, one-line hook)\n"
+        "- theme (one of: blue, violet, emerald, amber, rose, cyan)\n"
+        "- blocks (array of 4-8 blocks, each with a type field)\n\n"
+        "Block types:\n"
+        '- stat: {type, label, value, caption?} — highlight a key number or fact\n'
+        '- bullets: {type, heading, items[]} — 3-5 concise bullet points\n'
+        '- comparison: {type, heading, left_title, left_items[], right_title, right_items[]}\n'
+        '- quote: {type, text, attribution?} — memorable insight from the source\n\n'
+        "Use varied block types. Keep text short and scannable.\n\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('summary', summary[:6000])}\n\n"
+        f"{tag_block('excerpts', context[:8000])}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.infographic_max_tokens,
+    )
+
+
 async def generate_suggested_questions(*, summary: str, filename: str) -> list[str]:
     cfg = get_yaml_config().artifacts
     prompt = (
@@ -508,6 +546,10 @@ def flashcard_cache_key(user_id: str, document_id: str, num_cards: int) -> str:
 
 def study_guide_cache_key(user_id: str, document_id: str) -> str:
     return f"study_guide:{user_id}:{document_id}"
+
+
+def infographic_cache_key(user_id: str, document_id: str) -> str:
+    return f"infographic:{user_id}:{document_id}"
 
 
 def suggested_questions_cache_key(user_id: str, document_id: str) -> str:
