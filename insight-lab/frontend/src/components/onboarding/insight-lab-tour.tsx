@@ -70,7 +70,7 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share-invite",
     title: "Invite by email",
-    body: "Choose viewer (study only) or editor (upload + generate), then copy the invite link to send to a classmate.",
+    body: "Choose viewer (study only) or editor (upload + generate). InsightLab creates a link — copy it and send it yourself (email, chat, etc.).",
     target: '[data-tour="share-invite"]',
     placement: "bottom",
   },

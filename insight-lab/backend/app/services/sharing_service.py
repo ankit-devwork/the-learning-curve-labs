@@ -111,7 +111,7 @@ def list_workspace_invites(client: Client, workspace_id: str, user: AuthUser) ->
     require_workspace_role(client, workspace_id, user, min_role="editor")
     return (
         client.table("workspace_invites")
-        .select("id, email, role, expires_at, accepted_at, created_at")
+        .select("id, email, role, token, expires_at, accepted_at, created_at")
         .eq("workspace_id", workspace_id)
         .is_("accepted_at", "null")
         .order("created_at", desc=True)

@@ -118,7 +118,7 @@ Use this order — matches a real pilot deploy.
 - [ ] **E3.** Studio → Generate quiz → submit → score
 - [ ] **E4.** Compare: select 2+ **document** files → multi-doc answer
 - [ ] **E5.** Upload Excel → opens **Excel notebook** → Insights, Preview, and Charts tabs after analysis
-- [ ] **E6.** (Optional) Share study set → invite link → second user can view sources
+- [ ] **E6.** (Optional) Share study set → copy invite link → second user accepts → shared sources visible
 
 ---
 
