@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
 import { ProgressDashboardPanel } from "@/components/workspace/progress-dashboard-panel";
+import { ClassroomAnalyticsPanel } from "@/components/workspace/classroom-analytics-panel";
 import { SourceLinksPanel } from "@/components/workspace/source-links-panel";
 import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
@@ -321,6 +322,10 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       </div>
 
       {progress ? <ProgressDashboardPanel progress={progress} /> : null}
+
+      {canEdit ? (
+        <ClassroomAnalyticsPanel setId={setId} accessToken={accessToken} canManage={canEdit} />
+      ) : null}
 
       <Card className="shadow-sm" data-tour="sources-strip">
         <CardHeader>

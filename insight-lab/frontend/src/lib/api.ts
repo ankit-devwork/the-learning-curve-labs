@@ -421,6 +421,32 @@ export type WorkspaceProgress = WorkspaceStats & {
   study_next: { action: string; label: string };
 };
 
+export type ClassroomMemberStats = {
+  user_id: string;
+  email?: string | null;
+  full_name?: string | null;
+  role: string;
+  joined_at?: string;
+  quiz_attempts: number;
+  avg_quiz_percent: number | null;
+  flashcard_reviews: number;
+  flashcard_knew_percent: number | null;
+  mastery_avg_percent: number | null;
+  weak_topic_count: number;
+  last_activity_at: string | null;
+};
+
+export type ClassroomAnalytics = {
+  workspace_id: string;
+  member_count: number;
+  ready_documents: number;
+  class_avg_quiz_percent: number | null;
+  public_quiz_attempts: number;
+  public_quiz_avg_percent: number | null;
+  members: ClassroomMemberStats[];
+  correlation_id?: string;
+};
+
 export type StudySessionStep = {
   step: "brief" | "flashcards" | "quiz";
   label: string;
