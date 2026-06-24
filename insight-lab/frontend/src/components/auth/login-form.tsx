@@ -95,7 +95,7 @@ export function LoginForm() {
           {showResendConfirmation ? (
             <>
               <ResendConfirmationButton email={email} />
-              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" />
+              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" variant="user" />
             </>
           ) : null}
           <Button type="submit" className="w-full" disabled={loading}>

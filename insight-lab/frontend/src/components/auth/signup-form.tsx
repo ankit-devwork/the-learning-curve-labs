@@ -116,11 +116,11 @@ export function SignUpForm() {
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {awaitingConfirmation ? (
             <>
-              <Button type="button" variant="outline" className="w-full" asChild>
-                <Link href="/login">Go to sign in</Link>
+              <Button type="button" className="w-full" asChild>
+                <Link href="/login">Sign in</Link>
               </Button>
               <ResendConfirmationButton email={email} />
-              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" />
+              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" variant="user" />
             </>
           ) : (
             <Button type="submit" className="w-full" disabled={loading}>
@@ -130,12 +130,14 @@ export function SignUpForm() {
         </form>
       </CardContent>
       <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-            Sign in
-          </Link>
-        </p>
+        {awaitingConfirmation ? null : (
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+              Sign in
+            </Link>
+          </p>
+        )}
       </CardFooter>
     </Card>
   );
