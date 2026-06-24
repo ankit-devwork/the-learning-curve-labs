@@ -24,12 +24,13 @@ export function documentHref(setId: string, doc: Pick<DocumentSummary, "id" | "f
   return `/dashboard/sets/${setId}/documents/${doc.id}`;
 }
 
-export type StudioTab = "brief" | "quiz" | "flashcards" | "guide" | "audio" | "infographic" | "mindmap";
+export type StudioTab = "brief" | "session" | "quiz" | "flashcards" | "guide" | "audio" | "infographic" | "mindmap";
 
 export type ExcelCanvasTab = "brief" | "preview" | "charts" | "builder";
 
 export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   brief: "Brief",
+  session: "Session",
   quiz: "Quiz",
   flashcards: "Flashcards",
   guide: "Study guide",

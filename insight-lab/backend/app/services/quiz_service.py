@@ -584,14 +584,22 @@ async def update_quiz_question(
 
 
 async def publish_quiz(client: Client, quiz_id: str, user: AuthUser) -> dict[str, Any]:
+    from app.services.source_links_service import new_public_share_token
+
     quiz = _get_owned_quiz(client, quiz_id, user)
     if not can_edit_document(client, quiz["document_id"], user):
         raise FileException("You do not have permission to publish this quiz", status_code=403)
 
+    share_token = quiz.get("public_share_token") or new_public_share_token()
     updated = (
         client.table("quizzes")
         .update(
-            {"published": True, "updated_at": datetime.now(timezone.utc).isoformat()}
+            {
+                "published": True,
+                "public_share_token": share_token,
+                "public_share_enabled_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
         )
         .eq("id", quiz_id)
         .execute()
@@ -608,7 +616,103 @@ async def publish_quiz(client: Client, quiz_id: str, user: AuthUser) -> dict[str
         .data
         or []
     )
-    return _serialize_quiz(row, questions, include_answers=False, cached=False)
+    serialized = _serialize_quiz(row, questions, include_answers=False, cached=False)
+    serialized["public_share_token"] = share_token
+    return serialized
+
+
+async def get_public_quiz(client: Client, *, share_token: str) -> dict[str, Any]:
+    result = (
+        client.table("quizzes")
+        .select("*")
+        .eq("public_share_token", share_token.strip())
+        .eq("published", True)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise NotFoundException("Quiz not found or not published")
+    quiz = result.data[0]
+    questions = (
+        client.table("quiz_questions")
+        .select("*")
+        .eq("quiz_id", quiz["id"])
+        .order("sort_order")
+        .execute()
+        .data
+        or []
+    )
+    doc = (
+        client.table("documents")
+        .select("filename")
+        .eq("id", quiz["document_id"])
+        .limit(1)
+        .execute()
+    )
+    serialized = _serialize_quiz(quiz, questions, include_answers=False, cached=False)
+    serialized["source_filename"] = doc.data[0]["filename"] if doc.data else None
+    return serialized
+
+
+async def submit_public_quiz(
+    client: Client,
+    *,
+    share_token: str,
+    display_name: str,
+    answers: dict[str, int],
+) -> dict[str, Any]:
+    quiz_payload = await get_public_quiz(client, share_token=share_token)
+    quiz_id = quiz_payload["quiz_id"]
+    questions = (
+        client.table("quiz_questions")
+        .select("*")
+        .eq("quiz_id", quiz_id)
+        .order("sort_order")
+        .execute()
+        .data
+        or []
+    )
+    if not questions:
+        raise FileException("Quiz has no questions", status_code=409)
+
+    safe_name = (display_name or "Guest").strip()[:80] or "Guest"
+    score = 0
+    results: list[dict[str, Any]] = []
+    for question in questions:
+        selected = answers.get(question["id"])
+        correct_index = question["correct_option_index"]
+        is_correct = selected == correct_index
+        if is_correct:
+            score += 1
+        results.append(
+            {
+                "question_id": question["id"],
+                "correct": is_correct,
+                "selected_option_index": selected,
+                "correct_option_index": correct_index,
+                "explanation": question.get("explanation"),
+            }
+        )
+
+    total = len(questions)
+    client.table("quiz_public_attempts").insert(
+        {
+            "quiz_id": quiz_id,
+            "display_name": safe_name,
+            "score": score,
+            "total": total,
+            "answers": answers,
+        }
+    ).execute()
+
+    return {
+        "quiz_id": quiz_id,
+        "display_name": safe_name,
+        "score": score,
+        "total": total,
+        "percent": round((score / total) * 100, 1) if total else 0,
+        "results": results,
+    }
 
 
 async def get_quiz_for_edit(client: Client, quiz_id: str, user: AuthUser) -> dict[str, Any]:

@@ -1,13 +1,21 @@
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import PlainTextResponse
 
 from pycorekit.tracing.decorators import with_observability
+from pycorekit.correlation.headers import tracking_response_headers
 
 from app.api.routes.quiz import GenerateQuizRequest
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
 from app.services.course_pack_service import generate_course_pack
+from app.services.progress_service import get_workspace_progress
+from app.services.source_links_service import (
+    create_source_link,
+    delete_source_link,
+    list_source_links,
+)
 from app.services.mastery_service import get_workspace_concept_mastery, get_workspace_weak_concepts
 from app.services.quiz_service import generate_workspace_adaptive_quiz
 from app.services.sharing_service import (
@@ -28,6 +36,7 @@ from app.services.workspace_service import (
     list_workspaces,
     update_workspace,
 )
+from app.services.export_utils import course_pack_to_markdown
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -53,6 +62,12 @@ class MemberRoleUpdateRequest(BaseModel):
 
 class CoursePackRequest(BaseModel):
     document_ids: list[str] | None = Field(default=None, max_length=20)
+
+
+class SourceLinkCreateRequest(BaseModel):
+    excel_document_id: str = Field(..., min_length=1)
+    document_id: str = Field(..., min_length=1)
+    label: str | None = Field(default=None, max_length=120)
 
 
 @router.get("")
@@ -156,6 +171,63 @@ async def workspace_stats_route(
     return {**stats, "correlation_id": correlation_id}
 
 
+@router.get("/{workspace_id}/progress")
+@with_observability("workspace_progress")
+async def workspace_progress_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    progress = await get_workspace_progress(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**progress, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/source-links")
+@with_observability("list_source_links")
+async def list_source_links_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    links = list_source_links(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"links": links, "correlation_id": correlation_id}
+
+
+@router.post("/{workspace_id}/source-links")
+@with_observability("create_source_link")
+async def create_source_link_route(
+    workspace_id: str,
+    body: SourceLinkCreateRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    link = create_source_link(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        excel_document_id=body.excel_document_id,
+        document_id=body.document_id,
+        label=body.label,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**link, "correlation_id": correlation_id}
+
+
+@router.delete("/{workspace_id}/source-links/{link_id}")
+@with_observability("delete_source_link")
+async def delete_source_link_route(
+    workspace_id: str,
+    link_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    delete_source_link(get_supabase_client(), workspace_id, user, link_id=link_id)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"deleted": True, "link_id": link_id, "correlation_id": correlation_id}
+
+
 @router.get("/{workspace_id}/concepts/mastery")
 @with_observability("get_workspace_concept_mastery")
 async def get_workspace_concept_mastery_route(
@@ -220,6 +292,39 @@ async def generate_course_pack_route(
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/course-pack/export/markdown")
+@with_observability("export_course_pack_markdown")
+async def export_course_pack_markdown_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    workspace = get_workspace(get_supabase_client(), workspace_id, user)
+    documents = list_workspace_documents(get_supabase_client(), workspace_id, user, limit=50)
+    summaries = []
+    client = get_supabase_client()
+    for doc in documents:
+        if doc.get("file_type") != "document" or doc.get("status") != "ready":
+            continue
+        detail = client.table("documents").select("summary").eq("id", doc["id"]).limit(1).execute()
+        summaries.append(
+            {
+                "filename": doc["filename"],
+                "summary": detail.data[0].get("summary") if detail.data else None,
+            }
+        )
+    markdown = course_pack_to_markdown(workspace_name=workspace["name"], documents=summaries)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return PlainTextResponse(
+        content=markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="course-pack-{workspace_id}.md"',
+            **tracking_response_headers(correlation_id),
+        },
+    )
 
 
 @router.get("/{workspace_id}/members")

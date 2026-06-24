@@ -7,6 +7,7 @@ import {
   Image,
   Layers,
   Network,
+  PlayCircle,
   Sparkles,
   Volume2,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const actions: Array<{
   description: string;
 }> = [
   { id: "brief", label: "Brief", icon: FileText, description: "AI summary of this source" },
+  { id: "session", label: "Study session", icon: PlayCircle, description: "Guided brief → cards → quiz" },
   { id: "quiz", label: "Quiz", icon: Brain, description: "Practice questions" },
   { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards" },
   { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview" },

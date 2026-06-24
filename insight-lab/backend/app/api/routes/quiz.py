@@ -1,11 +1,14 @@
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import PlainTextResponse
 
 from pycorekit.tracing.decorators import with_observability
+from pycorekit.correlation.headers import tracking_response_headers
 
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
+from app.services.export_utils import quiz_to_qti_xml
 from app.services.quiz_service import (
     generate_adaptive_quiz,
     generate_document_quiz,
@@ -186,3 +189,23 @@ async def publish_quiz_route(
     result = await publish_quiz(get_supabase_client(), quiz_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/quizzes/{quiz_id}/export/qti")
+@with_observability("export_quiz_qti")
+async def export_quiz_qti_route(
+    quiz_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    quiz = await get_quiz_for_edit(get_supabase_client(), quiz_id, user)
+    xml_text = quiz_to_qti_xml(title=quiz["title"], questions=quiz["questions"])
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return PlainTextResponse(
+        content=xml_text,
+        media_type="application/xml; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="quiz-{quiz_id}.xml"',
+            **tracking_response_headers(correlation_id),
+        },
+    )

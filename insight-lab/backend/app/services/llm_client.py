@@ -168,18 +168,29 @@ async def answer_excel_question(
     summary: str,
     charts: list[dict],
     filename: str,
+    linked_excerpts: list[str] | None = None,
 ) -> dict:
     cfg = get_yaml_config().excel
     compact_charts = _compact_charts_for_context(charts)
+    linked_block = ""
+    if linked_excerpts:
+        linked_block = "\n\n" + tag_block(
+            "linked_documents",
+            "\n\n".join(
+                tag_block(f"excerpt_{index + 1}", excerpt[:2500])
+                for index, excerpt in enumerate(linked_excerpts[:3])
+            )[:8000],
+        )
     prompt = (
         "Answer the question using ONLY the provided spreadsheet profile, "
-        "analysis summary, and chart data. "
+        "analysis summary, chart data, and any linked document excerpts. "
         "If the answer cannot be determined from this context, say so clearly. "
         "Keep answers concise. Reference chart titles or column names when relevant.\n\n"
         f"{tag_block('filename', filename)}\n\n"
         f"{tag_block('profile', json.dumps(profile, indent=2)[:12000])}\n\n"
         f"{tag_block('analysis_summary', summary[:6000])}\n\n"
-        f"{tag_block('charts', json.dumps(compact_charts, indent=2)[:8000])}\n\n"
+        f"{tag_block('charts', json.dumps(compact_charts, indent=2)[:8000])}"
+        f"{linked_block}\n\n"
         f"{tag_block('question', question)}"
     )
     answer = await _acompletion_with_resilience(

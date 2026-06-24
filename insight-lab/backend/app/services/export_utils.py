@@ -44,3 +44,59 @@ def study_guide_to_markdown(*, title: str, content: dict) -> str:
             parts.append(f"- {question}")
     return "\n".join(parts).strip() + "\n"
 
+
+def quiz_to_qti_xml(*, title: str, questions: list[dict]) -> str:
+    """Minimal QTI 1.2 assessment XML for LMS import."""
+    import html
+
+    items: list[str] = []
+    for index, question in enumerate(questions, start=1):
+        options = question.get("options") or []
+        correct = int(question.get("correct_option_index", 0))
+        resp_labels = []
+        for opt_index, option in enumerate(options):
+            identifier = chr(ord("A") + opt_index)
+            resp_labels.append(
+                f'<response_label ident="{identifier}"><material><mattext texttype="text/plain">'
+                f"{html.escape(str(option))}</mattext></material></response_label>"
+            )
+        correct_id = chr(ord("A") + correct) if options else "A"
+        items.append(
+            f"""
+    <item ident="item{index}" title="Question {index}">
+      <presentation>
+        <material><mattext texttype="text/plain">{html.escape(str(question.get('question_text', '')))}</mattext></material>
+        <response_lid ident="response{index}" rcardinality="Single">
+          <render_choice>{''.join(resp_labels)}</render_choice>
+        </response_lid>
+      </presentation>
+      <resprocessing>
+        <respcondition continue="No">
+          <conditionvar><varequal respident="response{index}">{correct_id}</varequal></conditionvar>
+          <setvar action="Set" varname="SCORE">100</setvar>
+        </respcondition>
+      </resprocessing>
+    </item>"""
+        )
+
+    safe_title = html.escape(title)
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2">
+  <assessment ident="insightlab-quiz" title="{safe_title}">
+    <section>{''.join(items)}
+    </section>
+  </assessment>
+</questestinterop>
+"""
+
+
+def course_pack_to_markdown(*, workspace_name: str, documents: list[dict]) -> str:
+    parts = [f"# Course pack — {workspace_name}", ""]
+    for doc in documents:
+        parts.append(f"## {doc.get('filename', 'Document')}")
+        summary = doc.get("summary") or doc.get("artifacts", {}).get("summary")
+        if summary:
+            parts.append(str(summary))
+            parts.append("")
+    return "\n".join(parts).strip() + "\n"
+

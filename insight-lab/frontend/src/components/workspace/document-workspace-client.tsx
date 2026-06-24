@@ -33,6 +33,7 @@ import { FlashcardStudy } from "@/components/workspace/flashcard-study";
 import { ProcessingStepper } from "@/components/workspace/processing-stepper";
 import { SourcesRail } from "@/components/workspace/sources-rail";
 import { SourceViewerDrawer } from "@/components/workspace/source-viewer-drawer";
+import { StudySessionPanel } from "@/components/workspace/study-session-panel";
 import { StudioPanel } from "@/components/workspace/studio-panel";
 import { ArtifactEmptyState } from "@/components/workspace/artifact-empty-state";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
@@ -341,6 +342,30 @@ export function DocumentWorkspaceClient({
     }
   }
 
+  async function generateQuiz() {
+    if (!accessToken) {
+      return;
+    }
+    setStudioBusy(true);
+    selectTab("quiz");
+    try {
+      const response = await apiFetch(`/documents/${documentId}/quiz/generate`, accessToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question_type: "scq", difficulty: "medium", num_questions: 5 }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({ title: "Quiz generation failed", description: body.error, variant: "error" });
+        return;
+      }
+      setExistingQuiz((await response.json()) as QuizResponse);
+      toast({ title: "Quiz ready", variant: "success" });
+    } finally {
+      setStudioBusy(false);
+    }
+  }
+
   async function generateFlashcards() {
     if (!accessToken) {
       return;
@@ -548,6 +573,20 @@ export function DocumentWorkspaceClient({
                 )}
               </CardContent>
             </Card>
+          ) : null}
+
+          {activeTab === "session" ? (
+            <div id="session">
+              <StudySessionPanel
+                documentId={documentId}
+                accessToken={accessToken}
+                ready={ready}
+                busy={studioBusy}
+                onSelectTab={selectTab}
+                onGenerateFlashcards={() => void generateFlashcards()}
+                onGenerateQuiz={() => void generateQuiz()}
+              />
+            </div>
           ) : null}
 
           {activeTab === "quiz" ? (

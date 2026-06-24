@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   apiFetch,
   type DocumentSummary,
-  type WorkspaceStats,
+  type WorkspaceProgress,
   type WorkspaceSummary,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
-import { WorkspaceStatsPanel } from "@/components/workspace/workspace-stats-panel";
+import { ProgressDashboardPanel } from "@/components/workspace/progress-dashboard-panel";
+import { SourceLinksPanel } from "@/components/workspace/source-links-panel";
 import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
@@ -27,7 +28,7 @@ import { canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 import { cn } from "@/lib/utils";
 import { SlideOverDrawer } from "@/components/ui/slide-over-drawer";
 
-type SheetDrawerPanel = "share" | "upload" | "course-pack";
+type SheetDrawerPanel = "share" | "upload" | "course-pack" | "links";
 
 const MATERIAL_ROW_HEIGHT_PX = 64;
 const MATERIAL_MAX_VISIBLE_ROWS = 5;
@@ -46,7 +47,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const { toast } = useToast();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
-  const [stats, setStats] = useState<WorkspaceStats | null>(null);
+  const [progress, setProgress] = useState<WorkspaceProgress | null>(null);
   const [uploadConfig, setUploadConfig] = useState<UploadConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -71,7 +72,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     const [workspaceRes, docsRes, statsRes] = await Promise.all([
       apiFetch(`/workspaces/${setId}`, session.access_token),
       apiFetch(`/workspaces/${setId}/documents`, session.access_token),
-      apiFetch(`/workspaces/${setId}/stats`, session.access_token),
+      apiFetch(`/workspaces/${setId}/progress`, session.access_token),
     ]);
 
     if (!workspaceRes.ok || !docsRes.ok || !statsRes.ok) {
@@ -85,7 +86,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     const statsData = await statsRes.json();
     setWorkspace(workspaceData);
     setDocuments(docsData.documents ?? []);
-    setStats(statsData);
+    setProgress(statsData as WorkspaceProgress);
     setLoading(false);
   }, [setId]);
 
@@ -230,6 +231,10 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       title: "Course pack",
       description: "Generate learning outputs for every ready document at once.",
     },
+    links: {
+      title: "Source links",
+      description: "Connect spreadsheets to related documents for richer Excel Q&A.",
+    },
   };
 
   return (
@@ -281,6 +286,14 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
                 type="button"
                 variant="outline"
                 size="sm"
+                onClick={() => openDrawer("links")}
+              >
+                Source links
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 data-tour="course-pack-btn"
                 onClick={() => openDrawer("course-pack")}
               >
@@ -307,7 +320,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         </div>
       </div>
 
-      {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
+      {progress ? <ProgressDashboardPanel progress={progress} /> : null}
 
       <Card className="shadow-sm" data-tour="sources-strip">
         <CardHeader>
@@ -423,6 +436,14 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         ) : null}
         {drawerPanel === "course-pack" ? (
           <CoursePackPanel setId={setId} canEdit={canEdit} embedded />
+        ) : null}
+        {drawerPanel === "links" ? (
+          <SourceLinksPanel
+            setId={setId}
+            documents={documents}
+            accessToken={accessToken}
+            canEdit={canEdit}
+          />
         ) : null}
       </SlideOverDrawer>
     </div>

@@ -20,6 +20,8 @@ import {
   QuizMasteryProgress,
 } from "@/components/documents/quiz-mastery-progress";
 import { cn } from "@/lib/utils";
+import { downloadAuthenticatedText } from "@/lib/export-utils";
+import { useToast } from "@/components/ui/toast";
 
 const selectClassName = cn(
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
@@ -59,6 +61,8 @@ export function DocumentQuizPanel({
   const [editQuestions, setEditQuestions] = useState<QuizQuestionEditable[]>([]);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [exportingQti, setExportingQti] = useState(false);
+  const { toast } = useToast();
 
   const loadMastery = useCallback(async () => {
     if (!accessToken || !ready) {
@@ -230,6 +234,38 @@ export function DocumentQuizPanel({
     setEditMode(false);
   }
 
+  async function copyPublicLink() {
+    if (!quiz?.public_share_token) {
+      return;
+    }
+    const url = `${window.location.origin}/quiz/${quiz.public_share_token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Public link copied", description: "Anyone with the link can take this quiz.", variant: "success" });
+    } catch {
+      toast({ title: "Could not copy link", variant: "error" });
+    }
+  }
+
+  async function exportQti() {
+    if (!accessToken || !quiz) {
+      return;
+    }
+    setExportingQti(true);
+    try {
+      await downloadAuthenticatedText(
+        `/quizzes/${quiz.quiz_id}/export/qti`,
+        accessToken,
+        `${quiz.title.replace(/\s+/g, "-").toLowerCase()}-qti.xml`,
+      );
+      toast({ title: "QTI export downloaded", variant: "success" });
+    } catch {
+      toast({ title: "QTI export failed", variant: "error" });
+    } finally {
+      setExportingQti(false);
+    }
+  }
+
   const canPracticeWeakAreas = hasWeakConcepts(mastery);
 
   return (
@@ -369,6 +405,22 @@ export function DocumentQuizPanel({
                 {canEdit && quiz.published === false ? (
                   <Button type="button" size="sm" disabled={publishing} onClick={() => void handlePublish()}>
                     {publishing ? "Publishing…" : "Publish quiz"}
+                  </Button>
+                ) : null}
+                {quiz.published !== false && quiz.public_share_token ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => void copyPublicLink()}>
+                    Copy public link
+                  </Button>
+                ) : null}
+                {quiz.published !== false ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={exportingQti}
+                    onClick={() => void exportQti()}
+                  >
+                    {exportingQti ? "Exporting…" : "Export QTI"}
                   </Button>
                 ) : null}
               </div>

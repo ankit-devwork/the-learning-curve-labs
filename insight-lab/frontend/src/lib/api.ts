@@ -166,6 +166,7 @@ export type QuizResponse = {
   question_type: "scq" | "mcq" | "true_false";
   difficulty: string;
   published?: boolean;
+  public_share_token?: string;
   questions: QuizQuestion[];
   cached?: boolean;
   target_concepts?: ConceptMasteryItem[];
@@ -332,6 +333,7 @@ export type ExcelAskResponse = {
   question: string;
   answer: string;
   sources?: string[];
+  document_citations?: SourceCitation[];
   cached?: boolean;
   cache_match?: string;
   similarity?: number;
@@ -410,6 +412,48 @@ export type WorkspaceStats = {
   excel_files: number;
   quiz_attempts: number;
   avg_quiz_percent: number | null;
+};
+
+export type WorkspaceProgress = WorkspaceStats & {
+  flashcard_reviews: number;
+  mastery_avg_percent: number | null;
+  weak_concepts: ConceptMasteryItem[];
+  study_next: { action: string; label: string };
+};
+
+export type StudySessionStep = {
+  step: "brief" | "flashcards" | "quiz";
+  label: string;
+  ready: boolean;
+  duration_min: number;
+  set_id?: string | null;
+  quiz_id?: string | null;
+  published?: boolean;
+  generate_if_missing?: boolean;
+};
+
+export type StudySessionPlan = {
+  document_id: string;
+  filename: string;
+  steps: StudySessionStep[];
+  weak_concepts: ConceptMasteryItem[];
+  focus_topic: string | null;
+  estimated_minutes: number;
+};
+
+export type SourceLink = {
+  id: string;
+  excel_document_id: string;
+  document_id: string;
+  label?: string | null;
+  excel_filename?: string;
+  document_filename?: string;
+  created_at?: string;
+};
+
+export type PublicQuizResponse = QuizResponse & {
+  source_filename?: string | null;
+  public_share_token?: string;
 };
 
 export type ProcessingStatus = {

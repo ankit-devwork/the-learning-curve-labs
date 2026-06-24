@@ -32,6 +32,10 @@ from app.services.semantic_cache import (
     store_semantic_cached_answer_by_index,
 )
 from app.services.workspace_access import get_accessible_document, require_editable_document
+from app.services.source_links_service import (
+    build_linked_citations,
+    fetch_linked_document_chunks,
+)
 
 log = get_logger("excel")
 
@@ -274,14 +278,24 @@ async def ask_excel(
     profile = doc.get("excel_profile") or {}
     charts = doc.get("excel_charts") or []
     summary = doc.get("excel_summary") or ""
+    linked_citations: list[dict] = []
 
     try:
+        linked_rows = fetch_linked_document_chunks(
+            client,
+            excel_document_id=document_id,
+            question=question,
+            limit=3,
+        )
+        linked_citations = build_linked_citations(linked_rows)
+        linked_excerpts = [row["content"] for row in linked_rows]
         llm_result = await answer_excel_question(
             question=question,
             profile=profile,
             summary=summary,
             charts=charts,
             filename=doc["filename"],
+            linked_excerpts=linked_excerpts,
         )
     except Exception as exc:
         log.exception("Excel chat failed", document_id=document_id, user_id=user.id)
@@ -292,6 +306,7 @@ async def ask_excel(
         "question": question,
         "answer": llm_result["answer"],
         "sources": llm_result["sources"],
+        "document_citations": linked_citations,
         "cached": False,
     }
     await cache_set(cache_key, payload, get_yaml_config().cache.chat_ttl)
