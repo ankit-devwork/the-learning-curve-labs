@@ -32,8 +32,9 @@ export function isSignupDuplicateResponse(user: User | null, session: unknown): 
   return !user.identities || user.identities.length === 0;
 }
 
-export const SIGNUP_DUPLICATE_EMAIL_MESSAGE =
-  "An account with this email already exists. Sign in instead.";
+export const SIGNUP_INCOMPLETE_HYBRID_MESSAGE =
+  "We couldn't complete registration with this email. If you already signed up, sign in instead. " +
+  "If this is your first time, check your inbox and spam for a confirmation email.";
 
 export const SUPABASE_BUILTIN_EMAIL_NOTE =
   "Supabase’s default mail sends about 2 emails per hour and often never reaches Gmail. " +

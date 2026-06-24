@@ -23,7 +23,7 @@ import {
   formatAuthEmailError,
   isAuthEmailRateLimitError,
   isSignupDuplicateResponse,
-  SIGNUP_DUPLICATE_EMAIL_MESSAGE,
+  SIGNUP_INCOMPLETE_HYBRID_MESSAGE,
   SUPABASE_BUILTIN_EMAIL_NOTE,
 } from "@/lib/supabase/auth-email";
 
@@ -68,14 +68,15 @@ export function SignUpForm() {
     }
 
     if (isSignupDuplicateResponse(data.user, data.session)) {
-      setError(SIGNUP_DUPLICATE_EMAIL_MESSAGE);
+      setAwaitingConfirmation(true);
+      setMessage(SIGNUP_INCOMPLETE_HYBRID_MESSAGE);
       setLoading(false);
       return;
     }
 
     setAwaitingConfirmation(true);
     setMessage(
-      "If confirmation is enabled, check your email and spam folder. Nothing arrives? " +
+      "Check your email to confirm your account, then sign in. Nothing arrives? " +
         SUPABASE_BUILTIN_EMAIL_NOTE
     );
     setLoading(false);
@@ -122,19 +123,13 @@ export function SignUpForm() {
               autoComplete="new-password"
             />
           </div>
-          {error && (
-            <div className="space-y-2">
-              <p className="text-sm text-destructive">{error}</p>
-              {error === SIGNUP_DUPLICATE_EMAIL_MESSAGE ? (
-                <Button type="button" variant="outline" className="w-full" asChild>
-                  <Link href="/login">Go to sign in</Link>
-                </Button>
-              ) : null}
-            </div>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {awaitingConfirmation ? (
             <>
+              <Button type="button" variant="outline" className="w-full" asChild>
+                <Link href="/login">Go to sign in</Link>
+              </Button>
               <ResendConfirmationButton email={email} />
               <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" />
             </>
