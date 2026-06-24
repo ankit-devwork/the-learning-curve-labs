@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch, type WorkspaceStudySessionPlan } from "@/lib/api";
+import { apiFetch, type StudySessionRecord, type WorkspaceStudySessionPlan } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 type WorkspaceStudySessionPanelProps = {
   setId: string;
   accessToken: string | null;
   hasReadyDocuments: boolean;
+  learningPathId?: string | null;
 };
 
 function stepDescription(step: WorkspaceStudySessionPlan["steps"][number]): string {
@@ -32,58 +34,111 @@ export function WorkspaceStudySessionPanel({
   setId,
   accessToken,
   hasReadyDocuments,
+  learningPathId = null,
 }: WorkspaceStudySessionPanelProps) {
-  const [plan, setPlan] = useState<WorkspaceStudySessionPlan | null>(null);
-  const [activeStep, setActiveStep] = useState(0);
+  const [session, setSession] = useState<StudySessionRecord | null>(null);
+  const [previewPlan, setPreviewPlan] = useState<WorkspaceStudySessionPlan | null>(null);
   const [loading, setLoading] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPlan = useCallback(async () => {
+  const loadActiveSession = useCallback(async () => {
     if (!accessToken || !hasReadyDocuments) {
       return;
     }
     setLoading(true);
     setError(null);
-    const response = await apiFetch(`/workspaces/${setId}/study-session/plan`, accessToken);
+    const [activeRes, planRes] = await Promise.all([
+      apiFetch(`/workspaces/${setId}/study-session/active`, accessToken),
+      apiFetch(`/workspaces/${setId}/study-session/plan`, accessToken),
+    ]);
     setLoading(false);
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      setError(body.error || "Could not load study session");
-      return;
+    if (planRes.ok) {
+      setPreviewPlan((await planRes.json()) as WorkspaceStudySessionPlan);
     }
-    setPlan((await response.json()) as WorkspaceStudySessionPlan);
+    if (activeRes.ok) {
+      const data = await activeRes.json();
+      setSession(data.session ?? null);
+    }
   }, [accessToken, hasReadyDocuments, setId]);
 
   useEffect(() => {
-    void loadPlan();
-  }, [loadPlan]);
+    void loadActiveSession();
+  }, [loadActiveSession]);
 
-  function scrollToSetQuiz() {
-    document.getElementById("set-quiz")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  async function startSession() {
+    if (!accessToken) {
+      return;
+    }
+    setStarting(true);
+    setError(null);
+    const response = await apiFetch(`/workspaces/${setId}/study-session/start`, accessToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ learning_path_id: learningPathId ?? undefined }),
+    });
+    setStarting(false);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error || "Could not start study session");
+      return;
+    }
+    setSession((await response.json()) as StudySessionRecord);
   }
 
-  function runStep(index: number) {
-    if (!plan) {
+  async function advanceStep(stepIndex: number, status: "in_progress" | "completed" | "skipped") {
+    if (!accessToken || !session) {
       return;
     }
-    const step = plan.steps[index];
-    setActiveStep(index);
+    const response = await apiFetch(
+      `/study-sessions/${session.session_id}/steps/${stepIndex}/advance`,
+      accessToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      },
+    );
+    if (response.ok) {
+      setSession((await response.json()) as StudySessionRecord);
+    }
+  }
 
-    if (step.step === "focus") {
+  function scrollToSetQuiz() {
+    window.document.getElementById("set-quiz")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function runStep(stepIndex: number) {
+    const steps = session?.steps ?? [];
+    const stepProgress = steps.find((row) => row.step_index === stepIndex);
+    const payload = stepProgress?.payload as WorkspaceStudySessionPlan["steps"][number] | undefined;
+    if (!payload) {
       return;
     }
-    if (step.step === "brief" && step.document_id) {
-      window.location.href = `/dashboard/sets/${setId}/documents/${step.document_id}#brief`;
+
+    await advanceStep(stepIndex, "in_progress");
+
+    if (payload.step === "brief" && "document_id" in payload && payload.document_id) {
+      window.location.href = `/dashboard/sets/${setId}/documents/${payload.document_id}#brief`;
       return;
     }
-    if (step.step === "flashcards" && step.document_id) {
-      window.location.href = `/dashboard/sets/${setId}/documents/${step.document_id}#flashcards`;
+    if (payload.step === "flashcards" && "document_id" in payload && payload.document_id) {
+      window.location.href = `/dashboard/sets/${setId}/documents/${payload.document_id}#flashcards`;
       return;
     }
-    if (step.step === "adaptive_quiz" || step.step === "set_quiz") {
+    if (payload.step === "adaptive_quiz" || payload.step === "set_quiz") {
       scrollToSetQuiz();
     }
   }
+
+  async function markComplete(stepIndex: number) {
+    await advanceStep(stepIndex, "completed");
+  }
+
+  const plan = session?.plan as WorkspaceStudySessionPlan | undefined;
+  const displayPlan = plan ?? previewPlan;
+  const progress = session?.progress;
+  const steps = session?.steps ?? [];
 
   if (!hasReadyDocuments) {
     return (
@@ -101,39 +156,49 @@ export function WorkspaceStudySessionPanel({
     );
   }
 
-  if (loading && !plan) {
-    return (
-      <Card className="shadow-sm" data-tour="study-session">
-        <CardContent className="py-6">
-          <p className="text-sm text-muted-foreground">Loading study session…</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!plan) {
-    return error ? (
-      <Card className="shadow-sm" data-tour="study-session">
-        <CardContent className="py-6">
-          <p className="text-sm text-destructive">{error}</p>
-        </CardContent>
-      </Card>
-    ) : null;
-  }
-
-  const focusStep = plan.steps.find((step) => step.step === "focus");
+  const focusStep = displayPlan?.steps.find((step) => step.step === "focus");
 
   return (
     <Card className="shadow-sm" data-tour="study-session">
       <CardHeader>
         <CardTitle>Study session</CardTitle>
         <CardDescription>
-          ~{plan.estimated_minutes} min guided flow across {plan.document_count} document
-          {plan.document_count === 1 ? "" : "s"}
-          {plan.focus_topic ? ` · focus: ${plan.focus_topic}` : ""}
+          {displayPlan
+            ? `~${displayPlan.estimated_minutes} min guided flow across ${displayPlan.document_count} document${displayPlan.document_count === 1 ? "" : "s"}`
+            : "Track progress through your study sheet"}
+          {displayPlan?.focus_topic ? ` · focus: ${displayPlan.focus_topic}` : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {progress ? (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>
+                {progress.completed_steps} / {progress.total_steps} steps
+              </span>
+              <span>{progress.percent}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {!session ? (
+          <Button type="button" disabled={starting || loading} onClick={() => void startSession()}>
+            {starting ? "Starting…" : "Start tracked session"}
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Session active — complete steps below or mark them done as you go.
+          </p>
+        )}
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
         {focusStep?.step === "focus" && focusStep.weak_concepts.length > 0 ? (
           <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm">
             <p className="font-medium">Focus topics</p>
@@ -150,40 +215,53 @@ export function WorkspaceStudySessionPanel({
         ) : null}
 
         <ol className="space-y-2">
-          {plan.steps
+          {(displayPlan?.steps ?? [])
             .filter((step) => step.step !== "focus")
             .map((step, index) => {
-              const stepIndex = plan.steps.indexOf(step);
+              const stepIndex = displayPlan?.steps.indexOf(step) ?? index;
+              const progressRow = steps.find((row) => row.step_index === stepIndex);
+              const status = progressRow?.status ?? "pending";
               return (
                 <li
                   key={`${step.step}-${"document_id" in step ? step.document_id : index}`}
-                  className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                    activeStep === stepIndex ? "border-primary/40 bg-primary/5" : ""
-                  }`}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm",
+                    status === "completed" && "border-emerald-300/50 bg-emerald-50/40 dark:bg-emerald-950/20",
+                    status === "in_progress" && "border-primary/40 bg-primary/5",
+                  )}
                 >
                   <div className="min-w-0">
                     <p className="font-medium">
                       {index + 1}. {step.label}
+                      {status === "completed" ? " ✓" : ""}
                     </p>
                     <p className="text-xs text-muted-foreground">{stepDescription(step)}</p>
-                    {"ready" in step && step.step !== "set_quiz" && step.step !== "adaptive_quiz" ? (
-                      <p className="text-xs text-muted-foreground">
-                        {step.ready ? "Ready" : "Generate in document studio"}
-                      </p>
-                    ) : null}
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => runStep(stepIndex)}>
-                    {step.step === "adaptive_quiz" || step.step === "set_quiz" ? "Go" : "Start"}
-                  </Button>
+                  <div className="flex shrink-0 gap-1">
+                    {session && status !== "completed" ? (
+                      <>
+                        <Button type="button" size="sm" variant="outline" onClick={() => void runStep(stepIndex)}>
+                          Start
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => void markComplete(stepIndex)}>
+                          Done
+                        </Button>
+                      </>
+                    ) : session ? null : (
+                      <span className="text-xs text-muted-foreground capitalize">{status.replace("_", " ")}</span>
+                    )}
+                  </div>
                 </li>
               );
             })}
         </ol>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => runStep(0)}>
-            Start full session
-          </Button>
+          {session ? (
+            <Button type="button" onClick={() => void runStep(session.current_step_index)}>
+              Continue session
+            </Button>
+          ) : null}
           <Button type="button" variant="outline" asChild>
             <Link href="#set-quiz">Open set quiz</Link>
           </Button>

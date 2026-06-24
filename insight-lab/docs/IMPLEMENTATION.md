@@ -480,6 +480,14 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 | Workspace concept graph | `GET /workspaces/{id}/graph` (mastery overlay) | `WorkspaceConceptGraphPanel` on set detail |
 | Set-wide study session | `GET /workspaces/{id}/study-session/plan` | `WorkspaceStudySessionPanel` on set detail |
 
+## Phase 11 (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Excel quizzes | `POST/GET /documents/{id}/excel/quiz/*` | Quiz tab on Excel notebook |
+| Session progress tracking | `POST .../study-session/start`, `GET .../active`, `POST /study-sessions/{id}/steps/{n}/advance` | Tracked session UI + progress bar |
+| Learning paths | `POST/GET /workspaces/{id}/learning-paths/*` | `LearningPathPanel` prerequisite-ordered concepts |
+
 Still planned:
 
 - SCORM 1.2 packages

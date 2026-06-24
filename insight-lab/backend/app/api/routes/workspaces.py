@@ -42,7 +42,15 @@ from app.services.workspace_service import (
 from app.services.export_utils import course_pack_to_markdown
 from app.services.classroom_analytics_service import get_classroom_analytics
 from app.services.graph_service import get_workspace_graph
+from app.services.learning_path_service import (
+    generate_workspace_learning_path,
+    get_latest_workspace_learning_path,
+)
 from app.services.lms_export_service import build_lms_bundle_zip, collect_ready_material_summaries
+from app.services.study_session_progress_service import (
+    get_active_workspace_study_session,
+    start_workspace_study_session,
+)
 from app.services.study_session_service import get_workspace_study_session_plan
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -69,6 +77,10 @@ class MemberRoleUpdateRequest(BaseModel):
 
 class CoursePackRequest(BaseModel):
     document_ids: list[str] | None = Field(default=None, max_length=20)
+
+
+class StartStudySessionRequest(BaseModel):
+    learning_path_id: str | None = None
 
 
 class SourceLinkCreateRequest(BaseModel):
@@ -285,6 +297,64 @@ async def get_workspace_study_session_plan_route(
     plan = await get_workspace_study_session_plan(get_supabase_client(), workspace_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**plan, "correlation_id": correlation_id}
+
+
+@router.post("/{workspace_id}/study-session/start")
+@with_observability("start_workspace_study_session")
+async def start_workspace_study_session_route(
+    workspace_id: str,
+    body: StartStudySessionRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await start_workspace_study_session(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        learning_path_id=body.learning_path_id,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/study-session/active")
+@with_observability("get_active_workspace_study_session")
+async def get_active_workspace_study_session_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = get_active_workspace_study_session(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    if result is None:
+        return {"session": None, "correlation_id": correlation_id}
+    return {"session": result, "correlation_id": correlation_id}
+
+
+@router.post("/{workspace_id}/learning-paths/generate")
+@with_observability("generate_workspace_learning_path")
+async def generate_workspace_learning_path_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await generate_workspace_learning_path(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/learning-paths/latest")
+@with_observability("get_latest_workspace_learning_path")
+async def get_latest_workspace_learning_path_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = get_latest_workspace_learning_path(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    if result is None:
+        return {"path": None, "correlation_id": correlation_id}
+    return {"path": result, "correlation_id": correlation_id}
 
 
 @router.post("/{workspace_id}/quiz/adaptive/generate")

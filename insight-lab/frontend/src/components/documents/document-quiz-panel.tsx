@@ -35,6 +35,8 @@ type DocumentQuizPanelProps = {
   accessToken: string | null;
   initialQuiz?: QuizResponse | null;
   canEdit?: boolean;
+  variant?: "document" | "excel";
+  studySessionStepId?: string | null;
 };
 
 export function DocumentQuizPanel({
@@ -43,7 +45,13 @@ export function DocumentQuizPanel({
   accessToken,
   initialQuiz = null,
   canEdit = true,
+  variant = "document",
+  studySessionStepId = null,
 }: DocumentQuizPanelProps) {
+  const isExcel = variant === "excel";
+  const generatePath = isExcel
+    ? `/documents/${documentId}/excel/quiz/generate`
+    : `/documents/${documentId}/quiz/generate`;
   const [quiz, setQuiz] = useState<QuizResponse | null>(initialQuiz);
   const [questionType, setQuestionType] = useState<GenerateQuizRequest["question_type"]>("scq");
   const [difficulty, setDifficulty] = useState<GenerateQuizRequest["difficulty"]>("medium");
@@ -65,7 +73,7 @@ export function DocumentQuizPanel({
   const { toast } = useToast();
 
   const loadMastery = useCallback(async () => {
-    if (!accessToken || !ready) {
+    if (!accessToken || !ready || isExcel) {
       return;
     }
     setLoadingMastery(true);
@@ -78,7 +86,7 @@ export function DocumentQuizPanel({
     setMastery(data.concepts);
     setMasteryMigrationRequired(Boolean(data.migration_required));
     setMasteryNotice(data.notice ?? null);
-  }, [accessToken, documentId, ready]);
+  }, [accessToken, documentId, ready, isExcel]);
 
   useEffect(() => {
     void loadMastery();
@@ -93,7 +101,7 @@ export function DocumentQuizPanel({
     setResults(null);
     setAnswers({});
 
-    const response = await apiFetch(`/documents/${documentId}/quiz/generate`, accessToken, {
+    const response = await apiFetch(generatePath, accessToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -111,10 +119,10 @@ export function DocumentQuizPanel({
     }
 
     setQuiz((await response.json()) as QuizResponse);
-  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit]);
+  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit, generatePath]);
 
   const generatePracticeQuiz = useCallback(async () => {
-    if (!accessToken || !canEdit) {
+    if (!accessToken || !canEdit || isExcel) {
       return;
     }
     setGenerating(true);
@@ -160,7 +168,10 @@ export function DocumentQuizPanel({
     const response = await apiFetch(`/quizzes/${quiz.quiz_id}/submit`, accessToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({
+        answers,
+        study_session_step_id: studySessionStepId ?? undefined,
+      }),
     });
     setSubmitting(false);
 
@@ -271,19 +282,29 @@ export function DocumentQuizPanel({
   return (
     <Card className="shadow-sm" data-tour="quiz-panel">
       <CardHeader>
-        <CardTitle className="text-lg">Quiz</CardTitle>
+        <CardTitle className="text-lg">{isExcel ? "Spreadsheet quiz" : "Quiz"}</CardTitle>
         <CardDescription>
-          Check your understanding — questions are generated from this document&apos;s content.
+          {isExcel
+            ? "Test your understanding of the data profile, charts, and insights from this spreadsheet."
+            : "Check your understanding — questions are generated from this document's content."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <FeatureGuide
           title="How quizzing works"
-          steps={[
-            "Pick question type, difficulty, and count, then click Generate quiz.",
-            "Answer every question and Submit — you will see your score and explanations.",
-            "Your progress by topic updates below; use Practice weak areas for topics you missed.",
-          ]}
+          steps={
+            isExcel
+              ? [
+                  "Pick question type, difficulty, and count, then click Start quiz.",
+                  "Questions are grounded in your spreadsheet profile, summary, and charts.",
+                  "Submit to see your score and explanations.",
+                ]
+              : [
+                  "Pick question type, difficulty, and count, then click Generate quiz.",
+                  "Answer every question and Submit — you will see your score and explanations.",
+                  "Your progress by topic updates below; use Practice weak areas for topics you missed.",
+                ]
+          }
         />
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
@@ -342,14 +363,16 @@ export function DocumentQuizPanel({
               <Button type="button" disabled={!ready || generating} onClick={() => void generateQuiz()}>
                 {generating ? "Creating..." : quiz ? "New quiz" : "Start quiz"}
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!ready || generating || !canPracticeWeakAreas}
-                onClick={() => void generatePracticeQuiz()}
-              >
-                {generating ? "Creating..." : "Practice weak areas"}
-              </Button>
+              {!isExcel ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!ready || generating || !canPracticeWeakAreas}
+                  onClick={() => void generatePracticeQuiz()}
+                >
+                  {generating ? "Creating..." : "Practice weak areas"}
+                </Button>
+              ) : null}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -357,7 +380,7 @@ export function DocumentQuizPanel({
             </p>
           )}
         </div>
-        {!canPracticeWeakAreas && ready && !loadingMastery && (
+        {!isExcel && !canPracticeWeakAreas && ready && !loadingMastery && (
           <p className="text-xs text-muted-foreground">
             Complete a quiz first. If any topics need more work, you can practice them here.
           </p>
@@ -365,7 +388,7 @@ export function DocumentQuizPanel({
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {(results || mastery.some((item) => item.attempts > 0)) && (
+        {!isExcel && (results || mastery.some((item) => item.attempts > 0)) && (
           <div className="rounded-md border border-dashed p-4">
             {loadingMastery ? (
               <p className="text-sm text-muted-foreground">Updating your progress...</p>

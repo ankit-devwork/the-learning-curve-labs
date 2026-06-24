@@ -22,6 +22,7 @@ import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
+import { LearningPathPanel } from "@/components/workspace/learning-path-panel";
 import { WorkspaceConceptGraphPanel } from "@/components/workspace/workspace-concept-graph-panel";
 import { WorkspaceStudySessionPanel } from "@/components/workspace/workspace-study-session-panel";
 import { useToast } from "@/components/ui/toast";
@@ -58,6 +59,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [drawerPanel, setDrawerPanel] = useState<SheetDrawerPanel | null>(null);
+  const [learningPathId, setLearningPathId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setError(null);
@@ -333,6 +335,14 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         setId={setId}
         accessToken={accessToken}
         hasReadyDocuments={hasReadyDocuments}
+        learningPathId={learningPathId}
+      />
+
+      <LearningPathPanel
+        setId={setId}
+        accessToken={accessToken}
+        hasReadyDocuments={hasReadyDocuments}
+        onPathGenerated={setLearningPathId}
       />
 
       <WorkspaceConceptGraphPanel

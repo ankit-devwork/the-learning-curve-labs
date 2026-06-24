@@ -18,6 +18,7 @@ import { ChartCardWithExport } from "@/components/excel/chart-export-actions";
 import { ExcelChartView } from "@/components/excel/excel-chart-view";
 import { ExcelChartBuilder } from "@/components/excel/excel-chart-builder";
 import { ExcelPreviewTable } from "@/components/excel/excel-preview-table";
+import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
 import { ExcelToolsPanel } from "@/components/excel/excel-tools-panel";
 import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { NotebookTabs } from "@/components/ui/notebook-tabs";
@@ -475,6 +476,18 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
                   </CardContent>
                 </Card>
               )}
+            </div>
+          ) : null}
+
+          {activeTab === "quiz" ? (
+            <div id="quiz">
+              <DocumentQuizPanel
+                documentId={documentId}
+                ready={status === "ready" && Boolean(analysis?.summary)}
+                accessToken={accessToken}
+                canEdit={canEdit}
+                variant="excel"
+              />
             </div>
           ) : null}
         </section>

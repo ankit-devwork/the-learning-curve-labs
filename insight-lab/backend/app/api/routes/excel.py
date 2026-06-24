@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from pycorekit.tracing.decorators import with_observability
 
+from app.api.routes.quiz import GenerateQuizRequest
 from app.api.routes.documents import AskRequest
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
@@ -14,6 +15,7 @@ from app.services.excel_service import (
     get_excel_analysis,
     get_excel_preview,
 )
+from app.services.quiz_service import generate_excel_quiz, get_document_quiz
 
 router = APIRouter()
 
@@ -88,4 +90,38 @@ async def ask_excel_route(
         question=body.question,
     )
     correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/excel/quiz/generate")
+@with_observability("generate_excel_quiz")
+async def generate_excel_quiz_route(
+    document_id: str,
+    body: GenerateQuizRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await generate_excel_quiz(
+        get_supabase_client(),
+        document_id,
+        user,
+        question_type=body.question_type,
+        difficulty=body.difficulty,
+        num_questions=body.num_questions,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/excel/quiz")
+@with_observability("get_excel_quiz")
+async def get_excel_quiz_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await get_document_quiz(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    if result is None:
+        return {"document_id": document_id, "quiz": None, "correlation_id": correlation_id}
     return {**result, "correlation_id": correlation_id}

@@ -31,6 +31,7 @@ class GenerateQuizRequest(BaseModel):
 
 class SubmitQuizRequest(BaseModel):
     answers: dict[str, int] = Field(default_factory=dict)
+    study_session_step_id: str | None = None
 
 
 class UpdateQuizQuestionRequest(BaseModel):
@@ -91,6 +92,7 @@ async def submit_quiz_attempt_route(
         quiz_id,
         user,
         answers=body.answers,
+        study_session_step_id=body.study_session_step_id,
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
