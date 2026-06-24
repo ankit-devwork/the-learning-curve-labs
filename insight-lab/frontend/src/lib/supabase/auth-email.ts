@@ -60,9 +60,15 @@ export async function resendSignupConfirmation(
   return { error: null };
 }
 
-export function formatAuthEmailError(message: string): string {
+export function formatAuthEmailError(message: string, audience: "user" | "admin" = "user"): string {
   if (isAuthEmailRateLimitError(message)) {
-    return `${message} Supabase’s built-in email limit is ~2 per hour. Enable custom SMTP in Project Settings → Authentication → SMTP, or ask the project owner to confirm your user manually.`;
+    if (audience === "admin") {
+      return `${message} Enable custom SMTP in Project Settings → Authentication → SMTP, or confirm the user manually under Authentication → Users.`;
+    }
+    return (
+      "Email sending is temporarily unavailable (Supabase limit reached). " +
+      "Try Sign in with Google, ask the app owner to activate your account, or try again in about an hour."
+    );
   }
   return message;
 }
