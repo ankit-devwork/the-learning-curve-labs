@@ -1,6 +1,6 @@
 # InsightLab Frontend
 
-Next.js 15 app with Supabase Auth (email + Google), shadcn/ui, and Tailwind.
+Next.js 15 app with Supabase Auth (Google), shadcn/ui, and Tailwind.
 
 ## Setup
 
@@ -30,14 +30,14 @@ Use the **anon public** key from Supabase → Settings → API (not service_role
 | Site URL | `http://localhost:3000` |
 | Redirect URLs | `http://localhost:3000/auth/callback` |
 
-**Authentication → Providers → Email** — enabled (default). For production, configure **SMTP** under Project Settings → Authentication so confirmation emails reach Gmail reliably.
-
-**Authentication → Providers → Google**
+**Authentication → Providers → Google** (required)
 
 1. Enable Google provider
 2. Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
 3. Authorized redirect URI: `https://YOUR_PROJECT.supabase.co/auth/v1/callback`
 4. Paste Client ID and Client Secret into Supabase
+
+**Authentication → Providers → Email** — optional; sign-up UI uses Google only until custom SMTP is configured.
 
 ### 3. Install and run
 
@@ -72,8 +72,8 @@ Or call the API directly: `NEXT_PUBLIC_API_URL=http://localhost:8000`
 
 | Route | Description |
 |-------|-------------|
-| `/login` | Email + Google sign in |
-| `/signup` | Email + Google sign up |
+| `/login` | Google sign in |
+| `/signup` | Google sign up |
 | `/auth/callback` | OAuth / email confirm callback |
 | `/invite/[token]` | Accept workspace invite |
 | `/dashboard` | Redirects to `/dashboard/sets` |
