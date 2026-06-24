@@ -16,7 +16,8 @@ where u.id = p.id
 create or replace function public.sync_profile_email_from_auth()
 returns trigger
 language plpgsql
-security def set search_path = public
+security definer
+set search_path = public
 as $$
 begin
   insert into public.profiles (id, role, email)
