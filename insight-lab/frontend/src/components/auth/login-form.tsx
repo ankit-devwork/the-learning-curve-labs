@@ -16,18 +16,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { ResendConfirmationButton } from "@/components/auth/resend-confirmation-button";
+import { isEmailNotConfirmedError } from "@/lib/supabase/auth-email";
 
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setShowResendConfirmation(false);
 
     const supabase = createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -37,6 +41,7 @@ export function LoginForm() {
 
     if (signInError) {
       setError(signInError.message);
+      setShowResendConfirmation(isEmailNotConfirmedError(signInError.message));
       setLoading(false);
       return;
     }
@@ -86,6 +91,7 @@ export function LoginForm() {
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {showResendConfirmation ? <ResendConfirmationButton email={email} /> : null}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </Button>
