@@ -23,7 +23,9 @@ export function isAuthEmailRateLimitError(message: string): boolean {
 
 /**
  * signUp returns success with empty identities when the email is already registered
- * (anti-enumeration). No new confirmation email is sent in that case.
+ * and confirmed (anti-enumeration). Unconfirmed duplicates may still return identities,
+ * so callers should not rely on this alone for UX — use SIGNUP_INCOMPLETE_HYBRID_MESSAGE
+ * whenever signUp succeeds without a session.
  */
 export function isSignupDuplicateResponse(user: User | null, session: unknown): boolean {
   if (session || !user) {
@@ -32,6 +34,7 @@ export function isSignupDuplicateResponse(user: User | null, session: unknown): 
   return !user.identities || user.identities.length === 0;
 }
 
+/** Shown whenever signUp succeeds without a session (new or existing email). */
 export const SIGNUP_INCOMPLETE_HYBRID_MESSAGE =
   "We couldn't complete registration with this email. If you already signed up, sign in instead. " +
   "If this is your first time, check your inbox and spam for a confirmation email.";
