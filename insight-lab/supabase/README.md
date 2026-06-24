@@ -20,6 +20,7 @@ SQL migrations and RLS policies for InsightLab.
 14. Run `013_document_infographics.sql` for document infographics.
 15. Run `014_tier1_tier2_features.sql` for public quiz sharing and source links.
 16. Run `015_security_hardening.sql` for quiz_public_attempts RLS and profiles.role lock.
+17. Run `016_study_sessions_learning_paths.sql` for study session progress and learning paths.
 17. Create a Storage bucket named `uploads` (private).
 18. Copy project URL and keys to `.env` files.
 

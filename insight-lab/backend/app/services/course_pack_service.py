@@ -15,7 +15,7 @@ from app.core.yaml_config import get_yaml_config
 from app.services.artifact_service import generate_document_flashcards, generate_document_study_guide
 from app.services.audio_overview_service import generate_audio_overview
 from app.services.document_service import get_document_summary
-from app.services.quiz_service import generate_document_quiz
+from app.services.quiz_service import generate_document_quiz, generate_excel_quiz
 from app.services.workspace_access import require_workspace_role
 
 log = get_logger("course_pack")
@@ -68,7 +68,7 @@ async def _build_document_pack_item(
     return item
 
 
-def _build_excel_pack_item(client: Client, doc: dict[str, Any]) -> dict[str, Any]:
+async def _build_excel_pack_item(client: Client, doc: dict[str, Any], user: AuthUser) -> dict[str, Any]:
     document_id = doc["id"]
     item: dict[str, Any] = {
         "document_id": document_id,
@@ -97,6 +97,20 @@ def _build_excel_pack_item(client: Client, doc: dict[str, Any]) -> dict[str, Any
         item["errors"].append(
             "summary: Spreadsheet is ready but has no analysis summary yet — open it and run Analyze first",
         )
+
+    try:
+        quiz = await generate_excel_quiz(
+            client,
+            document_id,
+            user,
+            question_type="scq",
+            difficulty="medium",
+            num_questions=5,
+        )
+        item["artifacts"]["quiz_id"] = quiz.get("quiz_id")
+    except Exception as exc:
+        item["errors"].append(f"quiz: {exc}")
+
     return item
 
 
@@ -140,7 +154,7 @@ async def generate_course_pack(
     results: list[dict[str, Any]] = []
     for doc in docs:
         if doc["file_type"] == "excel":
-            results.append(_build_excel_pack_item(client, doc))
+            results.append(await _build_excel_pack_item(client, doc, user))
         else:
             results.append(await _build_document_pack_item(client, doc, user))
 

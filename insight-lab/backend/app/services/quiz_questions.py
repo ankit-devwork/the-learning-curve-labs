@@ -12,6 +12,7 @@ class QuizQuestionDraft(BaseModel):
     correct_option_index: int = Field(ge=0)
     explanation: str | None = None
     source_chunk_index: int | None = Field(default=None, ge=0)
+    source_chart_index: int | None = Field(default=None, ge=0)
     concept_id: str | None = None
 
     @field_validator("options")
@@ -64,6 +65,33 @@ def draft_to_rows(
         if question.source_chunk_index is not None:
             chunk_position = min(question.source_chunk_index, len(chunk_indexes) - 1)
             source_chunk_id = str(chunk_indexes[chunk_position])
+        rows.append(
+            {
+                "question_text": question.question_text,
+                "options": question.options,
+                "correct_option_index": question.correct_option_index,
+                "explanation": question.explanation,
+                "source_chunk_id": source_chunk_id,
+                "concept_id": normalize_concept_id(question.concept_id)
+                if question.concept_id
+                else None,
+                "sort_order": index,
+            }
+        )
+    return rows
+
+
+def excel_draft_to_rows(
+    draft: QuizDraft,
+    *,
+    chart_ids: list[str],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for index, question in enumerate(draft.questions):
+        source_chunk_id = None
+        if question.source_chart_index is not None and chart_ids:
+            chart_position = min(question.source_chart_index, len(chart_ids) - 1)
+            source_chunk_id = f"chart:{chart_ids[chart_position]}"
         rows.append(
             {
                 "question_text": question.question_text,

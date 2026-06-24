@@ -41,7 +41,7 @@ export function CoursePackResults({ setId, documents }: CoursePackResultsProps) 
               {isExcel ? <span className="ml-2 text-xs font-normal text-muted-foreground">spreadsheet</span> : null}
             </p>
             {isExcel ? (
-              <div className="mt-3">
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <div
                   className={cn(
                     "flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5",
@@ -54,15 +54,30 @@ export function CoursePackResults({ setId, documents }: CoursePackResultsProps) 
                   </div>
                   {item.artifacts.summary ? (
                     <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2" asChild>
-                      <Link href={basePath}>Open</Link>
+                      <Link href={`${basePath}#brief`}>Open</Link>
                     </Button>
                   ) : (
                     <span className="text-[10px] text-muted-foreground">—</span>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Quizzes, flashcards, and study guides require PDF or Word documents.
-                </p>
+                <div
+                  className={cn(
+                    "flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5",
+                    item.artifacts.quiz_id ? "bg-background/80" : "bg-muted/20 opacity-60",
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Brain className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span className="truncate text-sm">Quiz</span>
+                  </div>
+                  {item.artifacts.quiz_id ? (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2" asChild>
+                      <Link href={`${basePath}#quiz`}>Open</Link>
+                    </Button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">—</span>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

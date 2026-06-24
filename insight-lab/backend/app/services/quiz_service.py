@@ -15,12 +15,15 @@ from app.core.yaml_config import get_yaml_config
 from app.core.migration_guard import run_or_raise_phase2
 from app.services.llm_client import (
     adaptive_quiz_cache_key,
+    excel_quiz_cache_key,
+    generate_excel_quiz_draft,
     generate_quiz_draft,
     quiz_cache_key,
     workspace_adaptive_quiz_cache_key,
 )
 from app.services.mastery_service import get_weak_concepts, record_quiz_mastery
-from app.services.quiz_questions import draft_to_rows, parse_quiz_draft, QuizQuestionDraft
+from app.services.quiz_questions import draft_to_rows, excel_draft_to_rows, parse_quiz_draft, QuizQuestionDraft
+from app.services.study_session_progress_service import complete_study_session_step_for_quiz
 from app.services.workspace_access import (
     can_edit_document,
     get_accessible_document,
@@ -495,6 +498,106 @@ async def generate_workspace_adaptive_quiz(
     }
 
 
+async def generate_excel_quiz(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+    *,
+    question_type: str,
+    difficulty: str,
+    num_questions: int,
+) -> dict[str, Any]:
+    cfg = get_yaml_config().quizzes
+    allowed, retry_after = await check_rate_limit(
+        key=f"excel_quiz:{user.id}",
+        limit=cfg.generate_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Quiz generation limit reached ({cfg.generate_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    num_questions = min(max(num_questions, 1), cfg.max_questions)
+    settings = _settings_hash(
+        question_type=question_type,
+        difficulty=difficulty,
+        num_questions=num_questions,
+    )
+    cache_key = excel_quiz_cache_key(user.id, document_id, settings)
+    cached = await cache_get(cache_key)
+    if cached and cached.get("quiz_id"):
+        quiz = _get_owned_quiz(client, cached["quiz_id"], user)
+        questions = (
+            client.table("quiz_questions")
+            .select("*")
+            .eq("quiz_id", quiz["id"])
+            .order("sort_order")
+            .execute()
+            .data
+            or []
+        )
+        return _serialize_quiz(quiz, questions, include_answers=False, cached=True)
+
+    doc = require_editable_document(client, document_id, user)
+    if doc["file_type"] != "excel":
+        raise FileException("Excel quizzes are only available for spreadsheet uploads")
+    if doc["status"] != "ready" or not doc.get("excel_summary"):
+        raise FileException("Spreadsheet must be analyzed before generating a quiz", status_code=409)
+
+    profile = doc.get("excel_profile") or {}
+    summary = doc.get("excel_summary") or ""
+    charts = doc.get("excel_charts") or []
+    if not profile:
+        raise FileException("Spreadsheet profile missing — re-analyze the file", status_code=409)
+
+    raw = await generate_excel_quiz_draft(
+        profile=profile,
+        summary=summary,
+        charts=charts,
+        filename=doc["filename"],
+        question_type=question_type,
+        difficulty=difficulty,
+        num_questions=num_questions,
+    )
+    try:
+        draft = parse_quiz_draft(raw, max_questions=num_questions)
+    except (ValueError, Exception) as exc:
+        raise FileException(f"Invalid quiz payload from LLM: {exc}", status_code=502) from exc
+
+    chart_ids = [str(chart.get("id") or index) for index, chart in enumerate(charts)]
+    quiz_id = str(uuid4())
+    question_rows = excel_draft_to_rows(draft, chart_ids=chart_ids)
+    for row in question_rows:
+        row["id"] = str(uuid4())
+        row["quiz_id"] = quiz_id
+
+    quiz_row = {
+        "id": quiz_id,
+        "document_id": document_id,
+        "workspace_id": doc["workspace_id"],
+        "title": draft.title.strip() or f"Quiz: {doc['filename']}",
+        "question_type": question_type,
+        "difficulty": difficulty,
+        "published": False,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    client.table("quizzes").insert(quiz_row).execute()
+    client.table("quiz_questions").insert(question_rows).execute()
+
+    payload = _serialize_quiz(quiz_row, question_rows, include_answers=False, cached=False)
+    await cache_set(cache_key, {"quiz_id": quiz_id}, get_yaml_config().cache.quiz_ttl)
+    log.info(
+        "Excel quiz generated",
+        quiz_id=quiz_id,
+        document_id=document_id,
+        user_id=user.id,
+        question_count=len(question_rows),
+    )
+    return payload
+
+
 async def get_document_quiz(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:
     _get_owned_document(client, document_id, user)
     quiz_result = (
@@ -783,6 +886,7 @@ async def submit_quiz_attempt(
     user: AuthUser,
     *,
     answers: dict[str, int],
+    study_session_step_id: str | None = None,
 ) -> dict[str, Any]:
     quiz_cfg = get_yaml_config().quizzes
     allowed, retry_after = await check_rate_limit(
@@ -860,6 +964,12 @@ async def submit_quiz_attempt(
         results=results,
     )
     log.info("Quiz submitted", quiz_id=quiz_id, user_id=user.id, score=score, total=total)
+    complete_study_session_step_for_quiz(
+        client,
+        user=user,
+        study_session_step_id=study_session_step_id,
+        attempt_id=attempt_id,
+    )
     from app.services.document_extras import attach_source_previews
 
     enriched_results = attach_source_previews(

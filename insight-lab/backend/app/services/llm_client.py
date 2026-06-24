@@ -258,6 +258,53 @@ async def generate_quiz_draft(
     )
 
 
+async def generate_excel_quiz_draft(
+    *,
+    profile: dict,
+    summary: str,
+    charts: list[dict],
+    filename: str,
+    question_type: str,
+    difficulty: str,
+    num_questions: int,
+) -> str:
+    cfg = get_yaml_config().quizzes
+    compact_charts = _compact_charts_for_context(charts)
+    chart_index_block = "\n".join(
+        f"{index}: {chart.get('title') or chart.get('id')}" for index, chart in enumerate(compact_charts)
+    )
+    prompt = (
+        "Create a quiz from the spreadsheet analysis below. Return ONLY valid JSON with:\n"
+        "- title (string)\n"
+        "- questions (array)\n\n"
+        "Each question object must include:\n"
+        "- question_text (string)\n"
+        "- options (array of 2-6 strings)\n"
+        "- correct_option_index (0-based integer)\n"
+        "- explanation (string)\n"
+        "- source_chart_index (0-based index into the charts list below, optional)\n"
+        "- concept_id (optional slug for the column/metric being tested)\n\n"
+        f"{tag_block('quiz_settings', f'question_type={question_type}; difficulty={difficulty}; num_questions={num_questions}')}\n"
+        "Use only facts supported by the profile, summary, and charts. "
+        "For true_false use exactly two options: True and False.\n\n"
+        f"{tag_block('filename', filename)}\n"
+        f"{tag_block('profile', json.dumps(profile, indent=2)[:4000])}\n"
+        f"{tag_block('summary', summary[:4000])}\n"
+        f"{tag_block('charts', json.dumps(compact_charts, indent=2)[:6000])}\n"
+        f"{tag_block('chart_index', chart_index_block)}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.quiz_max_tokens,
+    )
+
+
 async def extract_concepts_from_chunks(
     *,
     context_chunks: list[str],
@@ -395,6 +442,10 @@ def excel_question_cache_key(
 
 def quiz_cache_key(user_id: str, document_id: str, settings_hash: str) -> str:
     return f"quiz:{user_id}:{document_id}:{settings_hash}"
+
+
+def excel_quiz_cache_key(user_id: str, document_id: str, settings_hash: str) -> str:
+    return f"excel_quiz:{user_id}:{document_id}:{settings_hash}"
 
 
 def adaptive_quiz_cache_key(user_id: str, document_id: str, weak_hash: str) -> str:
