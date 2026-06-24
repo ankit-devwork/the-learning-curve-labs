@@ -32,6 +32,7 @@ export function SignUpForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [emailRateLimited, setEmailRateLimited] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,6 +41,7 @@ export function SignUpForm() {
     setError(null);
     setMessage(null);
     setAwaitingConfirmation(false);
+    setEmailRateLimited(false);
 
     const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -51,8 +53,10 @@ export function SignUpForm() {
     });
 
     if (signUpError) {
+      const rateLimited = isAuthEmailRateLimitError(signUpError.message);
       setError(formatAuthEmailError(signUpError.message));
-      if (isAuthEmailRateLimitError(signUpError.message)) {
+      setEmailRateLimited(rateLimited);
+      if (rateLimited) {
         setAwaitingConfirmation(true);
       }
       setLoading(false);
@@ -116,11 +120,19 @@ export function SignUpForm() {
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {awaitingConfirmation ? (
             <>
+              <GoogleSignInButton label="Sign in with Google" />
               <Button type="button" className="w-full" asChild>
-                <Link href="/login">Sign in</Link>
+                <Link href="/login">Sign in with email</Link>
               </Button>
-              <ResendConfirmationButton email={email} />
-              <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" variant="user" />
+              {emailRateLimited ? null : <ResendConfirmationButton email={email} />}
+              {emailRateLimited ? (
+                <p className="text-xs text-muted-foreground">
+                  Resend is disabled until the hourly email limit resets. The app owner can confirm your
+                  account in Supabase → Authentication → Users.
+                </p>
+              ) : (
+                <AuthEmailHelp className="rounded-md border bg-muted/30 p-3" variant="user" />
+              )}
             </>
           ) : (
             <Button type="submit" className="w-full" disabled={loading}>
