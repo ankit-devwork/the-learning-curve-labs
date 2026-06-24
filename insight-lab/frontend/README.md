@@ -30,7 +30,7 @@ Use the **anon public** key from Supabase → Settings → API (not service_role
 | Site URL | `http://localhost:3000` |
 | Redirect URLs | `http://localhost:3000/auth/callback` |
 
-**Authentication → Providers → Email** — enabled (default)
+**Authentication → Providers → Email** — enabled (default). For production, configure **SMTP** under Project Settings → Authentication so confirmation emails reach Gmail reliably.
 
 **Authentication → Providers → Google**
 

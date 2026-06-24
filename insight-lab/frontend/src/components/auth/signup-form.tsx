@@ -16,6 +16,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { ResendConfirmationButton } from "@/components/auth/resend-confirmation-button";
+import { authEmailRedirectTo } from "@/lib/supabase/auth-email";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -23,6 +25,7 @@ export function SignUpForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,13 +33,14 @@ export function SignUpForm() {
     setLoading(true);
     setError(null);
     setMessage(null);
+    setAwaitingConfirmation(false);
 
     const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: authEmailRedirectTo(),
       },
     });
 
@@ -52,7 +56,10 @@ export function SignUpForm() {
       return;
     }
 
-    setMessage("Check your email to confirm your account, then sign in.");
+    setAwaitingConfirmation(true);
+    setMessage(
+      "Check your email to confirm your account, then sign in. If nothing arrives within a few minutes, check spam or resend below."
+    );
     setLoading(false);
   };
 
@@ -99,9 +106,13 @@ export function SignUpForm() {
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Sign up"}
-          </Button>
+          {awaitingConfirmation ? (
+            <ResendConfirmationButton email={email} />
+          ) : (
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating account..." : "Sign up"}
+            </Button>
+          )}
         </form>
       </CardContent>
       <CardFooter className="justify-center">

@@ -439,6 +439,27 @@ Authentication → **URL configuration**:
 
 Use incognito to test after saving. Old confirmation emails may still point to localhost — sign up again or sign in directly.
 
+### Signup confirmation email not received
+
+InsightLab uses **Supabase Auth** for email signup. The app cannot send those emails itself — Supabase (or your custom SMTP) does.
+
+**Quick checks (Supabase dashboard):**
+
+1. **Authentication → Users** — find `ankitsrivastava4u@gmail.com`. If the user exists but is unconfirmed, use **Confirm user** (three-dot menu) to activate immediately, then sign in.
+2. **Authentication → Logs** — look for `user.signup` / mail events and any SMTP errors.
+3. **Authentication → URL configuration** — **Site URL** must be your Vercel URL; **Redirect URLs** must include `https://YOUR-APP.vercel.app/**`.
+4. **Gmail** — check **Spam** and **Promotions**. Supabase’s default sender often lands there.
+
+**If emails never arrive (common on free tier):**
+
+Supabase’s built-in mail has low volume and deliverability. For production, configure custom SMTP:
+
+**Project Settings → Authentication → SMTP Settings** → enable custom SMTP (Resend, SendGrid, AWS SES, etc.).
+
+Or, for internal testing only: **Authentication → Providers → Email** → disable **Confirm email** (users can sign in immediately after signup).
+
+The signup and login pages include **Resend confirmation email** after signup or when login fails with “Email not confirmed”.
+
 ### Upload size note
 
 Vercel Hobby may limit proxied uploads to ~**4.5 MB**. InsightLab allows **10 MB**. If uploads fail on Vercel but work via `curl` to EC2, use HTTPS API (domain / Cloudflare Tunnel) or host frontend on EC2.
@@ -478,6 +499,8 @@ Run Next.js on EC2 port 3000 + nginx port 80. No mixed-content issue. See discus
 | Vercel build: vulnerable Next.js | Upgrade to **15.5.18+** |
 | Vercel shows frontend + FastAPI | Root directory = **`frontend`** only |
 | Redirect to localhost after auth | Supabase **Site URL** = Vercel URL |
+| No signup confirmation email | Supabase **Auth logs**; confirm user manually; configure **SMTP**; check spam |
+| Login: “Email not confirmed” | Use **Resend confirmation email** on login, or confirm user in Supabase |
 | `/api-backend/health` fails | EC2 **8080** open? nginx running? `BACKEND_PROXY_URL` correct? |
 | Upload fails on Vercel only | ~4.5 MB proxy limit |
 | `/ready` 503 | `ilab ps` — check redis/neo4j; `ilab logs api` |
