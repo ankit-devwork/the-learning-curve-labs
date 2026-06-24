@@ -10,8 +10,10 @@ from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
 from app.services.artifact_service import (
     generate_document_flashcards,
+    generate_document_infographic,
     generate_document_study_guide,
     get_document_flashcards,
+    get_document_infographic,
     get_document_study_guide,
     get_flashcard_set,
     get_study_guide_by_id,
@@ -103,6 +105,30 @@ async def get_study_guide_route(
     result = await get_document_study_guide(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {"study_guide": result, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/infographics/generate")
+@with_observability("generate_infographic")
+async def generate_infographic_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await generate_document_infographic(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/infographics")
+@with_observability("get_infographic")
+async def get_infographic_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await get_document_infographic(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"infographic": result, "correlation_id": correlation_id}
 
 
 @router.post("/documents/{document_id}/audio-overview/generate")

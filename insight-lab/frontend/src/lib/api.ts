@@ -452,6 +452,55 @@ export type StudyGuideResponse = {
   created_at: string;
 };
 
+export type InfographicStatBlock = {
+  type: "stat";
+  label: string;
+  value: string;
+  caption?: string;
+};
+
+export type InfographicBulletsBlock = {
+  type: "bullets";
+  heading: string;
+  items: string[];
+};
+
+export type InfographicComparisonBlock = {
+  type: "comparison";
+  heading: string;
+  left_title: string;
+  left_items: string[];
+  right_title: string;
+  right_items: string[];
+};
+
+export type InfographicQuoteBlock = {
+  type: "quote";
+  text: string;
+  attribution?: string;
+};
+
+export type InfographicBlock =
+  | InfographicStatBlock
+  | InfographicBulletsBlock
+  | InfographicComparisonBlock
+  | InfographicQuoteBlock;
+
+export type InfographicContent = {
+  title: string;
+  subtitle: string;
+  theme: "blue" | "violet" | "emerald" | "amber" | "rose" | "cyan";
+  blocks: InfographicBlock[];
+};
+
+export type InfographicResponse = {
+  infographic_id: string;
+  document_id: string;
+  title: string;
+  content: InfographicContent;
+  created_at: string;
+};
+
 export type DocumentChunkResponse = {
   document_id: string;
   chunk_index: number;

@@ -36,6 +36,41 @@ class StudyGuideDraft(BaseModel):
     sample_questions: list[str] = Field(default_factory=list)
 
 
+class InfographicStatBlock(BaseModel):
+    type: str = "stat"
+    label: str
+    value: str
+    caption: str = ""
+
+
+class InfographicBulletsBlock(BaseModel):
+    type: str = "bullets"
+    heading: str
+    items: list[str] = Field(default_factory=list)
+
+
+class InfographicComparisonBlock(BaseModel):
+    type: str = "comparison"
+    heading: str
+    left_title: str
+    left_items: list[str] = Field(default_factory=list)
+    right_title: str
+    right_items: list[str] = Field(default_factory=list)
+
+
+class InfographicQuoteBlock(BaseModel):
+    type: str = "quote"
+    text: str
+    attribution: str = ""
+
+
+class InfographicDraft(BaseModel):
+    title: str
+    subtitle: str = ""
+    theme: str = "blue"
+    blocks: list[dict[str, Any]] = Field(default_factory=list)
+
+
 def _strip_json_fence(raw: str) -> str:
     text = raw.strip()
     if text.startswith("```"):
@@ -57,6 +92,14 @@ def parse_flashcard_draft(raw: str, *, max_cards: int) -> FlashcardSetDraft:
 def parse_study_guide_draft(raw: str) -> StudyGuideDraft:
     payload = json.loads(_strip_json_fence(raw))
     return StudyGuideDraft.model_validate(payload)
+
+
+def parse_infographic_draft(raw: str) -> InfographicDraft:
+    payload = json.loads(_strip_json_fence(raw))
+    draft = InfographicDraft.model_validate(payload)
+    if not draft.blocks:
+        raise ValueError("Infographic must contain at least one block")
+    return draft
 
 
 def flashcard_draft_to_rows(draft: FlashcardSetDraft, *, chunk_indexes: list[int]) -> list[dict[str, Any]]:
@@ -100,3 +143,71 @@ def study_guide_to_content(draft: StudyGuideDraft) -> dict[str, Any]:
 
 def normalize_study_term_slug(term: str) -> str:
     return normalize_concept_id(term) or "term"
+
+
+def _normalize_infographic_block(block: dict[str, Any]) -> dict[str, Any] | None:
+    block_type = str(block.get("type", "")).strip().lower()
+    if block_type == "stat":
+        label = str(block.get("label", "")).strip()
+        value = str(block.get("value", "")).strip()
+        if not label or not value:
+            return None
+        return {
+            "type": "stat",
+            "label": label,
+            "value": value,
+            "caption": str(block.get("caption", "")).strip(),
+        }
+    if block_type == "bullets":
+        heading = str(block.get("heading", "")).strip()
+        items = [str(item).strip() for item in block.get("items") or [] if str(item).strip()]
+        if not heading or not items:
+            return None
+        return {"type": "bullets", "heading": heading, "items": items[:6]}
+    if block_type == "comparison":
+        heading = str(block.get("heading", "")).strip()
+        left_title = str(block.get("left_title", "")).strip()
+        right_title = str(block.get("right_title", "")).strip()
+        left_items = [str(item).strip() for item in block.get("left_items") or [] if str(item).strip()]
+        right_items = [str(item).strip() for item in block.get("right_items") or [] if str(item).strip()]
+        if not heading or not left_title or not right_title:
+            return None
+        return {
+            "type": "comparison",
+            "heading": heading,
+            "left_title": left_title,
+            "left_items": left_items[:5],
+            "right_title": right_title,
+            "right_items": right_items[:5],
+        }
+    if block_type == "quote":
+        text = str(block.get("text", "")).strip()
+        if not text:
+            return None
+        return {
+            "type": "quote",
+            "text": text,
+            "attribution": str(block.get("attribution", "")).strip(),
+        }
+    return None
+
+
+def infographic_to_content(draft: InfographicDraft) -> dict[str, Any]:
+    theme = draft.theme.strip().lower()
+    if theme not in {"blue", "violet", "emerald", "amber", "rose", "cyan"}:
+        theme = "blue"
+    blocks: list[dict[str, Any]] = []
+    for block in draft.blocks:
+        if not isinstance(block, dict):
+            continue
+        normalized = _normalize_infographic_block(block)
+        if normalized:
+            blocks.append(normalized)
+    if not blocks:
+        raise ValueError("Infographic must contain at least one valid block")
+    return {
+        "title": draft.title.strip(),
+        "subtitle": draft.subtitle.strip(),
+        "theme": theme,
+        "blocks": blocks[:8],
+    }

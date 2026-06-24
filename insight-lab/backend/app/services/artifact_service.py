@@ -12,14 +12,18 @@ from app.core.safe_errors import sanitize_stored_error
 from app.core.yaml_config import get_yaml_config
 from app.services.artifact_parsing import (
     flashcard_draft_to_rows,
+    infographic_to_content,
     parse_flashcard_draft,
+    parse_infographic_draft,
     parse_study_guide_draft,
     study_guide_to_content,
 )
 from app.services.llm_client import (
     flashcard_cache_key,
     generate_flashcard_draft,
+    generate_infographic_draft,
     generate_study_guide_draft,
+    infographic_cache_key,
     study_guide_cache_key,
 )
 from app.services.workspace_access import get_accessible_document, require_editable_document
@@ -289,6 +293,109 @@ async def get_study_guide_by_id(client: Client, guide_id: str, user: AuthUser) -
     get_accessible_document(client, row["document_id"], user, min_role="viewer")
     return {
         "guide_id": row["id"],
+        "document_id": row["document_id"],
+        "title": row["title"],
+        "content": row["content"],
+        "created_at": row["created_at"],
+    }
+
+
+async def generate_document_infographic(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+) -> dict[str, Any]:
+    cfg = get_yaml_config().artifacts
+    allowed, retry_after = await check_rate_limit(
+        key=f"infographic:{user.id}",
+        limit=cfg.generate_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Infographic generation limit reached ({cfg.generate_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    cache_key = infographic_cache_key(user.id, document_id)
+    cached = await cache_get(cache_key)
+    if cached and cached.get("infographic_id"):
+        return await get_infographic_by_id(client, cached["infographic_id"], user)
+
+    doc = require_editable_document(client, document_id, user)
+    if doc["file_type"] != "document":
+        raise FileException("Infographics are only available for document uploads")
+    if doc["status"] != "ready" or not doc.get("summary"):
+        raise FileException("Document must be processed before generating an infographic", status_code=409)
+
+    chunks = (
+        client.table("document_chunks")
+        .select("chunk_index, content")
+        .eq("document_id", document_id)
+        .order("chunk_index")
+        .execute()
+        .data
+        or []
+    )
+    sampled = _sample_chunks(chunks, cfg.max_context_chunks)
+    context_chunks = [row["content"] for row in sampled]
+
+    raw = await generate_infographic_draft(
+        context_chunks=context_chunks,
+        summary=doc["summary"],
+        filename=doc["filename"],
+    )
+    try:
+        draft = parse_infographic_draft(raw)
+        content = infographic_to_content(draft)
+    except (ValueError, Exception) as exc:
+        raise FileException(f"Invalid infographic payload from LLM: {exc}", status_code=502) from exc
+
+    infographic_id = str(uuid4())
+    client.table("document_infographics").insert(
+        {
+            "id": infographic_id,
+            "document_id": document_id,
+            "workspace_id": doc["workspace_id"],
+            "owner_id": user.id,
+            "title": content["title"] or f"Infographic: {doc['filename']}",
+            "content": content,
+        }
+    ).execute()
+    await cache_set(cache_key, {"infographic_id": infographic_id}, get_yaml_config().cache.artifact_ttl)
+    log.info("Infographic generated", infographic_id=infographic_id, document_id=document_id, user_id=user.id)
+    return await get_infographic_by_id(client, infographic_id, user)
+
+
+async def get_document_infographic(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:
+    get_accessible_document(client, document_id, user, min_role="viewer")
+    result = (
+        client.table("document_infographics")
+        .select("id")
+        .eq("document_id", document_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        return None
+    return await get_infographic_by_id(client, result.data[0]["id"], user)
+
+
+async def get_infographic_by_id(client: Client, infographic_id: str, user: AuthUser) -> dict[str, Any]:
+    result = (
+        client.table("document_infographics")
+        .select("*")
+        .eq("id", infographic_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise NotFoundException("Infographic not found")
+    row = result.data[0]
+    get_accessible_document(client, row["document_id"], user, min_role="viewer")
+    return {
+        "infographic_id": row["id"],
         "document_id": row["document_id"],
         "title": row["title"],
         "content": row["content"],

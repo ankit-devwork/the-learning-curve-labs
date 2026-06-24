@@ -12,6 +12,7 @@ import {
   type ProcessingStatus,
   type QuizResponse,
   type StudyGuideResponse,
+  type InfographicResponse,
   type SummaryResponse,
   type AudioOverviewResponse,
   type SourceCitation,
@@ -19,7 +20,7 @@ import {
 } from "@/lib/api";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
-import { ConceptGraphPanel } from "@/components/documents/concept-graph-panel";
+import { MindMapPanel } from "@/components/documents/mind-map-panel";
 import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { NotebookTabs } from "@/components/ui/notebook-tabs";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import { SourcesRail } from "@/components/workspace/sources-rail";
 import { SourceViewerDrawer } from "@/components/workspace/source-viewer-drawer";
 import { StudioPanel } from "@/components/workspace/studio-panel";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
+import { InfographicView } from "@/components/workspace/infographic-view";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
 import { STUDIO_TAB_LABELS, type StudioTab } from "@/lib/notebook-utils";
 import { cacheResponseLabel, canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
@@ -75,6 +77,7 @@ export function DocumentWorkspaceClient({
   const [existingQuiz, setExistingQuiz] = useState<QuizResponse | null>(null);
   const [flashcards, setFlashcards] = useState<FlashcardSetResponse | null>(null);
   const [studyGuide, setStudyGuide] = useState<StudyGuideResponse | null>(null);
+  const [infographic, setInfographic] = useState<InfographicResponse | null>(null);
   const [audioOverview, setAudioOverview] = useState<AudioOverviewResponse | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState<StudioTab>("brief");
@@ -93,6 +96,11 @@ export function DocumentWorkspaceClient({
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
+    if (hash === "graph") {
+      setActiveTab("mindmap");
+      window.history.replaceState(null, "", "#mindmap");
+      return;
+    }
     if (VALID_TABS.has(hash)) {
       setActiveTab(hash as StudioTab);
     }
@@ -193,6 +201,16 @@ export function DocumentWorkspaceClient({
     }
   }, [documentId]);
 
+  const loadInfographic = useCallback(async (token: string) => {
+    const response = await apiFetch(`/documents/${documentId}/infographics`, token);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.infographic) {
+        setInfographic(data.infographic as InfographicResponse);
+      }
+    }
+  }, [documentId]);
+
   const processDocument = useCallback(async (token: string) => {
     setProcessing(true);
     const response = await apiFetch(`/documents/${documentId}/process`, token, { method: "POST" });
@@ -220,6 +238,7 @@ export function DocumentWorkspaceClient({
           loadSuggested(token),
           loadFlashcards(token),
           loadStudyGuide(token),
+          loadInfographic(token),
         ]);
         return;
       }
@@ -238,6 +257,7 @@ export function DocumentWorkspaceClient({
     documentId,
     loadDocument,
     loadFlashcards,
+    loadInfographic,
     loadSetDocuments,
     loadStudyGuide,
     loadSummary,
@@ -366,6 +386,28 @@ export function DocumentWorkspaceClient({
     }
   }
 
+  async function generateInfographic() {
+    if (!accessToken) {
+      return;
+    }
+    setStudioBusy(true);
+    selectTab("infographic");
+    try {
+      const response = await apiFetch(`/documents/${documentId}/infographics/generate`, accessToken, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({ title: "Infographic failed", description: body.error, variant: "error" });
+        return;
+      }
+      setInfographic((await response.json()) as InfographicResponse);
+      toast({ title: "Infographic ready", variant: "success" });
+    } finally {
+      setStudioBusy(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading workspace…</p>;
   }
@@ -381,8 +423,9 @@ export function DocumentWorkspaceClient({
     { id: "quiz", label: STUDIO_TAB_LABELS.quiz, badge: existingQuiz ? "✓" : undefined },
     { id: "flashcards", label: STUDIO_TAB_LABELS.flashcards, badge: flashcards ? flashcards.card_count : undefined },
     { id: "guide", label: STUDIO_TAB_LABELS.guide, badge: studyGuide ? "✓" : undefined },
+    { id: "infographic", label: STUDIO_TAB_LABELS.infographic, badge: infographic ? "✓" : undefined },
     { id: "audio", label: STUDIO_TAB_LABELS.audio, badge: audioOverview ? "✓" : undefined },
-    { id: "graph", label: STUDIO_TAB_LABELS.graph },
+    { id: "mindmap", label: STUDIO_TAB_LABELS.mindmap },
   ];
 
   return (
@@ -558,6 +601,22 @@ export function DocumentWorkspaceClient({
             </div>
           ) : null}
 
+          {activeTab === "infographic" ? (
+            <div id="infographic">
+              {infographic ? (
+                <InfographicView title={infographic.title} content={infographic.content} />
+              ) : (
+                <Card className="notebook-surface border-0 shadow-none">
+                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                    {canEdit
+                      ? "Use Studio → Infographic to generate a visual summary."
+                      : "No infographic yet for this source."}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : null}
+
           {activeTab === "audio" ? (
             <div id="audio">
               <AudioOverviewPanel
@@ -579,9 +638,9 @@ export function DocumentWorkspaceClient({
             </div>
           ) : null}
 
-          {activeTab === "graph" ? (
-            <div id="graph">
-              <ConceptGraphPanel documentId={documentId} ready={ready} accessToken={accessToken} />
+          {activeTab === "mindmap" ? (
+            <div id="mindmap">
+              <MindMapPanel documentId={documentId} ready={ready} accessToken={accessToken} />
             </div>
           ) : null}
         </section>
@@ -597,8 +656,9 @@ export function DocumentWorkspaceClient({
             onGenerateQuiz={() => selectTab("quiz")}
             onGenerateFlashcards={() => void generateFlashcards()}
             onGenerateStudyGuide={() => void generateStudyGuide()}
+            onGenerateInfographic={() => void generateInfographic()}
             onGenerateAudioOverview={() => selectTab("audio")}
-            onOpenGraph={() => selectTab("graph")}
+            onOpenMindMap={() => selectTab("mindmap")}
           />
         </aside>
       </div>
