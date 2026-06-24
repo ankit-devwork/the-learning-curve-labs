@@ -23,6 +23,7 @@ import {
   formatAuthEmailError,
   isAuthEmailRateLimitError,
   isSignupDuplicateResponse,
+  SIGNUP_DUPLICATE_EMAIL_MESSAGE,
   SUPABASE_BUILTIN_EMAIL_NOTE,
 } from "@/lib/supabase/auth-email";
 
@@ -67,11 +68,7 @@ export function SignUpForm() {
     }
 
     if (isSignupDuplicateResponse(data.user, data.session)) {
-      setAwaitingConfirmation(true);
-      setMessage(
-        "This email may already be registered. Try signing in, or use Resend below if you never confirmed. " +
-          "Supabase does not send another confirmation email automatically for duplicate signups."
-      );
+      setError(SIGNUP_DUPLICATE_EMAIL_MESSAGE);
       setLoading(false);
       return;
     }
@@ -125,7 +122,16 @@ export function SignUpForm() {
               autoComplete="new-password"
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <div className="space-y-2">
+              <p className="text-sm text-destructive">{error}</p>
+              {error === SIGNUP_DUPLICATE_EMAIL_MESSAGE ? (
+                <Button type="button" variant="outline" className="w-full" asChild>
+                  <Link href="/login">Go to sign in</Link>
+                </Button>
+              ) : null}
+            </div>
+          )}
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {awaitingConfirmation ? (
             <>

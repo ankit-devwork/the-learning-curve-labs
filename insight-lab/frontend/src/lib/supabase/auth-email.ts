@@ -32,6 +32,9 @@ export function isSignupDuplicateResponse(user: User | null, session: unknown): 
   return !user.identities || user.identities.length === 0;
 }
 
+export const SIGNUP_DUPLICATE_EMAIL_MESSAGE =
+  "An account with this email already exists. Sign in instead.";
+
 export const SUPABASE_BUILTIN_EMAIL_NOTE =
   "Supabase’s default mail sends about 2 emails per hour and often never reaches Gmail. " +
   "Your project owner must enable custom SMTP in the Supabase dashboard, or confirm your account manually under Authentication → Users.";
