@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CoursePackResults } from "@/components/workspace/course-pack-results";
 import { useToast } from "@/components/ui/toast";
-import { downloadAuthenticatedText } from "@/lib/export-utils";
+import { downloadAuthenticatedText, downloadAuthenticatedBlob } from "@/lib/export-utils";
 
 export function CoursePackPanel({
   setId,
@@ -21,6 +21,8 @@ export function CoursePackPanel({
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingCanvas, setExportingCanvas] = useState(false);
+  const [exportingBundle, setExportingBundle] = useState(false);
   const [pack, setPack] = useState<CoursePackResponse | null>(null);
 
   async function handleGenerate() {
@@ -74,6 +76,56 @@ export function CoursePackPanel({
     }
   }
 
+  async function handleExportCanvasCartridge() {
+    setExportingCanvas(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return;
+      }
+      await downloadAuthenticatedBlob(
+        `/workspaces/${setId}/export/canvas-cartridge`,
+        session.access_token,
+        `course-canvas.imscc`,
+      );
+      toast({
+        title: "Canvas cartridge downloaded",
+        description: "Import in Canvas via Settings → Import course content.",
+        variant: "success",
+      });
+    } catch {
+      toast({ title: "Canvas export failed", variant: "error" });
+    } finally {
+      setExportingCanvas(false);
+    }
+  }
+
+  async function handleExportLmsBundle() {
+    setExportingBundle(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return;
+      }
+      await downloadAuthenticatedBlob(
+        `/workspaces/${setId}/export/lms-bundle`,
+        session.access_token,
+        `lms-bundle.zip`,
+      );
+      toast({ title: "LMS bundle downloaded", variant: "success" });
+    } catch {
+      toast({ title: "LMS bundle export failed", variant: "error" });
+    } finally {
+      setExportingBundle(false);
+    }
+  }
+
   const content = (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -89,6 +141,22 @@ export function CoursePackPanel({
         <Button type="button" variant="outline" disabled={exporting} onClick={() => void handleExportMarkdown()}>
           {exporting ? "Exporting…" : "Export Markdown"}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={exportingCanvas}
+          onClick={() => void handleExportCanvasCartridge()}
+        >
+          {exportingCanvas ? "Exporting…" : "Export Canvas (.imscc)"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={exportingBundle}
+          onClick={() => void handleExportLmsBundle()}
+        >
+          {exportingBundle ? "Exporting…" : "Export LMS zip"}
+        </Button>
       </div>
 
       {pack ? <CoursePackResults setId={setId} documents={pack.documents} /> : null}
@@ -100,7 +168,8 @@ export function CoursePackPanel({
       <div data-tour="course-pack">
         <p className="mb-4 text-sm text-muted-foreground">
           Generate summary, quiz, flashcards, study guide, and audio for every ready document — then open
-          each from the gallery.
+          each from the gallery. Export Markdown, a Canvas Common Cartridge (.imscc), or a full LMS zip
+          with QTI quizzes and flashcards.
         </p>
         {content}
       </div>

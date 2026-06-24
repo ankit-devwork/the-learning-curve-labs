@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 
 from pycorekit.tracing.decorators import with_observability
 from pycorekit.correlation.headers import tracking_response_headers
@@ -37,6 +37,8 @@ from app.services.workspace_service import (
     update_workspace,
 )
 from app.services.export_utils import course_pack_to_markdown
+from app.services.classroom_analytics_service import get_classroom_analytics
+from app.services.lms_export_service import build_lms_bundle_zip
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -322,6 +324,66 @@ async def export_course_pack_markdown_route(
         media_type="text/markdown; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="course-pack-{workspace_id}.md"',
+            **tracking_response_headers(correlation_id),
+        },
+    )
+
+
+@router.get("/{workspace_id}/classroom/analytics")
+@with_observability("get_classroom_analytics")
+async def get_classroom_analytics_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = get_classroom_analytics(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/export/canvas-cartridge")
+@with_observability("export_canvas_cartridge")
+async def export_canvas_cartridge_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    payload, filename = build_lms_bundle_zip(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        include_manifest=True,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return Response(
+        content=payload,
+        media_type="application/vnd.ims.imsccv1p1+zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            **tracking_response_headers(correlation_id),
+        },
+    )
+
+
+@router.get("/{workspace_id}/export/lms-bundle")
+@with_observability("export_lms_bundle")
+async def export_lms_bundle_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    payload, filename = build_lms_bundle_zip(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        include_manifest=False,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
             **tracking_response_headers(correlation_id),
         },
     )

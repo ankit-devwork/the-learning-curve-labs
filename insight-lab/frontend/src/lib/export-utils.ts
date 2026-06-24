@@ -145,6 +145,27 @@ export async function downloadAuthenticatedText(
   downloadTextFile(await response.text(), filename);
 }
 
+export async function downloadAuthenticatedBlob(
+  path: string,
+  accessToken: string,
+  fallbackFilename: string,
+): Promise<void> {
+  const response = await apiFetch(path, accessToken);
+  if (!response.ok) {
+    throw new Error(`Download failed (${response.status})`);
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const filename = match?.[1] ?? fallbackFilename;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export function downloadStudyGuidePdf(title: string, content: {
   overview?: string;
   key_terms?: Array<{ term: string; definition: string }>;

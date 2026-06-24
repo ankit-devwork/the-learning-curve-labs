@@ -465,9 +465,17 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 | Compare page | Explains PDF/Word vs Excel routing; links to spreadsheet canvas |
 | Onboarding tour | Route-aware steps including Excel notebook layout |
 
-## Next up — Phase 9
+## Phase 9 (in progress)
 
-- LMS export bundles (SCORM / Canvas)
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Classroom analytics | `GET /workspaces/{id}/classroom/analytics` | `ClassroomAnalyticsPanel` on set detail (editors+) |
+| Canvas Common Cartridge | `GET /workspaces/{id}/export/canvas-cartridge` | Course pack drawer — Export Canvas (.imscc) |
+| LMS resource bundle | `GET /workspaces/{id}/export/lms-bundle` | Course pack drawer — Export LMS zip |
+
+Still planned:
+
+- SCORM 1.2 packages
 - Storage read policies for workspace members (optional if all reads stay backend-only)
 
 ## Security & resilience checklist

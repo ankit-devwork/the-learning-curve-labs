@@ -100,3 +100,59 @@ def course_pack_to_markdown(*, workspace_name: str, documents: list[dict]) -> st
             parts.append("")
     return "\n".join(parts).strip() + "\n"
 
+
+def build_imsmanifest_xml(*, title: str, resources: list[dict[str, str]]) -> str:
+    """Minimal IMS Common Cartridge 1.1 manifest for Canvas import."""
+    import html
+
+    safe_title = html.escape(title)
+    org_items = []
+    resource_blocks = []
+
+    for index, resource in enumerate(resources, start=1):
+        ident = resource.get("identifier") or f"res{index}"
+        item_ident = f"item{index}"
+        href = html.escape(resource.get("href") or "")
+        res_title = html.escape(resource.get("title") or f"Resource {index}")
+        res_type = html.escape(resource.get("type") or "webcontent")
+
+        org_items.append(
+            f'      <item identifier="{item_ident}" identifierref="{ident}">'
+            f"<title>{res_title}</title></item>"
+        )
+        resource_blocks.append(
+            f"""    <resource identifier="{ident}" type="{res_type}" href="{href}">
+      <file href="{href}"/>
+    </resource>"""
+        )
+
+    items_xml = "\n".join(org_items) if org_items else '      <item identifier="item1"><title>Course</title></item>'
+    resources_xml = "\n".join(resource_blocks) if resource_blocks else ""
+
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="insightlab-{safe_title.replace(' ', '-')}"
+  xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1"
+  xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <metadata>
+    <schema>IMS Common Cartridge</schema>
+    <schemaversion>1.1.0</schemaversion>
+    <lom:lom>
+      <lom:general><lom:title><lom:string>{safe_title}</lom:string></lom:title></lom:general>
+    </lom:lom>
+  </metadata>
+  <organizations>
+    <organization identifier="org" structure="rooted-hierarchy">
+      <title>{safe_title}</title>
+      <item identifier="root">
+        <title>{safe_title}</title>
+{items_xml}
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+{resources_xml}
+  </resources>
+</manifest>
+"""
+
