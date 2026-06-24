@@ -50,10 +50,12 @@ export function ShareWorkspacePanel({
   setId,
   canManage,
   isOwner = false,
+  embedded = false,
 }: {
   setId: string;
   canManage: boolean;
   isOwner?: boolean;
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -332,17 +334,9 @@ export function ShareWorkspacePanel({
     return <p className="text-sm text-muted-foreground">Loading sharing settings…</p>;
   }
 
-  return (
-    <Card className="shadow-sm" data-tour="share-panel">
-      <CardHeader>
-        <CardTitle>Share study sheet</CardTitle>
-        <CardDescription>
-          Invite classmates as viewers (read + study) or editors (upload + generate tools). Invites are
-          not emailed — you copy a link and send it yourself.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div data-tour="share-members">
+  const content = (
+    <div className="space-y-4">
+      <div data-tour="share-members">
           <p className="mb-2 text-sm font-medium">Members</p>
           <ul className="space-y-2 text-sm">
             {members.map((member) => (
@@ -500,7 +494,38 @@ export function ShareWorkspacePanel({
         ) : (
           <p className="text-sm text-muted-foreground">Only owners and editors can invite collaborators.</p>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div data-tour="share-panel">
+        {!canManage ? (
+          <p className="mb-4 text-sm text-muted-foreground">
+            Invite classmates as viewers or editors. Invites are not emailed — copy a link and send it
+            yourself.
+          </p>
+        ) : (
+          <p className="mb-4 text-sm text-muted-foreground">
+            Invite classmates as viewers (read + study) or editors (upload + generate tools). Invites are
+            not emailed — you copy a link and send it yourself.
+          </p>
+        )}
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="shadow-sm" data-tour="share-panel">
+      <CardHeader>
+        <CardTitle>Share study sheet</CardTitle>
+        <CardDescription>
+          Invite classmates as viewers (read + study) or editors (upload + generate tools). Invites are
+          not emailed — you copy a link and send it yourself.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }
