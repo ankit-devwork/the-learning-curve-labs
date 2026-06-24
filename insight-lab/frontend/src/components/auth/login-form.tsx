@@ -20,9 +20,6 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <GoogleSignInButton label="Sign in with Google" />
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Email and password sign-in is temporarily unavailable.
-        </p>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
