@@ -227,6 +227,8 @@ flowchart TB
   Store --> Response[Return response]
 ```
 
+Every API response includes **`X-Tracking-ID`** (same value as `correlation_id` in logs and JSON errors). Search backend logs with that ID when debugging a failed request from the browser or Vercel proxy.
+
 ### Rate limits (defaults)
 
 | Route | Limit |
@@ -305,7 +307,7 @@ Local dev: `docker compose` for Redis + Neo4j; hosted Supabase project.
 | Cache | Upstash (prod), Redis (local) |
 | LLM gateway | LiteLLM |
 | Backend | FastAPI + service layer + LiteLLM |
-| Observability | **pycorekit** (logging, tracing, exceptions) |
+| Observability | **pycorekit** (logging, tracing, exceptions); **`X-Tracking-ID`** on every response |
 
 ## 11. Backend JWT auth (implemented — Step 1.5)
 
@@ -322,7 +324,7 @@ sequenceDiagram
   API->>PK: RequestTracingMiddleware
   PK-->>API: correlation_id
   API->>API: jwt.decode (SUPABASE_JWT_SECRET)
-  API-->>UI: user_id, email, correlation_id
+  API-->>UI: user_id, email, correlation_id (+ `X-Tracking-ID` header)
 ```
 
 Future protected routes (`/upload`, `/ask`, `/quiz`) use the same `Authorization: Bearer` header and `get_current_user` dependency.

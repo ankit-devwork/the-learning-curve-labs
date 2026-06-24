@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch, parseApiError } from "@/lib/api";
+import { apiFetch, getTrackingIdFromResponse, parseApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,7 @@ export function ShareWorkspacePanel({
       const body = await response.json().catch(() => ({}));
       toast({
         title: "Invite failed",
-        description: parseApiError(body, "Could not create invite"),
+        description: parseApiError(body, "Could not create invite", getTrackingIdFromResponse(response)),
         variant: "error",
       });
       return;

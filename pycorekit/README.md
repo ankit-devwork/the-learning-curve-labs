@@ -118,7 +118,7 @@ app = FastAPI()
 app.add_middleware(RequestTracingMiddleware)
 ```
 
-This middleware initializes the request trace and adds `x-correlation-id` to responses.
+This middleware initializes the request trace and adds **`X-Tracking-ID`** (and legacy `x-correlation-id`) to every response. Clients may send either header on inbound requests to continue a trace.
 
 ## 4. Decorate FastAPI routes for observability
 
