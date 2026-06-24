@@ -22,6 +22,8 @@ import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
+import { WorkspaceConceptGraphPanel } from "@/components/workspace/workspace-concept-graph-panel";
+import { WorkspaceStudySessionPanel } from "@/components/workspace/workspace-study-session-panel";
 import { useToast } from "@/components/ui/toast";
 import { fetchUploadConfig, type UploadConfigResponse } from "@/lib/api";
 import { FileSpreadsheet, FileText, Package, Share2, Upload } from "lucide-react";
@@ -204,6 +206,10 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const canEdit = canEditWorkspace(workspace.access_role);
   const isOwner = workspace.access_role === "owner" || Boolean(workspace.is_owner);
   const readyCount = documents.filter((doc) => doc.status === "ready").length;
+  const readyDocumentCount = documents.filter(
+    (doc) => doc.file_type === "document" && doc.status === "ready",
+  ).length;
+  const hasReadyDocuments = readyDocumentCount > 0;
   const materialsScrollable = documents.length > MATERIAL_MAX_VISIBLE_ROWS;
 
   function openDrawer(panel: SheetDrawerPanel) {
@@ -323,6 +329,18 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
 
       {progress ? <ProgressDashboardPanel progress={progress} /> : null}
 
+      <WorkspaceStudySessionPanel
+        setId={setId}
+        accessToken={accessToken}
+        hasReadyDocuments={hasReadyDocuments}
+      />
+
+      <WorkspaceConceptGraphPanel
+        setId={setId}
+        accessToken={accessToken}
+        hasReadyDocuments={hasReadyDocuments}
+      />
+
       {canEdit ? (
         <ClassroomAnalyticsPanel setId={setId} accessToken={accessToken} canManage={canEdit} />
       ) : null}
@@ -403,9 +421,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         setId={setId}
         accessToken={accessToken}
         canEdit={canEdit}
-        hasReadyDocuments={documents.some(
-          (doc) => doc.file_type === "document" && doc.status === "ready",
-        )}
+        hasReadyDocuments={hasReadyDocuments}
       />
 
       <MultiDocChatPanel documents={documents} workspaceId={setId} />

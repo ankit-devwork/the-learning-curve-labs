@@ -215,17 +215,28 @@ export type ConceptMasteryResponse = {
   correlation_id?: string;
 };
 
+export type GraphNodeMastery = {
+  attempts: number;
+  percent: number | null;
+  status: "untested" | "needs_practice" | "strong";
+};
+
 export type GraphNode = {
   id: string;
   label: string;
   topic?: string | null;
   chunk_indexes?: number[];
+  concept_id?: string;
+  document_id?: string;
+  document_filename?: string;
+  mastery?: GraphNodeMastery;
 };
 
 export type GraphEdge = {
   source: string;
   target: string;
   type: string;
+  document_id?: string;
 };
 
 export type DocumentGraphResponse = {
@@ -234,6 +245,30 @@ export type DocumentGraphResponse = {
   neo4j_synced_at?: string | null;
   nodes: GraphNode[];
   edges: GraphEdge[];
+  migration_required?: boolean;
+  notice?: string;
+  correlation_id?: string;
+};
+
+export type WorkspaceGraphDocument = {
+  document_id: string;
+  filename: string;
+  concept_count: number;
+  relationship_count: number;
+  neo4j_synced_at?: string | null;
+};
+
+export type WorkspaceGraphResponse = {
+  workspace_id: string;
+  documents: WorkspaceGraphDocument[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  stats: {
+    document_count: number;
+    node_count: number;
+    edge_count: number;
+    topic_count: number;
+  };
   migration_required?: boolean;
   notice?: string;
   correlation_id?: string;
@@ -467,6 +502,58 @@ export type StudySessionPlan = {
   weak_concepts: ConceptMasteryItem[];
   focus_topic: string | null;
   estimated_minutes: number;
+};
+
+export type WorkspaceStudySessionStep =
+  | {
+      step: "focus";
+      label: string;
+      ready: boolean;
+      duration_min: number;
+      weak_concepts: ConceptMasteryItem[];
+      focus_topic: string | null;
+    }
+  | {
+      step: "brief";
+      label: string;
+      ready: boolean;
+      duration_min: number;
+      document_id: string;
+      filename: string;
+    }
+  | {
+      step: "flashcards";
+      label: string;
+      ready: boolean;
+      duration_min: number;
+      document_id: string;
+      filename: string;
+      set_id?: string | null;
+      generate_if_missing?: boolean;
+    }
+  | {
+      step: "adaptive_quiz";
+      label: string;
+      ready: boolean;
+      duration_min: number;
+      weak_count: number;
+    }
+  | {
+      step: "set_quiz";
+      label: string;
+      ready: boolean;
+      duration_min: number;
+      hint?: string;
+    };
+
+export type WorkspaceStudySessionPlan = {
+  workspace_id: string;
+  document_count: number;
+  steps: WorkspaceStudySessionStep[];
+  weak_concepts: ConceptMasteryItem[];
+  focus_topic: string | null;
+  estimated_minutes: number;
+  correlation_id?: string;
 };
 
 export type SourceLink = {

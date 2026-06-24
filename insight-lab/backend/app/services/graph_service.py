@@ -241,16 +241,32 @@ async def get_document_graph(client: Client, document_id: str, user: AuthUser) -
             }
         raise
 
+    mastery_rows = (
+        client.table("concept_mastery")
+        .select("concept_id, attempts, correct")
+        .eq("document_id", document_id)
+        .eq("user_id", user.id)
+        .execute()
+        .data
+        or []
+    )
+    mastery_map = {row["concept_id"]: row for row in mastery_rows}
+    cfg = get_yaml_config().adaptive_quiz
+
     return {
         "document_id": document_id,
         "filename": doc["filename"],
         "neo4j_synced_at": doc.get("neo4j_synced_at"),
         "nodes": [
             {
+                **_graph_node_payload(
+                    concept=row,
+                    document_id=document_id,
+                    document_filename=doc["filename"],
+                    mastery=mastery_map.get(row["concept_id"]),
+                    weak_threshold=cfg.weak_threshold_percent,
+                ),
                 "id": row["concept_id"],
-                "label": row["name"],
-                "topic": row.get("topic"),
-                "chunk_indexes": row.get("chunk_indexes") or [],
             }
             for row in concepts
         ],
@@ -263,3 +279,167 @@ async def get_document_graph(client: Client, document_id: str, user: AuthUser) -
             for row in relationships
         ],
     }
+
+
+def _composite_node_id(document_id: str, concept_id: str) -> str:
+    return f"{document_id}::{concept_id}"
+
+
+def _mastery_status(*, attempts: int, percent: float | None, weak_threshold: float) -> str:
+    if attempts == 0:
+        return "untested"
+    if percent is not None and percent < weak_threshold:
+        return "needs_practice"
+    return "strong"
+
+
+def _graph_node_payload(
+    *,
+    concept: dict[str, Any],
+    document_id: str,
+    document_filename: str,
+    mastery: dict[str, Any] | None,
+    weak_threshold: float,
+) -> dict[str, Any]:
+    attempts = int(mastery["attempts"]) if mastery else 0
+    correct = int(mastery["correct"]) if mastery else 0
+    percent = round((correct / attempts) * 100, 1) if attempts else None
+    concept_id = concept["concept_id"]
+    return {
+        "id": _composite_node_id(document_id, concept_id),
+        "concept_id": concept_id,
+        "document_id": document_id,
+        "document_filename": document_filename,
+        "label": concept["name"],
+        "topic": concept.get("topic"),
+        "chunk_indexes": concept.get("chunk_indexes") or [],
+        "mastery": {
+            "attempts": attempts,
+            "percent": percent,
+            "status": _mastery_status(attempts=attempts, percent=percent, weak_threshold=weak_threshold),
+        },
+    }
+
+
+async def get_workspace_graph(client: Client, workspace_id: str, user: AuthUser) -> dict[str, Any]:
+    from app.services.workspace_access import require_workspace_role
+
+    require_workspace_role(client, workspace_id, user, min_role="viewer")
+    docs = (
+        client.table("documents")
+        .select("id, filename, neo4j_synced_at")
+        .eq("workspace_id", workspace_id)
+        .eq("file_type", "document")
+        .eq("status", "ready")
+        .order("created_at")
+        .execute()
+        .data
+        or []
+    )
+
+    if not docs:
+        return {
+            "workspace_id": workspace_id,
+            "documents": [],
+            "nodes": [],
+            "edges": [],
+            "stats": {"document_count": 0, "node_count": 0, "edge_count": 0, "topic_count": 0},
+        }
+
+    try:
+        all_nodes: list[dict[str, Any]] = []
+        all_edges: list[dict[str, Any]] = []
+        document_summaries: list[dict[str, Any]] = []
+        topics: set[str] = set()
+        cfg = get_yaml_config().adaptive_quiz
+
+        for doc in docs:
+            document_id = doc["id"]
+            concepts = (
+                client.table("document_concepts")
+                .select("concept_id, name, topic, chunk_indexes")
+                .eq("document_id", document_id)
+                .order("name")
+                .execute()
+                .data
+                or []
+            )
+            relationships = (
+                client.table("concept_relationships")
+                .select("source_concept_id, target_concept_id, relationship_type")
+                .eq("document_id", document_id)
+                .execute()
+                .data
+                or []
+            )
+            mastery_rows = (
+                client.table("concept_mastery")
+                .select("concept_id, attempts, correct")
+                .eq("document_id", document_id)
+                .eq("user_id", user.id)
+                .execute()
+                .data
+                or []
+            )
+            mastery_map = {row["concept_id"]: row for row in mastery_rows}
+
+            for row in concepts:
+                topic = (row.get("topic") or "General").strip() or "General"
+                topics.add(topic)
+                all_nodes.append(
+                    _graph_node_payload(
+                        concept=row,
+                        document_id=document_id,
+                        document_filename=doc["filename"],
+                        mastery=mastery_map.get(row["concept_id"]),
+                        weak_threshold=cfg.weak_threshold_percent,
+                    )
+                )
+
+            for row in relationships:
+                all_edges.append(
+                    {
+                        "source": _composite_node_id(document_id, row["source_concept_id"]),
+                        "target": _composite_node_id(document_id, row["target_concept_id"]),
+                        "type": row["relationship_type"],
+                        "document_id": document_id,
+                    }
+                )
+
+            document_summaries.append(
+                {
+                    "document_id": document_id,
+                    "filename": doc["filename"],
+                    "concept_count": len(concepts),
+                    "relationship_count": len(relationships),
+                    "neo4j_synced_at": doc.get("neo4j_synced_at"),
+                }
+            )
+
+        return {
+            "workspace_id": workspace_id,
+            "documents": document_summaries,
+            "nodes": all_nodes,
+            "edges": all_edges,
+            "stats": {
+                "document_count": len(document_summaries),
+                "node_count": len(all_nodes),
+                "edge_count": len(all_edges),
+                "topic_count": len(topics),
+            },
+        }
+    except Exception as exc:
+        if is_missing_phase2_schema(exc):
+            return {
+                "workspace_id": workspace_id,
+                "documents": [
+                    {"document_id": doc["id"], "filename": doc["filename"], "concept_count": 0, "relationship_count": 0}
+                    for doc in docs
+                ],
+                "nodes": [],
+                "edges": [],
+                "stats": {"document_count": len(docs), "node_count": 0, "edge_count": 0, "topic_count": 0},
+                "migration_required": True,
+                "notice": PHASE2_MIGRATION_NOTICE,
+            }
+        raise
