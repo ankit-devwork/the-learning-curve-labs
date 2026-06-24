@@ -284,6 +284,24 @@ export type GraphSyncResponse = {
   correlation_id?: string;
 };
 
+export type TeamChatMessage = {
+  id: string;
+  workspace_id: string;
+  author_id: string;
+  author_name: string;
+  body: string;
+  created_at: string;
+  is_own: boolean;
+};
+
+export type WorkspaceMessagesResponse = {
+  workspace_id: string;
+  messages: TeamChatMessage[];
+  has_more: boolean;
+  next_before?: string | null;
+  correlation_id?: string;
+};
+
 export type DocumentReviewOption = {
   document_id: string;
   filename: string;

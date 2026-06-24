@@ -488,6 +488,15 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 | Session progress tracking | `POST .../study-session/start`, `GET .../active`, `POST /study-sessions/{id}/steps/{n}/advance` | Tracked session UI + progress bar |
 | Learning paths | `POST/GET /workspaces/{id}/learning-paths/*` | `LearningPathPanel` prerequisite-ordered concepts |
 
+## Phase 12 (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Unified concept graph + weak filter | Document graph includes mastery (`GET /documents/{id}/graph`) | `DocumentConceptGraphPanel` Studio tab; weak-concept toggle on set + document graphs |
+| Team chat (plain English) | `GET/POST/DELETE /workspaces/{id}/messages/*` | `TeamChatPanel` on study sheet detail (12s polling) |
+
+Migration: `017_workspace_team_chat.sql` (member-scoped RLS, soft delete).
+
 Still planned:
 
 - SCORM 1.2 packages

@@ -52,6 +52,11 @@ from app.services.study_session_progress_service import (
     start_workspace_study_session,
 )
 from app.services.study_session_service import get_workspace_study_session_plan
+from app.services.workspace_messages_service import (
+    create_workspace_message,
+    delete_workspace_message,
+    list_workspace_messages,
+)
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -87,6 +92,10 @@ class SourceLinkCreateRequest(BaseModel):
     excel_document_id: str = Field(..., min_length=1)
     document_id: str = Field(..., min_length=1)
     label: str | None = Field(default=None, max_length=120)
+
+
+class TeamChatMessageRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=2000)
 
 
 @router.get("")
@@ -481,6 +490,62 @@ async def export_lms_bundle_route(
             **tracking_response_headers(correlation_id),
         },
     )
+
+
+@router.get("/{workspace_id}/messages")
+@with_observability("list_workspace_messages")
+async def list_workspace_messages_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+    limit: int = Query(default=50, ge=1, le=50),
+    before: str | None = Query(default=None),
+):
+    result = await list_workspace_messages(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        limit=limit,
+        before=before,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.post("/{workspace_id}/messages")
+@with_observability("create_workspace_message")
+async def create_workspace_message_route(
+    workspace_id: str,
+    body: TeamChatMessageRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    message = await create_workspace_message(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        body=body.body,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**message, "correlation_id": correlation_id}
+
+
+@router.delete("/{workspace_id}/messages/{message_id}")
+@with_observability("delete_workspace_message")
+async def delete_workspace_message_route(
+    workspace_id: str,
+    message_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await delete_workspace_message(
+        get_supabase_client(),
+        workspace_id,
+        message_id,
+        user,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
 
 
 @router.get("/{workspace_id}/members")

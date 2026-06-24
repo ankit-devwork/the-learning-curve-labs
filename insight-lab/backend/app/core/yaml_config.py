@@ -79,6 +79,13 @@ class SharingSection(BaseModel):
     member_change_rate_limit_per_min: int = 20
 
 
+class TeamChatSection(BaseModel):
+    message_max_length: int = 2000
+    list_page_size: int = 50
+    post_rate_limit_per_min: int = 30
+    list_rate_limit_per_min: int = 120
+
+
 class EmailSection(BaseModel):
     enabled: bool = False
     from_address: str = "InsightLab <onboarding@resend.dev>"
@@ -205,6 +212,7 @@ class YamlConfig(BaseModel):
     excel_preview: ExcelPreviewSection
     course_pack: CoursePackSection
     sharing: SharingSection
+    team_chat: TeamChatSection
     email: EmailSection
     resilience: ResilienceSection
 
