@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, type WorkspaceGraphResponse } from "@/lib/api";
 import { ConceptGraphFlow } from "@/components/documents/concept-graph-flow";
+import { countWeakConcepts, filterConceptGraph } from "@/lib/concept-graph-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProcessingContentSkeleton } from "@/components/ui/loading-skeletons";
@@ -24,6 +25,7 @@ export function WorkspaceConceptGraphPanel({
   const [error, setError] = useState<string | null>(null);
   const [documentFilter, setDocumentFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"topics" | "documents">("topics");
+  const [weakOnly, setWeakOnly] = useState(false);
 
   const loadGraph = useCallback(async () => {
     if (!accessToken || !hasReadyDocuments) {
@@ -65,8 +67,15 @@ export function WorkspaceConceptGraphPanel({
     return graph.edges.filter((edge) => edge.document_id === documentFilter);
   }, [documentFilter, graph]);
 
-  const nodeCount = filteredNodes.length;
-  const edgeCount = filteredEdges.length;
+  const weakCount = useMemo(() => countWeakConcepts(filteredNodes), [filteredNodes]);
+
+  const { nodes: displayNodes, edges: displayEdges } = useMemo(
+    () => filterConceptGraph(filteredNodes, filteredEdges, weakOnly),
+    [filteredEdges, filteredNodes, weakOnly],
+  );
+
+  const nodeCount = displayNodes.length;
+  const edgeCount = displayEdges.length;
 
   return (
     <Card className="shadow-sm" data-tour="concept-graph">
@@ -121,6 +130,16 @@ export function WorkspaceConceptGraphPanel({
               <Button type="button" variant="ghost" size="sm" disabled={loading} onClick={() => void loadGraph()}>
                 Refresh
               </Button>
+              {weakCount > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={weakOnly ? "default" : "outline"}
+                  onClick={() => setWeakOnly((current) => !current)}
+                >
+                  {weakOnly ? "Show all concepts" : `Weak concepts (${weakCount})`}
+                </Button>
+              ) : null}
             </div>
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -138,6 +157,12 @@ export function WorkspaceConceptGraphPanel({
               </p>
             ) : null}
 
+            {graph && filteredNodes.length > 0 && weakOnly && nodeCount === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No weak concepts in this view. Try another document filter or show all concepts.
+              </p>
+            ) : null}
+
             {graph && nodeCount > 0 ? (
               <>
                 <p className="text-sm text-muted-foreground">
@@ -146,12 +171,12 @@ export function WorkspaceConceptGraphPanel({
                   {graph.stats ? ` · ${graph.stats.document_count} document${graph.stats.document_count === 1 ? "" : "s"}` : ""}
                 </p>
                 <ConceptGraphFlow
-                  nodes={filteredNodes}
-                  edges={filteredEdges}
+                  nodes={displayNodes}
+                  edges={displayEdges}
                   groupByDocument={viewMode === "documents" && documentFilter === "all"}
                   getNodeHref={(node) =>
                     node.document_id
-                      ? `/dashboard/sets/${setId}/documents/${node.document_id}#mindmap`
+                      ? `/dashboard/sets/${setId}/documents/${node.document_id}#concepts`
                       : undefined
                   }
                   heightClassName="h-[480px]"

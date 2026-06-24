@@ -63,6 +63,12 @@ sharing:
   invite_create_rate_limit_per_min: 10
   member_change_rate_limit_per_min: 20
 
+team_chat:
+  message_max_length: 2000
+  list_page_size: 50
+  post_rate_limit_per_min: 30
+  list_rate_limit_per_min: 120
+
 email:
   enabled: false
   from_address: "InsightLab <onboarding@resend.dev>"

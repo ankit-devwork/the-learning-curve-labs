@@ -23,6 +23,7 @@ import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { LearningPathPanel } from "@/components/workspace/learning-path-panel";
+import { TeamChatPanel } from "@/components/workspace/team-chat-panel";
 import { WorkspaceConceptGraphPanel } from "@/components/workspace/workspace-concept-graph-panel";
 import { WorkspaceStudySessionPanel } from "@/components/workspace/workspace-study-session-panel";
 import { useToast } from "@/components/ui/toast";
@@ -350,6 +351,8 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         accessToken={accessToken}
         hasReadyDocuments={hasReadyDocuments}
       />
+
+      <TeamChatPanel setId={setId} accessToken={accessToken} isOwner={isOwner} />
 
       {canEdit ? (
         <ClassroomAnalyticsPanel setId={setId} accessToken={accessToken} canManage={canEdit} />

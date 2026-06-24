@@ -133,7 +133,7 @@ export function LearningPathPanel({
                 </div>
                 {node.document_id ? (
                   <Button type="button" size="sm" variant="ghost" asChild>
-                    <Link href={`/dashboard/sets/${setId}/documents/${node.document_id}#mindmap`}>
+                    <Link href={`/dashboard/sets/${setId}/documents/${node.document_id}#concepts`}>
                       Open
                     </Link>
                   </Button>

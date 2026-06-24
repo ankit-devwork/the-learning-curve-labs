@@ -20,7 +20,7 @@ import {
 } from "@/lib/api";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
-import { MindMapPanel } from "@/components/documents/mind-map-panel";
+import { DocumentConceptGraphPanel } from "@/components/documents/mind-map-panel";
 import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { NotebookTabs } from "@/components/ui/notebook-tabs";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,9 @@ export function DocumentWorkspaceClient({
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
-    if (hash === "graph") {
-      setActiveTab("mindmap");
-      window.history.replaceState(null, "", "#mindmap");
+    if (hash === "graph" || hash === "mindmap") {
+      setActiveTab("concepts");
+      window.history.replaceState(null, "", "#concepts");
       return;
     }
     if (VALID_TABS.has(hash)) {
@@ -701,9 +701,9 @@ export function DocumentWorkspaceClient({
             </div>
           ) : null}
 
-          {activeTab === "mindmap" ? (
-            <div id="mindmap">
-              <MindMapPanel documentId={documentId} ready={ready} accessToken={accessToken} />
+          {activeTab === "concepts" ? (
+            <div id="concepts">
+              <DocumentConceptGraphPanel documentId={documentId} ready={ready} accessToken={accessToken} />
             </div>
           ) : null}
         </section>

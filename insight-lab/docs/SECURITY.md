@@ -11,6 +11,8 @@ Security model, known risks, and production checklist for InsightLab.
 | **Database** | RLS on all tables; backend is primary enforcement boundary |
 | **Storage** | Private bucket; signed URLs via backend |
 
+Team chat messages are **never** exposed across study sheets: Postgres RLS (`is_workspace_member`) plus backend `require_workspace_role()` on every list/post/delete. Message bodies are validated server-side (ASCII English, no links/files/HTML/emoji).
+
 The backend uses the **Supabase service role**, which bypasses RLS. Every route must call `require_workspace_role()` or `get_accessible_document()` before reading or writing user data.
 
 ## Authentication
@@ -28,6 +30,8 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 | Upload, generate artifacts, exports | editor |
 | Share, invites, classroom analytics | editor |
 | Remove members, change roles | owner |
+| Delete any team chat message | owner |
+| Post team chat message | viewer (all members) |
 | Course pack / LMS / Markdown export | editor |
 | QTI quiz export | editor |
 
@@ -44,7 +48,7 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 
 Configured in `backend/config.yaml`:
 
-- Chat, quiz generate/submit, Excel, upload, sharing invites
+- Chat, quiz generate/submit, Excel, upload, sharing invites, team chat (post + list)
 - Public quiz: `public_get_rate_limit_per_min`, `public_submit_rate_limit_per_min`
 - Redis / Upstash required for distributed rate limiting
 

@@ -38,7 +38,7 @@ const actions: Array<{
   { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview" },
   { id: "infographic", label: "Infographic", icon: Image, description: "Visual summary card" },
   { id: "audio", label: "Audio overview", icon: Volume2, description: "Narrated summary" },
-  { id: "mindmap", label: "Mind map", icon: Network, description: "Connected concepts" },
+  { id: "concepts", label: "Concept graph", icon: Network, description: "Topics and mastery" },
 ];
 
 export function StudioPanel({
