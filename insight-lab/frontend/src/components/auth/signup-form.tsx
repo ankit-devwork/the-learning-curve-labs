@@ -22,9 +22,7 @@ import {
   authEmailRedirectTo,
   formatAuthEmailError,
   isAuthEmailRateLimitError,
-  isSignupDuplicateResponse,
   SIGNUP_INCOMPLETE_HYBRID_MESSAGE,
-  SUPABASE_BUILTIN_EMAIL_NOTE,
 } from "@/lib/supabase/auth-email";
 
 export function SignUpForm() {
@@ -67,18 +65,9 @@ export function SignUpForm() {
       return;
     }
 
-    if (isSignupDuplicateResponse(data.user, data.session)) {
-      setAwaitingConfirmation(true);
-      setMessage(SIGNUP_INCOMPLETE_HYBRID_MESSAGE);
-      setLoading(false);
-      return;
-    }
-
+    // Same message for new signups and re-signups (Supabase does not always expose duplicates).
     setAwaitingConfirmation(true);
-    setMessage(
-      "Check your email to confirm your account, then sign in. Nothing arrives? " +
-        SUPABASE_BUILTIN_EMAIL_NOTE
-    );
+    setMessage(SIGNUP_INCOMPLETE_HYBRID_MESSAGE);
     setLoading(false);
   };
 

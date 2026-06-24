@@ -81,7 +81,7 @@ Save, then send a test from the dashboard if available.
 
 | Issue | What to do |
 |-------|------------|
-| Email already registered | Signup shows a **hybrid message** (no “already exists”) — sign in or resend on login if unconfirmed |
+| Email already registered | Same **hybrid signup message** as first-time signup (Supabase often hides duplicates); sign in or resend on login |
 | Confirm email disabled | Signup returns a session immediately — no mail needed |
 | Gmail spam | Check Spam + Promotions |
 | Wrong Supabase project | Vercel `NEXT_PUBLIC_SUPABASE_URL` must match the project where SMTP is configured |
