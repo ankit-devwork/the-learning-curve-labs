@@ -229,6 +229,8 @@ flowchart TB
 
 Every API response includes **`X-Tracking-ID`** (same value as `correlation_id` in logs and JSON errors). Search backend logs with that ID when debugging a failed request from the browser or Vercel proxy.
 
+The frontend may send **`X-Tracking-ID`** on outbound requests. When one user action triggers several API calls (e.g. create invite + refresh members + refresh invites), the client reuses the same ID so a single `grep` finds all related log lines. If the header is omitted, the backend generates a new UUID per HTTP request.
+
 ### Rate limits (defaults)
 
 | Route | Limit |

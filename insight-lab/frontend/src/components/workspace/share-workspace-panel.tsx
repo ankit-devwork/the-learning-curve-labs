@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch, getTrackingIdFromResponse, parseApiError } from "@/lib/api";
+import { apiFetch, generateTrackingId, getTrackingIdFromResponse, parseApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,7 @@ export function ShareWorkspacePanel({
   const currentMember = members.find((member) => member.user_id === currentUserId);
   const canLeave = Boolean(currentMember && currentMember.role !== "owner");
 
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (trackingId?: string) => {
     const supabase = createClient();
     const {
       data: { session },
@@ -65,9 +65,12 @@ export function ShareWorkspacePanel({
       return;
     }
     setCurrentUserId(session.user.id);
+    const fetchOpts = trackingId ? { trackingId } : undefined;
     const [membersRes, invitesRes] = await Promise.all([
-      apiFetch(`/workspaces/${setId}/members`, session.access_token),
-      canManage ? apiFetch(`/workspaces/${setId}/invites`, session.access_token) : Promise.resolve(null),
+      apiFetch(`/workspaces/${setId}/members`, session.access_token, fetchOpts),
+      canManage
+        ? apiFetch(`/workspaces/${setId}/invites`, session.access_token, fetchOpts)
+        : Promise.resolve(null),
     ]);
     if (membersRes.ok) {
       const data = await membersRes.json();
@@ -93,16 +96,22 @@ export function ShareWorkspacePanel({
     if (!session?.access_token) {
       return;
     }
+    const trackingId = generateTrackingId();
     const response = await apiFetch(`/workspaces/${setId}/invites`, session.access_token, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, role }),
+      trackingId,
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       toast({
         title: "Invite failed",
-        description: parseApiError(body, "Could not create invite", getTrackingIdFromResponse(response)),
+        description: parseApiError(
+          body,
+          "Could not create invite",
+          getTrackingIdFromResponse(response) ?? trackingId,
+        ),
         variant: "error",
       });
       return;
@@ -120,7 +129,7 @@ export function ShareWorkspacePanel({
     setLastInviteLink(link);
     setEmail("");
     toast({ title: "Invite created", description: "Copy the link below to share.", variant: "success" });
-    await loadAll();
+    await loadAll(trackingId);
   }
 
   async function handleRemoveMember(member: Member) {
@@ -141,11 +150,12 @@ export function ShareWorkspacePanel({
     }
 
     setRemovingMemberId(member.user_id);
+    const trackingId = generateTrackingId();
     try {
       const response = await apiFetch(
         `/workspaces/${setId}/members/${member.user_id}`,
         session.access_token,
-        { method: "DELETE" },
+        { method: "DELETE", trackingId },
       );
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -157,7 +167,7 @@ export function ShareWorkspacePanel({
         return;
       }
       toast({ title: "Member removed", variant: "success" });
-      await loadAll();
+      await loadAll(trackingId);
     } finally {
       setRemovingMemberId(null);
     }
@@ -177,6 +187,7 @@ export function ShareWorkspacePanel({
     }
 
     setUpdatingRoleMemberId(member.user_id);
+    const trackingId = generateTrackingId();
     try {
       const response = await apiFetch(
         `/workspaces/${setId}/members/${member.user_id}`,
@@ -185,6 +196,7 @@ export function ShareWorkspacePanel({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ role: nextRole }),
+          trackingId,
         },
       );
       if (!response.ok) {
@@ -197,7 +209,7 @@ export function ShareWorkspacePanel({
         return;
       }
       toast({ title: "Role updated", variant: "success" });
-      await loadAll();
+      await loadAll(trackingId);
     } finally {
       setUpdatingRoleMemberId(null);
     }
@@ -220,11 +232,12 @@ export function ShareWorkspacePanel({
     }
 
     setRevokingInviteId(invite.id);
+    const trackingId = generateTrackingId();
     try {
       const response = await apiFetch(
         `/workspaces/${setId}/invites/${invite.id}`,
         session.access_token,
-        { method: "DELETE" },
+        { method: "DELETE", trackingId },
       );
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -236,7 +249,7 @@ export function ShareWorkspacePanel({
         return;
       }
       toast({ title: "Invite revoked", variant: "success" });
-      await loadAll();
+      await loadAll(trackingId);
     } finally {
       setRevokingInviteId(null);
     }
@@ -263,9 +276,11 @@ export function ShareWorkspacePanel({
     }
 
     setLeaving(true);
+    const trackingId = generateTrackingId();
     try {
       const response = await apiFetch(`/workspaces/${setId}/leave`, session.access_token, {
         method: "POST",
+        trackingId,
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
