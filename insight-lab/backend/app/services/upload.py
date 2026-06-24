@@ -12,12 +12,16 @@ from app.services.upload_validation import ValidatedUpload
 log = get_logger("upload")
 
 
+def ensure_profile(client: Client, user: AuthUser) -> None:
+    row: dict = {"id": user.id, "role": "user"}
+    if user.email:
+        row["email"] = user.email.strip().lower()
+    client.table("profiles").upsert(row, on_conflict="id").execute()
+
+
 def ensure_profile_and_workspace(client: Client, user: AuthUser) -> str:
     upload = get_yaml_config().upload
-    client.table("profiles").upsert(
-        {"id": user.id, "role": "user"},
-        on_conflict="id",
-    ).execute()
+    ensure_profile(client, user)
 
     existing = (
         client.table("workspaces")

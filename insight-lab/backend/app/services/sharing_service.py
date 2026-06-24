@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from pycorekit.exceptions.file import FileException
 from supabase import Client
@@ -13,6 +12,7 @@ from app.core.cache import check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
 from app.services.cache_invalidation import invalidate_user_workspace_access_caches
+from app.services.upload import ensure_profile
 from app.services.workspace_access import get_workspace_membership_role, require_workspace_role
 
 
@@ -90,7 +90,7 @@ def list_workspace_members(client: Client, workspace_id: str, user: AuthUser) ->
     user_ids = [row["user_id"] for row in rows]
     profiles = (
         client.table("profiles")
-        .select("id, email, full_name")
+        .select("id, email, display_name")
         .in_("id", user_ids)
         .execute()
         .data
@@ -101,7 +101,7 @@ def list_workspace_members(client: Client, workspace_id: str, user: AuthUser) ->
         {
             **row,
             "email": profile_map.get(row["user_id"], {}).get("email"),
-            "full_name": profile_map.get(row["user_id"], {}).get("full_name"),
+            "full_name": profile_map.get(row["user_id"], {}).get("display_name"),
         }
         for row in rows
     ]
@@ -130,12 +130,25 @@ async def create_workspace_invite(
     role: str = "viewer",
 ) -> dict:
     await _check_invite_create_rate(user.id)
+    ensure_profile(client, user)
     require_workspace_role(client, workspace_id, user, min_role="editor")
     normalized_email = email.strip().lower()
     if not normalized_email or "@" not in normalized_email:
         raise FileException("Valid email is required")
     if role not in {"editor", "viewer"}:
         raise FileException("Invite role must be editor or viewer")
+
+    pending = (
+        client.table("workspace_invites")
+        .select("id")
+        .eq("workspace_id", workspace_id)
+        .eq("email", normalized_email)
+        .is_("accepted_at", "null")
+        .limit(1)
+        .execute()
+    )
+    if pending.data:
+        raise FileException("An invite is already pending for this email", status_code=409)
 
     existing_member = (
         client.table("profiles")
@@ -158,13 +171,21 @@ async def create_workspace_invite(
             raise FileException("This user is already a member of the study set", status_code=409)
 
     row = {
-        "id": str(uuid4()),
         "workspace_id": workspace_id,
         "email": normalized_email,
         "role": role,
         "invited_by": user.id,
     }
-    inserted = client.table("workspace_invites").insert(row).execute()
+    try:
+        inserted = client.table("workspace_invites").insert(row).select("*").execute()
+    except Exception as exc:
+        message = str(exc).lower()
+        if "unique" in message or "duplicate" in message:
+            raise FileException("An invite is already pending for this email", status_code=409) from exc
+        if "foreign key" in message and "invited_by" in message:
+            raise FileException("Your account profile is not set up — sign out and sign in again", status_code=409) from exc
+        raise FileException("Failed to create invite", status_code=500) from exc
+
     if not inserted.data:
         raise FileException("Failed to create invite", status_code=500)
     return inserted.data[0]
@@ -280,6 +301,7 @@ async def update_member_role(
 
 async def accept_workspace_invite(client: Client, user: AuthUser, *, token: str) -> dict:
     await _check_invite_accept_rate(user.id)
+    ensure_profile(client, user)
     invite = (
         client.table("workspace_invites")
         .select("*")
@@ -303,7 +325,10 @@ async def accept_workspace_invite(client: Client, user: AuthUser, *, token: str)
         .limit(1)
         .execute()
     )
-    user_email = (profile.data[0]["email"] if profile.data else user.email or "").lower()
+    user_email = (profile.data[0].get("email") if profile.data else None) or user.email or ""
+    user_email = user_email.strip().lower()
+    if not user_email:
+        raise FileException("Your account has no email on file — sign out and sign in again", status_code=409)
     if user_email != row["email"].lower():
         raise FileException("This invite was sent to a different email address", status_code=403)
 

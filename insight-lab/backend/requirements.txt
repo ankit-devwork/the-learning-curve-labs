@@ -17,13 +17,9 @@ litellm>=1.52.0
 # pip install -e D:\path\to\the-learning-curve-labs\pycorekit
 # Or: pip install "git+https://github.com/ankit-devwork/the-learning-curve-labs.git@main#subdirectory=pycorekit"
 
-# Phase 1 additions (uncomment as features land)
+# Optional future: LangGraph multi-step agents (not used in InsightLab today)
 # langgraph>=0.2.0
 # langchain-core>=0.3.0
-# pandas>=2.2.0
-# openpyxl>=3.1.0
-# pypdf>=5.0.0
-# plotly>=5.24.0
 supabase>=2.10.0
 pytest>=8.0.0
 pypdf>=5.0.0

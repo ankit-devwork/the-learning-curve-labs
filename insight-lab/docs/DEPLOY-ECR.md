@@ -43,7 +43,7 @@ Supabase (hosted) ◄── Auth + DB + Storage
 
 | Task | Where |
 |------|-------|
-| Run Supabase migrations **001–011** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
+| Run Supabase migrations **001–012** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
 | Create Supabase project keys | Settings → API |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 | AWS CLI configured | `aws configure` on Windows |
@@ -67,6 +67,7 @@ Run in order in the Supabase SQL Editor (or `supabase db push`):
 | 009 | `009_phase6_sharing_quiz_edit.sql` | Sharing, invites, quiz publish |
 | 010 | `010_security_hardening.sql` | RLS fixes, editor checks |
 | 011 | `011_phase8_member_rls.sql` | Member-aware artifact RLS |
+| 012 | `012_profiles_email.sql` | Profile email sync for invites |
 
 Also create a private Storage bucket named **`uploads`**.
 

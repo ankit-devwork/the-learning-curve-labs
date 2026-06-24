@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getTrackingIdFromResponse, parseApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -100,10 +100,22 @@ export function ShareWorkspacePanel({
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      toast({ title: "Invite failed", description: body.error || body.detail, variant: "error" });
+      toast({
+        title: "Invite failed",
+        description: parseApiError(body, "Could not create invite", getTrackingIdFromResponse(response)),
+        variant: "error",
+      });
       return;
     }
     const data = await response.json();
+    if (!data.token) {
+      toast({
+        title: "Invite failed",
+        description: "Server did not return an invite link — try again or contact support.",
+        variant: "error",
+      });
+      return;
+    }
     const link = `${window.location.origin}/invite/${data.token}`;
     setLastInviteLink(link);
     setEmail("");

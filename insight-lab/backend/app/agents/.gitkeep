@@ -1,1 +1,2 @@
-# Placeholder — LangGraph agents (Excel, document, quiz) land in Phase 1.
+# Reserved for optional LangGraph agent graphs (not implemented).
+# Current AI logic lives in app/services/ — see docs/ARCHITECTURE.md §2.1.
