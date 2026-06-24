@@ -35,8 +35,8 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "share",
     title: "Share this study sheet",
-    body: "Open the share panel to invite classmates. Editors and owners can send invite links; viewers can see who has access.",
-    target: '[data-tour="share-panel"]',
+    body: "Click Share to invite classmates. Editors and owners can send invite links; viewers can see who has access.",
+    target: '[data-tour="share-btn"]',
     placement: "bottom",
   },
   {
@@ -77,14 +77,14 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "course-pack",
     title: "Course pack",
-    body: "One click generates summary, quiz, flashcards, study guide, and audio overview for every ready document.",
-    target: '[data-tour="course-pack"]',
+    body: "Click Course pack to generate summary, quiz, flashcards, study guide, and audio for every ready document.",
+    target: '[data-tour="course-pack-btn"]',
     placement: "bottom",
   },
   {
     id: "upload",
     title: "Upload materials",
-    body: "Editors can drop PDFs, Word docs, Excel spreadsheets, or CSV files into this study sheet.",
+    body: "Click Upload to add PDFs, Word docs, Excel spreadsheets, or CSV files to this study sheet.",
     target: '[data-tour="upload-btn"]',
     placement: "bottom",
   },

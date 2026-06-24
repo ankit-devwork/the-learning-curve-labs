@@ -22,9 +22,12 @@ import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-pane
 import { SetQuizPanel } from "@/components/workspace/set-quiz-panel";
 import { useToast } from "@/components/ui/toast";
 import { fetchUploadConfig, type UploadConfigResponse } from "@/lib/api";
-import { FileSpreadsheet, FileText } from "lucide-react";
+import { FileSpreadsheet, FileText, Package, Share2, Upload } from "lucide-react";
 import { canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 import { cn } from "@/lib/utils";
+import { SlideOverDrawer } from "@/components/ui/slide-over-drawer";
+
+type SheetDrawerPanel = "share" | "upload" | "course-pack";
 
 const MATERIAL_ROW_HEIGHT_PX = 64;
 const MATERIAL_MAX_VISIBLE_ROWS = 5;
@@ -50,6 +53,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [drawerPanel, setDrawerPanel] = useState<SheetDrawerPanel | null>(null);
 
   const loadAll = useCallback(async () => {
     setError(null);
@@ -200,6 +204,34 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const readyCount = documents.filter((doc) => doc.status === "ready").length;
   const materialsScrollable = documents.length > MATERIAL_MAX_VISIBLE_ROWS;
 
+  function openDrawer(panel: SheetDrawerPanel) {
+    setDrawerPanel(panel);
+  }
+
+  function closeDrawer() {
+    setDrawerPanel(null);
+  }
+
+  const drawerCopy: Record<
+    SheetDrawerPanel,
+    { title: string; description: string }
+  > = {
+    share: {
+      title: "Share study sheet",
+      description: "Invite classmates and manage access.",
+    },
+    upload: {
+      title: "Upload materials",
+      description: uploadConfig
+        ? `Allowed: ${uploadConfig.allowed_extensions.join(", ")} — up to ${uploadConfig.max_mb} MB`
+        : "Add PDFs, Word docs, or spreadsheets to this sheet.",
+    },
+    "course-pack": {
+      title: "Course pack",
+      description: "Generate learning outputs for every ready document at once.",
+    },
+  };
+
   return (
     <div className="space-y-6 pb-8">
       <ContextBreadcrumb
@@ -223,6 +255,40 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-tour="share-btn"
+            onClick={() => openDrawer("share")}
+          >
+            <Share2 className="mr-1.5 h-4 w-4" aria-hidden />
+            Share
+          </Button>
+          {canEdit ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-tour="upload-btn"
+                onClick={() => openDrawer("upload")}
+              >
+                <Upload className="mr-1.5 h-4 w-4" aria-hidden />
+                Upload
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-tour="course-pack-btn"
+                onClick={() => openDrawer("course-pack")}
+              >
+                <Package className="mr-1.5 h-4 w-4" aria-hidden />
+                Course pack
+              </Button>
+            </>
+          ) : null}
           {isOwner ? (
             <Button
               type="button"
@@ -243,42 +309,6 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
 
       {stats ? <WorkspaceStatsPanel stats={stats} /> : null}
 
-      <CoursePackPanel setId={setId} canEdit={canEdit} />
-
-      <ShareWorkspacePanel
-        setId={setId}
-        canManage={canEdit}
-        isOwner={isOwner}
-      />
-
-      {canEdit ? (
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Upload materials</CardTitle>
-          <CardDescription>
-            {uploadConfig
-              ? `Allowed: ${uploadConfig.allowed_extensions.join(", ")} — up to ${uploadConfig.max_mb} MB`
-              : "Loading upload settings…"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <UploadDropzone
-            accept={uploadConfig?.accept}
-            disabled={!uploadConfig}
-            uploading={uploading}
-            onFileSelected={(file) => void handleUpload(file)}
-          />
-        </CardContent>
-      </Card>
-      ) : (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Upload materials</CardTitle>
-            <CardDescription>Viewer access — you can read and study files but not upload.</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
       <Card className="shadow-sm" data-tour="sources-strip">
         <CardHeader>
           <CardTitle>Materials</CardTitle>
@@ -290,7 +320,19 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         </CardHeader>
         <CardContent>
           {documents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No materials yet — upload your first file above.</p>
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                {canEdit
+                  ? "No materials yet — upload your first file to start studying."
+                  : "No materials in this sheet yet."}
+              </p>
+              {canEdit ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => openDrawer("upload")}>
+                  <Upload className="mr-1.5 h-4 w-4" aria-hidden />
+                  Upload materials
+                </Button>
+              ) : null}
+            </div>
           ) : (
             <>
               <ul
@@ -349,6 +391,40 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       />
 
       <MultiDocChatPanel documents={documents} workspaceId={setId} />
+
+      <SlideOverDrawer
+        open={drawerPanel !== null}
+        title={drawerPanel ? drawerCopy[drawerPanel].title : ""}
+        description={drawerPanel ? drawerCopy[drawerPanel].description : undefined}
+        onClose={closeDrawer}
+        widthClassName="w-[min(520px,100vw)]"
+      >
+        {drawerPanel === "share" ? (
+          <ShareWorkspacePanel
+            setId={setId}
+            canManage={canEdit}
+            isOwner={isOwner}
+            embedded
+          />
+        ) : null}
+        {drawerPanel === "upload" ? (
+          canEdit ? (
+            <UploadDropzone
+              accept={uploadConfig?.accept}
+              disabled={!uploadConfig}
+              uploading={uploading}
+              onFileSelected={(file) => void handleUpload(file)}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Viewer access — you can read and study files but not upload.
+            </p>
+          )
+        ) : null}
+        {drawerPanel === "course-pack" ? (
+          <CoursePackPanel setId={setId} canEdit={canEdit} embedded />
+        ) : null}
+      </SlideOverDrawer>
     </div>
   );
 }

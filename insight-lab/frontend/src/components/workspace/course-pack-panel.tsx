@@ -8,7 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CoursePackResults } from "@/components/workspace/course-pack-results";
 import { useToast } from "@/components/ui/toast";
 
-export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canEdit?: boolean }) {
+export function CoursePackPanel({
+  setId,
+  canEdit = true,
+  embedded = false,
+}: {
+  setId: string;
+  canEdit?: boolean;
+  embedded?: boolean;
+}) {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [pack, setPack] = useState<CoursePackResponse | null>(null);
@@ -41,6 +49,34 @@ export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canE
     }
   }
 
+  const content = (
+    <div className="space-y-4">
+      {canEdit ? (
+        <Button type="button" disabled={generating} onClick={() => void handleGenerate()}>
+          {generating ? "Generating pack…" : "Generate course pack"}
+        </Button>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Course pack generation requires editor or owner access.
+        </p>
+      )}
+
+      {pack ? <CoursePackResults setId={setId} documents={pack.documents} /> : null}
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div data-tour="course-pack">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Generate summary, quiz, flashcards, study guide, and audio for every ready document — then open
+          each from the gallery.
+        </p>
+        {content}
+      </div>
+    );
+  }
+
   return (
     <Card className="notebook-surface border-0 shadow-none" data-tour="course-pack">
       <CardHeader>
@@ -50,19 +86,7 @@ export function CoursePackPanel({ setId, canEdit = true }: { setId: string; canE
           the gallery.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {canEdit ? (
-          <Button type="button" disabled={generating} onClick={() => void handleGenerate()}>
-            {generating ? "Generating pack…" : "Generate course pack"}
-          </Button>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Course pack generation requires editor or owner access.
-          </p>
-        )}
-
-        {pack ? <CoursePackResults setId={setId} documents={pack.documents} /> : null}
-      </CardContent>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }
