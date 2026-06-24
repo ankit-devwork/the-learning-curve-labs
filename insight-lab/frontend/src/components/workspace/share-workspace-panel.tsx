@@ -26,7 +26,6 @@ type Invite = {
   id: string;
   email: string;
   role: string;
-  token?: string;
   expires_at: string;
 };
 
@@ -156,6 +155,26 @@ export function ShareWorkspacePanel({
       variant: "success",
     });
     await loadAll(trackingId);
+  }
+
+  async function handleCopyPendingInvite(invite: Invite) {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+    const response = await apiFetch(
+      `/workspaces/${setId}/invites/${invite.id}/link`,
+      session.access_token,
+    );
+    if (!response.ok) {
+      toast({ title: "Could not load invite link", variant: "error" });
+      return;
+    }
+    const data = await response.json();
+    await handleCopyLink(data.url as string);
   }
 
   async function handleCopyLink(link: string) {
@@ -423,13 +442,13 @@ export function ShareWorkspacePanel({
                         {invite.email} · {invite.role}
                       </span>
                       <div className="flex shrink-0 items-center gap-2">
-                        {invite.token ? (
+                        {invite.id ? (
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             className="h-8"
-                            onClick={() => void handleCopyLink(inviteLinkForToken(invite.token!))}
+                            onClick={() => void handleCopyPendingInvite(invite)}
                           >
                             Copy link
                           </Button>

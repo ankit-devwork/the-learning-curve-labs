@@ -334,3 +334,7 @@ Future protected routes (`/upload`, `/ask`, `/quiz`) use the same `Authorization
 ## 12. Implementation progress
 
 See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the live feature checklist.
+
+## 13. Security
+
+See [SECURITY.md](SECURITY.md) for authentication, authorization matrix, public endpoints, rate limits, and the production deploy checklist.

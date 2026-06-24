@@ -43,14 +43,14 @@ Supabase (hosted) ◄── Auth + DB + Storage
 
 | Task | Where |
 |------|-------|
-| Run Supabase migrations **001–012** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
+| Run Supabase migrations **001–015** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
 | Create Supabase project keys | Settings → API |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 | AWS CLI configured | `aws configure` on Windows |
 | Docker Desktop | Windows (build/push image) |
 | EC2 Ubuntu instance | t3.medium recommended, 20–30 GB disk |
 
-### Supabase migrations (001–011)
+### Supabase migrations (001–015)
 
 Run in order in the Supabase SQL Editor (or `supabase db push`):
 
@@ -67,7 +67,12 @@ Run in order in the Supabase SQL Editor (or `supabase db push`):
 | 009 | `009_phase6_sharing_quiz_edit.sql` | Sharing, invites, quiz publish |
 | 010 | `010_security_hardening.sql` | RLS fixes, editor checks |
 | 011 | `011_phase8_member_rls.sql` | Member-aware artifact RLS |
-| 012 | `012_profiles_email.sql` | Profile email sync for invites |
+| 012 | `012_profiles_email.sql` | Profile email for invites |
+| 013 | `013_document_infographics.sql` | Infographics |
+| 014 | `014_tier1_tier2_features.sql` | Public quiz, source links |
+| 015 | `015_security_hardening.sql` | Public attempts RLS, profile role lock |
+
+See [SECURITY.md](SECURITY.md) for production security settings.
 
 Also create a private Storage bucket named **`uploads`**.
 

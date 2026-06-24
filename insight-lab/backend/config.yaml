@@ -108,6 +108,9 @@ excel:
 quizzes:
   generate_rate_limit_per_min: 5
   submit_rate_limit_per_min: 30
+  public_get_rate_limit_per_min: 30
+  public_submit_rate_limit_per_min: 10
+  public_max_answers_bytes: 4096
   default_num_questions: 5
   max_questions: 10
   max_context_chunks: 8

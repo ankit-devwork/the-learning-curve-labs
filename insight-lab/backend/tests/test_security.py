@@ -76,3 +76,22 @@ def test_tag_block_strips_nested_tags():
 def test_sanitize_stored_error_hides_internal_details():
     assert sanitize_stored_error("Traceback (most recent call last)") == "Processing failed. Please try again."
     assert sanitize_stored_error("File too large") == "File too large"
+
+
+def test_decode_jwt_rejects_non_authenticated_role(monkeypatch):
+    from app.core import auth
+    from app.core.exceptions import UnauthorizedException
+
+    monkeypatch.setattr(
+        auth,
+        "_payload_from_token",
+        lambda _token: {"sub": "user-1", "role": "anon"},
+    )
+    with pytest.raises(UnauthorizedException, match="Invalid token role"):
+        auth.decode_supabase_jwt("fake-token")
+
+
+def test_jwt_error_message_is_generic():
+    from app.core.auth import _jwt_error_message
+
+    assert _jwt_error_message(ValueError("secret detail")) == "Invalid or expired token"

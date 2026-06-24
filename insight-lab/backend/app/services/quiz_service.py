@@ -621,7 +621,7 @@ async def publish_quiz(client: Client, quiz_id: str, user: AuthUser) -> dict[str
     return serialized
 
 
-async def get_public_quiz(client: Client, *, share_token: str) -> dict[str, Any]:
+async def _load_public_quiz(client: Client, *, share_token: str) -> dict[str, Any]:
     result = (
         client.table("quizzes")
         .select("*")
@@ -654,14 +654,50 @@ async def get_public_quiz(client: Client, *, share_token: str) -> dict[str, Any]
     return serialized
 
 
+async def get_public_quiz(client: Client, *, share_token: str, client_ip: str = "unknown") -> dict[str, Any]:
+    quiz_cfg = get_yaml_config().quizzes
+    token_key = share_token.strip()[:24] or "unknown"
+    allowed, retry_after = await check_rate_limit(
+        key=f"public_quiz:get:{client_ip}:{token_key}",
+        limit=quiz_cfg.public_get_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Too many requests ({quiz_cfg.public_get_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    return await _load_public_quiz(client, share_token=share_token)
+
+
 async def submit_public_quiz(
     client: Client,
     *,
     share_token: str,
     display_name: str,
     answers: dict[str, int],
+    client_ip: str = "unknown",
 ) -> dict[str, Any]:
-    quiz_payload = await get_public_quiz(client, share_token=share_token)
+    quiz_cfg = get_yaml_config().quizzes
+    token_key = share_token.strip()[:24] or "unknown"
+    allowed, retry_after = await check_rate_limit(
+        key=f"public_quiz:submit:{client_ip}:{token_key}",
+        limit=quiz_cfg.public_submit_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Too many submissions ({quiz_cfg.public_submit_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    import json
+
+    if len(json.dumps(answers)) > quiz_cfg.public_max_answers_bytes:
+        raise FileException("Answers payload too large", status_code=400)
+
+    quiz_payload = await _load_public_quiz(client, share_token=share_token)
     quiz_id = quiz_payload["quiz_id"]
     questions = (
         client.table("quiz_questions")
@@ -675,18 +711,28 @@ async def submit_public_quiz(
     if not questions:
         raise FileException("Quiz has no questions", status_code=409)
 
+    if len(answers) > quiz_cfg.max_questions:
+        raise FileException("Too many answers submitted", status_code=400)
+
     safe_name = (display_name or "Guest").strip()[:80] or "Guest"
     score = 0
     results: list[dict[str, Any]] = []
+    normalized_answers: dict[str, int] = {}
     for question in questions:
-        selected = answers.get(question["id"])
+        question_id = question["id"]
+        selected = answers.get(question_id)
+        if selected is None:
+            raise FileException(f"Missing answer for question {question_id}", status_code=400)
+        if not isinstance(selected, int) or selected < 0 or selected >= len(question["options"]):
+            raise FileException(f"Invalid answer for question {question_id}", status_code=400)
+        normalized_answers[question_id] = selected
         correct_index = question["correct_option_index"]
         is_correct = selected == correct_index
         if is_correct:
             score += 1
         results.append(
             {
-                "question_id": question["id"],
+                "question_id": question_id,
                 "correct": is_correct,
                 "selected_option_index": selected,
                 "correct_option_index": correct_index,
@@ -701,7 +747,7 @@ async def submit_public_quiz(
             "display_name": safe_name,
             "score": score,
             "total": total,
-            "answers": answers,
+            "answers": normalized_answers,
         }
     ).execute()
 

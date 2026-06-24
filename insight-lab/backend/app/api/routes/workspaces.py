@@ -9,6 +9,7 @@ from app.api.routes.quiz import GenerateQuizRequest
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
+from app.services.workspace_access import require_workspace_role
 from app.services.course_pack_service import generate_course_pack
 from app.services.progress_service import get_workspace_progress
 from app.services.source_links_service import (
@@ -22,6 +23,7 @@ from app.services.sharing_service import (
     create_workspace_invite,
     leave_workspace,
     list_workspace_invites,
+    get_workspace_invite_link,
     list_workspace_members,
     remove_workspace_member,
     revoke_workspace_invite,
@@ -303,10 +305,11 @@ async def export_course_pack_markdown_route(
     request: Request,
     user: AuthUser = Depends(get_current_user),
 ):
-    workspace = get_workspace(get_supabase_client(), workspace_id, user)
-    documents = list_workspace_documents(get_supabase_client(), workspace_id, user, limit=50)
-    summaries = []
     client = get_supabase_client()
+    require_workspace_role(client, workspace_id, user, min_role="editor")
+    workspace = get_workspace(client, workspace_id, user)
+    documents = list_workspace_documents(client, workspace_id, user, limit=50)
+    summaries = []
     for doc in documents:
         if doc.get("file_type") != "document" or doc.get("status") != "ready":
             continue
@@ -411,6 +414,19 @@ async def list_workspace_invites_route(
     invites = list_workspace_invites(get_supabase_client(), workspace_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {"invites": invites, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/invites/{invite_id}/link")
+@with_observability("get_workspace_invite_link")
+async def get_workspace_invite_link_route(
+    workspace_id: str,
+    invite_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    link = get_workspace_invite_link(get_supabase_client(), workspace_id, invite_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**link, "correlation_id": correlation_id}
 
 
 @router.post("/{workspace_id}/invites")

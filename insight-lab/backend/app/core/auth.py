@@ -7,7 +7,6 @@ from jose import JWTError, jwt as jose_jwt
 from pydantic import BaseModel
 
 from app.core.config import settings
-from app.core.yaml_config import get_yaml_config
 from app.core.exceptions import UnauthorizedException
 
 
@@ -68,13 +67,16 @@ def _payload_from_token(token: str) -> dict:
 
 
 def _jwt_error_message(exc: Exception) -> str:
-    if get_yaml_config().app.debug:
-        return f"Invalid or expired token: {exc}"
+    _ = exc
     return "Invalid or expired token"
 
 
 def decode_supabase_jwt(token: str) -> AuthUser:
     payload = _payload_from_token(token)
+
+    role = payload.get("role")
+    if role != "authenticated":
+        raise UnauthorizedException("Invalid token role")
 
     user_id = payload.get("sub")
     if not user_id:
