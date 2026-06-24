@@ -12,6 +12,24 @@ type SourceLinksPanelProps = {
   canEdit: boolean;
 };
 
+function ReadyFileList({ docs, label }: { docs: DocumentSummary[]; label: string }) {
+  if (docs.length === 0) {
+    return null;
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <ul className="space-y-1 text-sm">
+        {docs.map((doc) => (
+          <li key={doc.id} className="truncate rounded-md border px-3 py-2">
+            {doc.filename}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function SourceLinksPanel({
   setId,
   documents,
@@ -26,6 +44,7 @@ export function SourceLinksPanel({
 
   const excelDocs = documents.filter((doc) => doc.file_type === "excel" && doc.status === "ready");
   const textDocs = documents.filter((doc) => doc.file_type === "document" && doc.status === "ready");
+  const canLink = excelDocs.length > 0 && textDocs.length > 0;
 
   const loadLinks = useCallback(async () => {
     if (!accessToken) {
@@ -72,12 +91,34 @@ export function SourceLinksPanel({
     await loadLinks();
   }
 
-  if (excelDocs.length === 0 || textDocs.length === 0) {
+  if (!canLink) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Link a spreadsheet to a document when both are ready in this sheet. Excel chat will then cite
-        related document excerpts.
-      </p>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Source links connect a spreadsheet to a related PDF or Word doc so Excel Q&amp;A can cite document
+          excerpts alongside your data.
+        </p>
+        {excelDocs.length === 0 && textDocs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No ready materials yet. Upload and process at least one spreadsheet and one PDF/Word document in
+            this sheet.
+          </p>
+        ) : null}
+        {excelDocs.length === 0 && textDocs.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You have ready documents but no ready spreadsheets. Upload and analyze a spreadsheet to create
+            links.
+          </p>
+        ) : null}
+        {excelDocs.length > 0 && textDocs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You have ready spreadsheets but no ready PDF or Word documents. Upload a document to link with
+            your data — Excel chat works without links, but citations need a related document.
+          </p>
+        ) : null}
+        <ReadyFileList docs={excelDocs} label="Ready spreadsheets" />
+        <ReadyFileList docs={textDocs} label="Ready documents" />
+      </div>
     );
   }
 

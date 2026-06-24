@@ -230,7 +230,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     },
     "course-pack": {
       title: "Course pack",
-      description: "Generate learning outputs for every ready document at once.",
+      description: "Generate learning outputs for every ready document or analyzed spreadsheet.",
     },
     links: {
       title: "Source links",
@@ -440,7 +440,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           )
         ) : null}
         {drawerPanel === "course-pack" ? (
-          <CoursePackPanel setId={setId} canEdit={canEdit} embedded />
+          <CoursePackPanel setId={setId} documents={documents} canEdit={canEdit} embedded />
         ) : null}
         {drawerPanel === "links" ? (
           <SourceLinksPanel

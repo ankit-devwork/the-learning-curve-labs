@@ -386,6 +386,7 @@ export type QuizQuestionEditable = QuizQuestion & {
 export type CoursePackDocumentResult = {
   document_id: string;
   filename: string;
+  file_type?: "document" | "excel";
   artifacts: {
     summary?: string;
     quiz_id?: string;
@@ -393,6 +394,7 @@ export type CoursePackDocumentResult = {
     study_guide_id?: string;
     audio_title?: string;
     audio_script?: string;
+    chart_count?: number;
   };
   errors: string[];
 };

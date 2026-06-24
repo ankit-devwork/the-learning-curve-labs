@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse, Response
 
+from pycorekit.exceptions.file import FileException
 from pycorekit.tracing.decorators import with_observability
 from pycorekit.correlation.headers import tracking_response_headers
 
@@ -40,7 +41,7 @@ from app.services.workspace_service import (
 )
 from app.services.export_utils import course_pack_to_markdown
 from app.services.classroom_analytics_service import get_classroom_analytics
-from app.services.lms_export_service import build_lms_bundle_zip
+from app.services.lms_export_service import build_lms_bundle_zip, collect_ready_material_summaries
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -308,17 +309,11 @@ async def export_course_pack_markdown_route(
     client = get_supabase_client()
     require_workspace_role(client, workspace_id, user, min_role="editor")
     workspace = get_workspace(client, workspace_id, user)
-    documents = list_workspace_documents(client, workspace_id, user, limit=50)
-    summaries = []
-    for doc in documents:
-        if doc.get("file_type") != "document" or doc.get("status") != "ready":
-            continue
-        detail = client.table("documents").select("summary").eq("id", doc["id"]).limit(1).execute()
-        summaries.append(
-            {
-                "filename": doc["filename"],
-                "summary": detail.data[0].get("summary") if detail.data else None,
-            }
+    summaries = collect_ready_material_summaries(client, workspace_id, user, limit=50)
+    if not any(entry.get("summary") for entry in summaries):
+        raise FileException(
+            "Nothing to export yet — generate summaries for ready documents or analyze spreadsheets first",
+            status_code=409,
         )
     markdown = course_pack_to_markdown(workspace_name=workspace["name"], documents=summaries)
     correlation_id = getattr(request.state, "correlation_id", None)
