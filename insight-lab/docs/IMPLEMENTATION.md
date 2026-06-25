@@ -464,7 +464,7 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 | Chat UX | Bubble messages, citation chips, cache labels (document, compare, Excel) |
 | Compare page | Explains PDF/Word vs Excel routing; links to spreadsheet canvas |
 | Onboarding tour | Route-aware steps including Excel notebook layout |
-| User guide | [USER-MANUAL.md](USER-MANUAL.md) + in-app `/dashboard/help` |
+| User guide | [USER-MANUAL.md](USER-MANUAL.md) (repo copy) + in-app `/dashboard/help` |
 
 ## Phase 9 (implemented)
 

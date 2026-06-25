@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { BookOpen, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +63,10 @@ const sections = [
         heading: "Share",
         body: "Invite viewers (study only) or editors (upload and generate). Copy the invite link and send it yourself.",
       },
+      {
+        heading: "Classroom analytics",
+        body: "Editors and owners can see quiz averages and activity across sheet members — useful for teachers.",
+      },
     ],
   },
   {
@@ -84,6 +87,73 @@ const sections = [
     ],
   },
   {
+    title: "Exports",
+    items: [
+      {
+        heading: "Flashcards",
+        body: "Export a deck to Anki CSV from the flashcards tab.",
+      },
+      {
+        heading: "Study guide",
+        body: "Export to PDF from the study guide tab.",
+      },
+      {
+        heading: "Charts",
+        body: "Download spreadsheet charts as CSV or PNG.",
+      },
+      {
+        heading: "Course pack & LMS",
+        body: "From Course pack: export Markdown, Canvas (.imscc), or an LMS zip bundle.",
+      },
+      {
+        heading: "Public quiz link",
+        body: "After you publish a quiz, editors can share a link so people outside the sheet can take it.",
+      },
+    ],
+  },
+  {
+    title: "Typical workflows",
+    items: [
+      {
+        heading: "Solo exam prep",
+        body: "Create a sheet, upload notes, read each Brief, take file quizzes, then use the guided study plan and concept graph for weak topics.",
+      },
+      {
+        heading: "Study group",
+        body: "Owner uploads materials and shares invite links. Use Team chat to coordinate. Everyone quizzes; practice quiz (whole sheet) targets group weak spots.",
+      },
+      {
+        heading: "Teacher / classroom",
+        body: "Upload course files, run Course pack, check Classroom analytics, and export Canvas or LMS bundles for your LMS.",
+      },
+    ],
+  },
+  {
+    title: "Troubleshooting",
+    items: [
+      {
+        heading: "File stuck processing",
+        body: "Wait a minute, then click Refresh on the study sheet.",
+      },
+      {
+        heading: "Cannot upload",
+        body: "You may be a viewer — ask the sheet owner for editor access.",
+      },
+      {
+        heading: "Weak topics empty",
+        body: "Take at least one quiz on a file first.",
+      },
+      {
+        heading: "Team chat not updating live",
+        body: "Messages still save when you send them. Refresh the page if needed.",
+      },
+      {
+        heading: "Feature unavailable notice",
+        body: "Your administrator may need to update the database — contact them if a yellow notice appears.",
+      },
+    ],
+  },
+  {
     title: "Roles",
     items: [
       {
@@ -100,6 +170,19 @@ const sections = [
       },
     ],
   },
+  {
+    title: "Privacy",
+    items: [
+      {
+        heading: "Who can see your work",
+        body: "Only members of a study sheet can see its files and team chat.",
+      },
+      {
+        heading: "What not to upload",
+        body: "Do not upload confidential data you would not share with your study group. Team chat allows plain text only — no links or attachments.",
+      },
+    ],
+  },
 ];
 
 export function UserGuidePage() {
@@ -113,7 +196,7 @@ export function UserGuidePage() {
           </div>
           <h1 className="font-display text-2xl font-semibold sm:text-3xl">How to use InsightLab</h1>
           <p className="mt-2 text-muted-foreground">
-            Simple steps for studying documents and spreadsheets with your class or team.
+            Everything you need to study documents and spreadsheets with your class or team.
           </p>
         </div>
         <Button type="button" variant="outline" className="gap-2" onClick={() => requestTourRestart()}>
@@ -157,11 +240,8 @@ export function UserGuidePage() {
       ))}
 
       <p className="text-sm text-muted-foreground">
-        For the full manual (exports, troubleshooting, workflows), see{" "}
-        <Link href="https://github.com/ankit-devwork/the-learning-curve-labs/blob/main/insight-lab/docs/USER-MANUAL.md" className="text-primary underline-offset-4 hover:underline" target="_blank" rel="noopener noreferrer">
-          USER-MANUAL.md
-        </Link>{" "}
-        in the repository.
+        Want a walkthrough of the page you are on? Click <strong className="font-medium text-foreground">Show tour</strong>{" "}
+        in the sidebar or at the top of this page.
       </p>
     </div>
   );
