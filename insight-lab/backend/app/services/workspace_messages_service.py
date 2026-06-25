@@ -43,6 +43,20 @@ async def _check_list_rate(user_id: str, workspace_id: str) -> None:
         )
 
 
+async def _check_delete_rate(user_id: str) -> None:
+    cfg = get_yaml_config().team_chat
+    allowed, retry_after = await check_rate_limit(
+        key=f"team_chat:delete:{user_id}",
+        limit=cfg.delete_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Delete limit reached ({cfg.delete_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+
 def _author_label(profile: dict | None) -> str:
     if not profile:
         return "Member"
@@ -184,6 +198,7 @@ async def delete_workspace_message(
     user: AuthUser,
 ) -> dict:
     require_workspace_role(client, workspace_id, user, min_role="viewer")
+    await _check_delete_rate(user.id)
 
     result = (
         client.table("workspace_messages")

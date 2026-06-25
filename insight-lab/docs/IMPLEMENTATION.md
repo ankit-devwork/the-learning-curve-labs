@@ -508,14 +508,15 @@ See [SECURITY.md](SECURITY.md) for the full production security guide.
 
 | Control | Status |
 |---------|--------|
-| Supabase RLS + Storage policies (migrations 005–015) | Required in prod |
-| JWT auth on all document/quiz/excel routes | Done |
+| Supabase RLS + Storage policies (migrations 005–017) | Required in prod |
+| JWT auth on all document/quiz/excel/workspace routes | Done |
+| Team chat: member-scoped RLS + plain-text validation (migration 017) | Done |
 | JWT `role === authenticated` enforcement | Done |
 | Public quiz rate limits + answer validation | Done |
 | Invite tokens not in list API (link endpoint) | Done |
 | Export routes require editor (Markdown, LMS, QTI) | Done |
 | User-scoped cache keys (summary, chat, quiz, excel) | Done |
-| Rate limits (upload, process, chat, quiz, excel, sharing, public quiz) | Done |
+| Rate limits (upload, process, chat, quiz, excel, sharing, public quiz, team chat) | Done |
 | Grounded LLM prompts + excerpt marker stripping | Done |
 | Retry + circuit breaker on LLM/Storage | Done |
 | Phase 2 migration guard (graceful degradation) | Done |

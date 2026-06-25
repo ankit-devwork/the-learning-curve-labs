@@ -51,6 +51,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -77,12 +78,14 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         if (response.status === 403) {
+          setAccessDenied(true);
           setError("You do not have access to this study sheet chat.");
         } else {
           setError(body.error || `Could not load team chat (${response.status})`);
         }
         return;
       }
+      setAccessDenied(false);
       const payload = (await response.json()) as WorkspaceMessagesResponse;
       setMessages(payload.messages ?? []);
     },
@@ -101,7 +104,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
   }, []);
 
   useEffect(() => {
-    if (!accessToken) {
+    if (!accessToken || accessDenied) {
       return;
     }
     void loadMessages();
@@ -113,7 +116,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
         clearInterval(pollRef.current);
       }
     };
-  }, [accessToken, loadMessages]);
+  }, [accessDenied, accessToken, loadMessages]);
 
   useEffect(() => {
     scrollToBottom();
@@ -236,11 +239,11 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Type a plain English message for your team..."
-            disabled={!accessToken || sending}
+            disabled={!accessToken || sending || accessDenied}
             maxLength={2000}
             aria-label="Team chat message"
           />
-          <Button type="submit" disabled={!accessToken || sending || !draft.trim()}>
+          <Button type="submit" disabled={!accessToken || sending || accessDenied || !draft.trim()}>
             {sending ? "Sending..." : "Send"}
           </Button>
         </form>

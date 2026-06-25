@@ -84,6 +84,7 @@ class TeamChatSection(BaseModel):
     list_page_size: int = 50
     post_rate_limit_per_min: int = 30
     list_rate_limit_per_min: int = 120
+    delete_rate_limit_per_min: int = 30
 
 
 class EmailSection(BaseModel):
