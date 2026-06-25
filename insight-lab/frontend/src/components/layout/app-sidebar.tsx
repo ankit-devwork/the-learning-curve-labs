@@ -6,6 +6,7 @@ import {
   BookOpen,
   Compass,
   FolderOpen,
+  HelpCircle,
   MessagesSquare,
 } from "lucide-react";
 import { BrandMark } from "@/components/layout/brand-mark";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard/sets", label: "Study sheets", icon: FolderOpen },
   { href: "/dashboard/compare", label: "Compare", icon: MessagesSquare },
+  { href: "/dashboard/help", label: "User guide", icon: HelpCircle },
 ];
 
 type AppSidebarProps = {

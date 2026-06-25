@@ -459,11 +459,12 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 | Theme + typography | DM Sans, `notebook-surface`, sidebar theme toggle |
 | Notebook gallery | Study set cards with accent colors on `/dashboard/sets` |
 | Document notebook | Sources rail, chat-first, `NotebookTabs`, sticky Studio, audio player bar |
-| Excel notebook | Same shell; `ExcelToolsPanel`; tabs: Insights, Preview, Charts, Builder |
+| Excel notebook | Same shell; `ExcelToolsPanel`; tabs: Insights, Preview, Charts, Builder, Concept graph |
 | Set detail | Sources strip, breadcrumbs, course pack artifact cards with tab deep links |
 | Chat UX | Bubble messages, citation chips, cache labels (document, compare, Excel) |
 | Compare page | Explains PDF/Word vs Excel routing; links to spreadsheet canvas |
 | Onboarding tour | Route-aware steps including Excel notebook layout |
+| User guide | [USER-MANUAL.md](USER-MANUAL.md) + in-app `/dashboard/help` |
 
 ## Phase 9 (implemented)
 

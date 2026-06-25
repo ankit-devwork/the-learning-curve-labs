@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, type StudySessionRecord, type WorkspaceStudySessionPlan } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -19,15 +18,28 @@ function stepDescription(step: WorkspaceStudySessionPlan["steps"][number]): stri
     return step.focus_topic ? `Focus: ${step.focus_topic}` : "Review weak topics from your quizzes";
   }
   if (step.step === "adaptive_quiz") {
-    return `${step.weak_count} weak topic${step.weak_count === 1 ? "" : "s"} to practice`;
+    return `${step.weak_count} weak topic${step.weak_count === 1 ? "" : "s"} — opens practice quiz below`;
   }
   if (step.step === "set_quiz") {
-    return step.hint ?? "Generate a quiz across this study sheet";
+    return step.hint ?? "Opens practice quiz (whole sheet) below";
   }
   if (step.step === "brief" || step.step === "flashcards") {
     return step.filename;
   }
   return "";
+}
+
+function stepActionLabel(step: WorkspaceStudySessionPlan["steps"][number]): string {
+  if (step.step === "adaptive_quiz" || step.step === "set_quiz") {
+    return "Go to quiz";
+  }
+  if (step.step === "flashcards") {
+    return "Go to cards";
+  }
+  if (step.step === "brief") {
+    return "Go to brief";
+  }
+  return "Go";
 }
 
 export function WorkspaceStudySessionPanel({
@@ -87,7 +99,7 @@ export function WorkspaceStudySessionPanel({
     setStarting(false);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error || "Could not start study session");
+      setError(body.error || "Could not start study plan");
       return;
     }
     setSession((await response.json()) as StudySessionRecord);
@@ -116,24 +128,29 @@ export function WorkspaceStudySessionPanel({
   }
 
   async function runStep(stepIndex: number) {
+    const activePlan = (session?.plan as WorkspaceStudySessionPlan | undefined) ?? previewPlan;
     const steps = session?.steps ?? [];
     const stepProgress = steps.find((row) => row.step_index === stepIndex);
     const payload = stepProgress?.payload as WorkspaceStudySessionPlan["steps"][number] | undefined;
-    if (!payload) {
+    const previewStep = activePlan?.steps[stepIndex];
+    const step = payload ?? previewStep;
+    if (!step) {
       return;
     }
 
-    await advanceStep(stepIndex, "in_progress");
+    if (session) {
+      await advanceStep(stepIndex, "in_progress");
+    }
 
-    if (payload.step === "brief" && "document_id" in payload && payload.document_id) {
-      window.location.href = `/dashboard/sets/${setId}/documents/${payload.document_id}#brief`;
+    if (step.step === "brief" && "document_id" in step && step.document_id) {
+      window.location.href = `/dashboard/sets/${setId}/documents/${step.document_id}#brief`;
       return;
     }
-    if (payload.step === "flashcards" && "document_id" in payload && payload.document_id) {
-      window.location.href = `/dashboard/sets/${setId}/documents/${payload.document_id}#flashcards`;
+    if (step.step === "flashcards" && "document_id" in step && step.document_id) {
+      window.location.href = `/dashboard/sets/${setId}/documents/${step.document_id}#flashcards`;
       return;
     }
-    if (payload.step === "adaptive_quiz" || payload.step === "set_quiz") {
+    if (step.step === "adaptive_quiz" || step.step === "set_quiz") {
       scrollToSetQuiz();
     }
   }
@@ -151,12 +168,12 @@ export function WorkspaceStudySessionPanel({
     return (
       <Card className="shadow-sm" data-tour="study-session">
         <CardHeader>
-          <CardTitle>Study session</CardTitle>
-          <CardDescription>Guided flow across every ready document in this sheet.</CardDescription>
+          <CardTitle>Guided study plan</CardTitle>
+          <CardDescription>Step-by-step flow across every ready file in this sheet.</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Upload and process documents to start a set-wide study session.
+            Upload and process files to see your study plan.
           </p>
         </CardContent>
       </Card>
@@ -168,11 +185,11 @@ export function WorkspaceStudySessionPanel({
   return (
     <Card className="shadow-sm" data-tour="study-session">
       <CardHeader>
-        <CardTitle>Study session</CardTitle>
+        <CardTitle>Guided study plan</CardTitle>
         <CardDescription>
           {displayPlan
-            ? `~${displayPlan.estimated_minutes} min guided flow across ${displayPlan.document_count} document${displayPlan.document_count === 1 ? "" : "s"}`
-            : "Track progress through your study sheet"}
+            ? `~${displayPlan.estimated_minutes} min across ${displayPlan.document_count} file${displayPlan.document_count === 1 ? "" : "s"}`
+            : "Optional checklist with saved progress"}
           {displayPlan?.focus_topic ? ` · focus: ${displayPlan.focus_topic}` : ""}
         </CardDescription>
       </CardHeader>
@@ -181,7 +198,7 @@ export function WorkspaceStudySessionPanel({
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>
-                {progress.completed_steps} / {progress.total_steps} steps
+                {progress.completed_steps} / {progress.total_steps} steps done
               </span>
               <span>{progress.percent}%</span>
             </div>
@@ -195,13 +212,21 @@ export function WorkspaceStudySessionPanel({
         ) : null}
 
         {!session ? (
-          <Button type="button" disabled={starting || loading} onClick={() => void startSession()}>
-            {starting ? "Starting…" : "Start tracked session"}
-          </Button>
+          <div className="space-y-2">
+            <Button type="button" disabled={starting || loading} onClick={() => void startSession()}>
+              {starting ? "Starting…" : "Start my plan"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Optional — saves your progress. You can also open files and use quizzes without starting a plan.
+            </p>
+          </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Session active — complete steps below or mark them done as you go.
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">Plan in progress.</p>
+            <Button type="button" size="sm" onClick={() => void runStep(session.current_step_index)}>
+              Resume plan
+            </Button>
+          </div>
         )}
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -250,34 +275,23 @@ export function WorkspaceStudySessionPanel({
                     <p className="text-xs text-muted-foreground">{stepDescription(step)}</p>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    {session && status !== "completed" ? (
+                    {status !== "completed" ? (
                       <>
                         <Button type="button" size="sm" variant="outline" onClick={() => void runStep(stepIndex)}>
-                          Start
+                          {stepActionLabel(step)}
                         </Button>
-                        <Button type="button" size="sm" variant="ghost" onClick={() => void markComplete(stepIndex)}>
-                          Done
-                        </Button>
+                        {session ? (
+                          <Button type="button" size="sm" variant="ghost" onClick={() => void markComplete(stepIndex)}>
+                            Mark done
+                          </Button>
+                        ) : null}
                       </>
-                    ) : session ? null : (
-                      <span className="text-xs text-muted-foreground capitalize">{status.replace("_", " ")}</span>
-                    )}
+                    ) : null}
                   </div>
                 </li>
               );
             })}
         </ol>
-
-        <div className="flex flex-wrap gap-2">
-          {session ? (
-            <Button type="button" onClick={() => void runStep(session.current_step_index)}>
-              Continue session
-            </Button>
-          ) : null}
-          <Button type="button" variant="outline" asChild>
-            <Link href="#set-quiz">Open set quiz</Link>
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

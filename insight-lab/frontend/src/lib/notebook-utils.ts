@@ -30,7 +30,7 @@ export type ExcelCanvasTab = "brief" | "preview" | "charts" | "builder" | "conce
 
 export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   brief: "Brief",
-  session: "Session",
+  session: "Study plan",
   quiz: "Quiz",
   flashcards: "Flashcards",
   guide: "Study guide",
