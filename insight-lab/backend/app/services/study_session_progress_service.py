@@ -11,6 +11,11 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.exceptions import NotFoundException
+from app.core.migration_guard import (
+    PHASE3_016_MIGRATION_NOTICE,
+    is_missing_study_sessions_schema,
+    run_or_raise_study_sessions,
+)
 from app.services.study_session_service import get_study_session_plan, get_workspace_study_session_plan
 from app.services.workspace_access import require_workspace_role
 
@@ -80,58 +85,61 @@ def _persist_session(
     document_id: str | None = None,
     learning_path_id: str | None = None,
 ) -> dict[str, Any]:
-    session_id = str(uuid4())
-    steps = plan.get("steps") or []
-    client.table("study_sessions").insert(
-        {
-            "id": session_id,
-            "user_id": user.id,
-            "workspace_id": workspace_id,
-            "document_id": document_id,
-            "learning_path_id": learning_path_id,
-            "session_type": session_type,
-            "status": "active",
-            "plan_snapshot": plan,
-            "current_step_index": 0,
-            "started_at": _now(),
-            "last_activity_at": _now(),
-        }
-    ).execute()
-
-    step_rows = []
-    for index, step in enumerate(steps):
-        step_rows.append(
+    def _write() -> dict[str, Any]:
+        session_id = str(uuid4())
+        steps = plan.get("steps") or []
+        client.table("study_sessions").insert(
             {
-                "id": str(uuid4()),
-                "session_id": session_id,
-                "step_index": index,
-                "step_type": step.get("step", "unknown"),
-                "label": step.get("label", f"Step {index + 1}"),
-                "payload": step,
-                "status": "pending",
+                "id": session_id,
+                "user_id": user.id,
+                "workspace_id": workspace_id,
+                "document_id": document_id,
+                "learning_path_id": learning_path_id,
+                "session_type": session_type,
+                "status": "active",
+                "plan_snapshot": plan,
+                "current_step_index": 0,
+                "started_at": _now(),
+                "last_activity_at": _now(),
             }
-        )
-    if step_rows:
-        client.table("study_session_steps").insert(step_rows).execute()
+        ).execute()
 
-    session = (
-        client.table("study_sessions")
-        .select("*")
-        .eq("id", session_id)
-        .limit(1)
-        .execute()
-        .data[0]
-    )
-    stored_steps = (
-        client.table("study_session_steps")
-        .select("id, step_index, step_type, label, payload, status, started_at, completed_at")
-        .eq("session_id", session_id)
-        .order("step_index")
-        .execute()
-        .data
-        or []
-    )
-    return _serialize_session(session, stored_steps)
+        step_rows = []
+        for index, step in enumerate(steps):
+            step_rows.append(
+                {
+                    "id": str(uuid4()),
+                    "session_id": session_id,
+                    "step_index": index,
+                    "step_type": step.get("step", "unknown"),
+                    "label": step.get("label", f"Step {index + 1}"),
+                    "payload": step,
+                    "status": "pending",
+                }
+            )
+        if step_rows:
+            client.table("study_session_steps").insert(step_rows).execute()
+
+        session = (
+            client.table("study_sessions")
+            .select("*")
+            .eq("id", session_id)
+            .limit(1)
+            .execute()
+            .data[0]
+        )
+        stored_steps = (
+            client.table("study_session_steps")
+            .select("id, step_index, step_type, label, payload, status, started_at, completed_at")
+            .eq("session_id", session_id)
+            .order("step_index")
+            .execute()
+            .data
+            or []
+        )
+        return _serialize_session(session, stored_steps)
+
+    return run_or_raise_study_sessions(_write)
 
 
 async def start_document_study_session(
@@ -174,50 +182,62 @@ async def start_workspace_study_session(
 
 
 def get_study_session(client: Client, session_id: str, user: AuthUser) -> dict[str, Any]:
-    session = (
-        client.table("study_sessions")
-        .select("*")
-        .eq("id", session_id)
-        .eq("user_id", user.id)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not session:
-        raise NotFoundException("Study session not found")
-    row = session[0]
-    steps = (
-        client.table("study_session_steps")
-        .select("id, step_index, step_type, label, payload, status, started_at, completed_at")
-        .eq("session_id", session_id)
-        .order("step_index")
-        .execute()
-        .data
-        or []
-    )
-    return _serialize_session(row, steps)
+    def _load() -> dict[str, Any]:
+        session = (
+            client.table("study_sessions")
+            .select("*")
+            .eq("id", session_id)
+            .eq("user_id", user.id)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not session:
+            raise NotFoundException("Study session not found")
+        row = session[0]
+        steps = (
+            client.table("study_session_steps")
+            .select("id, step_index, step_type, label, payload, status, started_at, completed_at")
+            .eq("session_id", session_id)
+            .order("step_index")
+            .execute()
+            .data
+            or []
+        )
+        return _serialize_session(row, steps)
+
+    return run_or_raise_study_sessions(_load)
 
 
 def get_active_workspace_study_session(
     client: Client,
     workspace_id: str,
     user: AuthUser,
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     require_workspace_role(client, workspace_id, user, min_role="viewer")
-    session = (
-        client.table("study_sessions")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("workspace_id", workspace_id)
-        .eq("status", "active")
-        .order("last_activity_at", desc=True)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not session:
-        return None
-    return get_study_session(client, session[0]["id"], user)
+    try:
+        session = (
+            client.table("study_sessions")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("workspace_id", workspace_id)
+            .eq("status", "active")
+            .order("last_activity_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not session:
+            return {"session": None}
+        return {"session": get_study_session(client, session[0]["id"], user)}
+    except Exception as exc:
+        if is_missing_study_sessions_schema(exc):
+            return {
+                "session": None,
+                "migration_required": True,
+                "notice": PHASE3_016_MIGRATION_NOTICE,
+            }
+        raise
 
 
 def advance_study_session_step(
@@ -228,60 +248,63 @@ def advance_study_session_step(
     step_index: int,
     status: str = "completed",
 ) -> dict[str, Any]:
-    session = get_study_session(client, session_id, user)
-    if session["status"] != "active":
-        raise FileException("Study session is not active", status_code=409)
+    def _advance() -> dict[str, Any]:
+        session = get_study_session(client, session_id, user)
+        if session["status"] != "active":
+            raise FileException("Study session is not active", status_code=409)
 
-    step = (
-        client.table("study_session_steps")
-        .select("*")
-        .eq("session_id", session_id)
-        .eq("step_index", step_index)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not step:
-        raise NotFoundException("Study session step not found")
+        step = (
+            client.table("study_session_steps")
+            .select("*")
+            .eq("session_id", session_id)
+            .eq("step_index", step_index)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not step:
+            raise NotFoundException("Study session step not found")
 
-    now = _now()
-    step_update: dict[str, Any] = {"status": status}
-    if status == "in_progress" and not step[0].get("started_at"):
-        step_update["started_at"] = now
-    if status in ("completed", "skipped"):
-        step_update["completed_at"] = now
+        now = _now()
+        step_update: dict[str, Any] = {"status": status}
+        if status == "in_progress" and not step[0].get("started_at"):
+            step_update["started_at"] = now
+        if status in ("completed", "skipped"):
+            step_update["completed_at"] = now
 
-    client.table("study_session_steps").update(step_update).eq("id", step[0]["id"]).execute()
+        client.table("study_session_steps").update(step_update).eq("id", step[0]["id"]).execute()
 
-    steps = (
-        client.table("study_session_steps")
-        .select("id, step_index, status")
-        .eq("session_id", session_id)
-        .order("step_index")
-        .execute()
-        .data
-        or []
-    )
-    next_index = step_index
-    if status == "completed":
-        for row in steps:
-            if row["status"] == "pending":
-                next_index = row["step_index"]
-                break
-        else:
-            next_index = step_index
+        steps = (
+            client.table("study_session_steps")
+            .select("id, step_index, status")
+            .eq("session_id", session_id)
+            .order("step_index")
+            .execute()
+            .data
+            or []
+        )
+        next_index = step_index
+        if status == "completed":
+            for row in steps:
+                if row["status"] == "pending":
+                    next_index = row["step_index"]
+                    break
+            else:
+                next_index = step_index
 
-    all_done = all(row["status"] in ("completed", "skipped") for row in steps)
-    session_update: dict[str, Any] = {
-        "current_step_index": next_index,
-        "last_activity_at": now,
-    }
-    if all_done:
-        session_update["status"] = "completed"
-        session_update["completed_at"] = now
-    client.table("study_sessions").update(session_update).eq("id", session_id).execute()
+        all_done = all(row["status"] in ("completed", "skipped") for row in steps)
+        session_update: dict[str, Any] = {
+            "current_step_index": next_index,
+            "last_activity_at": now,
+        }
+        if all_done:
+            session_update["status"] = "completed"
+            session_update["completed_at"] = now
+        client.table("study_sessions").update(session_update).eq("id", session_id).execute()
 
-    return get_study_session(client, session_id, user)
+        return get_study_session(client, session_id, user)
+
+    return run_or_raise_study_sessions(_advance)
 
 
 def complete_study_session_step_for_quiz(
@@ -293,37 +316,42 @@ def complete_study_session_step_for_quiz(
 ) -> None:
     if not study_session_step_id:
         return
-    step = (
-        client.table("study_session_steps")
-        .select("id, session_id, step_index")
-        .eq("id", study_session_step_id)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not step:
-        return
+    try:
+        step = (
+            client.table("study_session_steps")
+            .select("id, session_id, step_index")
+            .eq("id", study_session_step_id)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not step:
+            return
 
-    session = (
-        client.table("study_sessions")
-        .select("id, user_id")
-        .eq("id", step[0]["session_id"])
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not session or session[0]["user_id"] != user.id:
-        return
+        session = (
+            client.table("study_sessions")
+            .select("id, user_id")
+            .eq("id", step[0]["session_id"])
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not session or session[0]["user_id"] != user.id:
+            return
 
-    if attempt_id:
-        client.table("quiz_attempts").update(
-            {"study_session_step_id": study_session_step_id}
-        ).eq("id", attempt_id).execute()
+        if attempt_id:
+            client.table("quiz_attempts").update(
+                {"study_session_step_id": study_session_step_id}
+            ).eq("id", attempt_id).execute()
 
-    advance_study_session_step(
-        client,
-        step[0]["session_id"],
-        user,
-        step_index=step[0]["step_index"],
-        status="completed",
-    )
+        advance_study_session_step(
+            client,
+            step[0]["session_id"],
+            user,
+            step_index=step[0]["step_index"],
+            status="completed",
+        )
+    except Exception as exc:
+        if is_missing_study_sessions_schema(exc):
+            return
+        raise

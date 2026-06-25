@@ -335,9 +335,7 @@ async def get_active_workspace_study_session_route(
 ):
     result = get_active_workspace_study_session(get_supabase_client(), workspace_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
-    if result is None:
-        return {"session": None, "correlation_id": correlation_id}
-    return {"session": result, "correlation_id": correlation_id}
+    return {**result, "correlation_id": correlation_id}
 
 
 @router.post("/{workspace_id}/learning-paths/generate")

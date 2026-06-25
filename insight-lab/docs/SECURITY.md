@@ -13,6 +13,8 @@ Security model, known risks, and production checklist for InsightLab.
 
 Team chat messages are **never** exposed across study sheets: Postgres RLS (`is_workspace_member`) plus backend `require_workspace_role()` on every list/post/delete. Message bodies are validated server-side (ASCII English, no links/files/HTML/emoji).
 
+Storage objects in the `uploads` bucket use path `{owner_id}/{document_id}/{filename}`. Migration **018** adds a SELECT policy so workspace members can read files for documents in shared study sheets (defense-in-depth; the backend still serves content via the service role).
+
 The backend uses the **Supabase service role**, which bypasses RLS. Every route must call `require_workspace_role()` or `get_accessible_document()` before reading or writing user data.
 
 ## Authentication
@@ -82,12 +84,14 @@ NEXT_PUBLIC_SHOW_DEV_PANEL=false
 
 ### Supabase
 
-Run migrations **001–015** (see `supabase/README.md`).
+Run migrations **001–018** (see [supabase/README.md](../supabase/README.md)).
 
-Migration **015** adds:
-
-- Deny-all RLS on `quiz_public_attempts` for anon/authenticated
-- Trigger to prevent self-elevation of `profiles.role`
+| Migration | Purpose |
+|-----------|---------|
+| **015** | Deny-all RLS on `quiz_public_attempts`; block `profiles.role` self-elevation |
+| **016** | Tracked study sessions and learning paths |
+| **017** | Member-only team chat (`workspace_messages` RLS) |
+| **018** | Storage read policies for workspace members on shared documents |
 
 ### Deploy verification
 

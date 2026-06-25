@@ -41,6 +41,7 @@ export function WorkspaceStudySessionPanel({
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
   const loadActiveSession = useCallback(async () => {
     if (!accessToken || !hasReadyDocuments) {
@@ -58,7 +59,13 @@ export function WorkspaceStudySessionPanel({
     }
     if (activeRes.ok) {
       const data = await activeRes.json();
-      setSession(data.session ?? null);
+      if (data.migration_required && data.notice) {
+        setMigrationNotice(data.notice);
+        setSession(null);
+      } else {
+        setMigrationNotice(null);
+        setSession(data.session ?? null);
+      }
     }
   }, [accessToken, hasReadyDocuments, setId]);
 
@@ -198,6 +205,11 @@ export function WorkspaceStudySessionPanel({
         )}
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {migrationNotice ? (
+          <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {migrationNotice}
+          </p>
+        ) : null}
 
         {focusStep?.step === "focus" && focusStep.weak_concepts.length > 0 ? (
           <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm">

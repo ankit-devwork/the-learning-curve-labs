@@ -500,7 +500,8 @@ Migration: `017_workspace_team_chat.sql` (member-scoped RLS, soft delete).
 Still planned:
 
 - SCORM 1.2 packages
-- Storage read policies for workspace members (optional if all reads stay backend-only)
+
+Migration: `018_storage_member_read.sql` (workspace member Storage SELECT; backend remains primary read path).
 
 ## Security & resilience checklist
 
@@ -511,6 +512,7 @@ See [SECURITY.md](SECURITY.md) for the full production security guide.
 | Supabase RLS + Storage policies (migrations 005–017) | Required in prod |
 | JWT auth on all document/quiz/excel/workspace routes | Done |
 | Team chat: member-scoped RLS + plain-text validation (migration 017) | Done |
+| Storage member read policies (migration 018) | Done |
 | JWT `role === authenticated` enforcement | Done |
 | Public quiz rate limits + answer validation | Done |
 | Invite tokens not in list API (link endpoint) | Done |

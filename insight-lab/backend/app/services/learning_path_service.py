@@ -10,7 +10,13 @@ from pycorekit.exceptions.file import FileException
 from supabase import Client
 
 from app.core.auth import AuthUser
-from app.core.migration_guard import PHASE2_MIGRATION_NOTICE, is_missing_phase2_schema
+from app.core.migration_guard import (
+    PHASE2_MIGRATION_NOTICE,
+    PHASE3_016_MIGRATION_NOTICE,
+    is_missing_phase2_schema,
+    is_missing_study_sessions_schema,
+    run_or_raise_study_sessions,
+)
 from app.services.mastery_service import get_workspace_concept_mastery
 from app.services.workspace_access import require_workspace_role
 
@@ -165,44 +171,59 @@ async def generate_workspace_learning_path(
 
     path_id = str(uuid4())
     title = f"Learning path — {len(docs)} document{'s' if len(docs) != 1 else ''}"
-    client.table("learning_paths").insert(
-        {
-            "id": path_id,
-            "workspace_id": workspace_id,
-            "created_by": user.id,
-            "title": title,
-            "path_type": "generated",
-        }
-    ).execute()
 
-    node_rows = []
-    response_nodes = []
-    for node in path_nodes:
-        node_id = str(uuid4())
-        node_rows.append(
+    def _persist_path() -> dict[str, Any]:
+        client.table("learning_paths").insert(
             {
-                "id": node_id,
-                "path_id": path_id,
-                "sort_order": node["sort_order"],
-                "node_kind": node["node_kind"],
-                "document_id": node["document_id"],
-                "concept_id": node["concept_id"],
-                "concept_name": node["concept_name"],
-                "topic": node.get("topic"),
-                "metadata": {"status": node["status"], "mastery_percent": node.get("mastery_percent")},
+                "id": path_id,
+                "workspace_id": workspace_id,
+                "created_by": user.id,
+                "title": title,
+                "path_type": "generated",
             }
-        )
-        response_nodes.append({**node, "id": node_id, "path_id": path_id})
+        ).execute()
 
-    client.table("learning_path_nodes").insert(node_rows).execute()
+        node_rows = []
+        response_nodes = []
+        for node in path_nodes:
+            node_id = str(uuid4())
+            node_rows.append(
+                {
+                    "id": node_id,
+                    "path_id": path_id,
+                    "sort_order": node["sort_order"],
+                    "node_kind": node["node_kind"],
+                    "document_id": node["document_id"],
+                    "concept_id": node["concept_id"],
+                    "concept_name": node["concept_name"],
+                    "topic": node.get("topic"),
+                    "metadata": {"status": node["status"], "mastery_percent": node.get("mastery_percent")},
+                }
+            )
+            response_nodes.append({**node, "id": node_id, "path_id": path_id})
 
-    return {
-        "workspace_id": workspace_id,
-        "path_id": path_id,
-        "title": title,
-        "node_count": len(response_nodes),
-        "nodes": response_nodes,
-    }
+        client.table("learning_path_nodes").insert(node_rows).execute()
+        return {
+            "workspace_id": workspace_id,
+            "path_id": path_id,
+            "title": title,
+            "node_count": len(response_nodes),
+            "nodes": response_nodes,
+        }
+
+    try:
+        return run_or_raise_study_sessions(_persist_path)
+    except Exception as exc:
+        if is_missing_study_sessions_schema(exc):
+            return {
+                "workspace_id": workspace_id,
+                "path_id": None,
+                "title": "Learning path unavailable",
+                "nodes": [],
+                "migration_required": True,
+                "notice": PHASE3_016_MIGRATION_NOTICE,
+            }
+        raise
 
 
 def get_latest_workspace_learning_path(
@@ -211,28 +232,40 @@ def get_latest_workspace_learning_path(
     user: AuthUser,
 ) -> dict[str, Any] | None:
     require_workspace_role(client, workspace_id, user, min_role="viewer")
-    path_row = (
-        client.table("learning_paths")
-        .select("id, title, created_at")
-        .eq("workspace_id", workspace_id)
-        .order("created_at", desc=True)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not path_row:
-        return None
+    try:
+        path_row = (
+            client.table("learning_paths")
+            .select("id, title, created_at")
+            .eq("workspace_id", workspace_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not path_row:
+            return None
 
-    path = path_row[0]
-    nodes = (
-        client.table("learning_path_nodes")
-        .select("id, sort_order, node_kind, document_id, concept_id, concept_name, topic, metadata")
-        .eq("path_id", path["id"])
-        .order("sort_order")
-        .execute()
-        .data
-        or []
-    )
+        path = path_row[0]
+        nodes = (
+            client.table("learning_path_nodes")
+            .select("id, sort_order, node_kind, document_id, concept_id, concept_name, topic, metadata")
+            .eq("path_id", path["id"])
+            .order("sort_order")
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        if is_missing_study_sessions_schema(exc):
+            return {
+                "workspace_id": workspace_id,
+                "path_id": None,
+                "title": "Learning path unavailable",
+                "nodes": [],
+                "migration_required": True,
+                "notice": PHASE3_016_MIGRATION_NOTICE,
+            }
+        raise
 
     doc_names: dict[str, str] = {}
     doc_ids = {row["document_id"] for row in nodes if row.get("document_id")}

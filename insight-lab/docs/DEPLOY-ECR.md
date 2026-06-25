@@ -43,14 +43,14 @@ Supabase (hosted) ◄── Auth + DB + Storage
 
 | Task | Where |
 |------|-------|
-| Run Supabase migrations **001–017** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
+| Run Supabase migrations **001–018** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
 | Create Supabase project keys | Settings → API |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 | AWS CLI configured | `aws configure` on Windows |
 | Docker Desktop | Windows (build/push image) |
 | EC2 Ubuntu instance | t3.medium recommended, 20–30 GB disk |
 
-### Supabase migrations (001–017)
+### Supabase migrations (001–018)
 
 Run in order in the Supabase SQL Editor (or `supabase db push`):
 
@@ -73,6 +73,7 @@ Run in order in the Supabase SQL Editor (or `supabase db push`):
 | 015 | `015_security_hardening.sql` | Public attempts RLS, profile role lock |
 | 016 | `016_study_sessions_learning_paths.sql` | Tracked study sessions, learning paths |
 | 017 | `017_workspace_team_chat.sql` | Member-only team chat |
+| 018 | `018_storage_member_read.sql` | Workspace member Storage read on shared documents |
 
 See [SECURITY.md](SECURITY.md) for production security settings.
 
