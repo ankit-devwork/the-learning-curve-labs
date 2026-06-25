@@ -299,6 +299,8 @@ export type WorkspaceMessagesResponse = {
   messages: TeamChatMessage[];
   has_more: boolean;
   next_before?: string | null;
+  migration_required?: boolean;
+  notice?: string;
   correlation_id?: string;
 };
 

@@ -11,8 +11,11 @@ from app.core.auth import AuthUser
 from app.core.cache import check_rate_limit
 from app.core.exceptions import ForbiddenException, NotFoundException, RateLimitException
 from app.core.yaml_config import get_yaml_config
-from app.services.team_chat_validation import validate_team_chat_body
-from app.services.workspace_access import get_workspace_membership_role, require_workspace_role
+from app.core.migration_guard import (
+    PHASE3_017_MIGRATION_NOTICE,
+    is_missing_team_chat_schema,
+    run_or_raise_team_chat,
+)
 
 
 async def _check_post_rate(user_id: str) -> None:
@@ -97,56 +100,71 @@ async def list_workspace_messages(
     cfg = get_yaml_config().team_chat
     page_size = min(limit or cfg.list_page_size, cfg.list_page_size)
 
-    query = (
-        client.table("workspace_messages")
-        .select("id, workspace_id, author_id, body, created_at")
-        .eq("workspace_id", workspace_id)
-        .is_("deleted_at", "null")
-        .order("created_at", desc=True)
-        .limit(page_size + 1)
-    )
-    if before:
-        existing = (
+    def _load() -> dict:
+        query = (
             client.table("workspace_messages")
-            .select("created_at")
-            .eq("id", before)
+            .select("id, workspace_id, author_id, body, created_at")
             .eq("workspace_id", workspace_id)
-            .limit(1)
-            .execute()
+            .is_("deleted_at", "null")
+            .order("created_at", desc=True)
+            .limit(page_size + 1)
         )
-        if not existing.data:
-            raise NotFoundException("Message not found")
-        query = query.lt("created_at", existing.data[0]["created_at"])
+        if before:
+            existing = (
+                client.table("workspace_messages")
+                .select("created_at")
+                .eq("id", before)
+                .eq("workspace_id", workspace_id)
+                .limit(1)
+                .execute()
+            )
+            if not existing.data:
+                raise NotFoundException("Message not found")
+            query = query.lt("created_at", existing.data[0]["created_at"])
 
-    rows = query.execute().data or []
-    has_more = len(rows) > page_size
-    page_rows = rows[:page_size]
+        rows = query.execute().data or []
+        has_more = len(rows) > page_size
+        page_rows = rows[:page_size]
 
-    author_ids = list({row["author_id"] for row in page_rows})
-    profile_map: dict[str, dict] = {}
-    if author_ids:
-        profiles = (
-            client.table("profiles")
-            .select("id, display_name, email")
-            .in_("id", author_ids)
-            .execute()
-            .data
-            or []
-        )
-        profile_map = {row["id"]: row for row in profiles}
+        author_ids = list({row["author_id"] for row in page_rows})
+        profile_map: dict[str, dict] = {}
+        if author_ids:
+            profiles = (
+                client.table("profiles")
+                .select("id, display_name, email")
+                .in_("id", author_ids)
+                .execute()
+                .data
+                or []
+            )
+            profile_map = {row["id"]: row for row in profiles}
 
-    messages = []
-    for row in reversed(page_rows):
-        payload = _serialize_message(row, profile_map)
-        payload["is_own"] = row["author_id"] == user.id
-        messages.append(payload)
+        messages = []
+        for row in reversed(page_rows):
+            payload = _serialize_message(row, profile_map)
+            payload["is_own"] = row["author_id"] == user.id
+            messages.append(payload)
 
-    return {
-        "workspace_id": workspace_id,
-        "messages": messages,
-        "has_more": has_more,
-        "next_before": page_rows[-1]["id"] if has_more and page_rows else None,
-    }
+        return {
+            "workspace_id": workspace_id,
+            "messages": messages,
+            "has_more": has_more,
+            "next_before": page_rows[-1]["id"] if has_more and page_rows else None,
+        }
+
+    try:
+        return _load()
+    except Exception as exc:
+        if is_missing_team_chat_schema(exc):
+            return {
+                "workspace_id": workspace_id,
+                "messages": [],
+                "has_more": False,
+                "next_before": None,
+                "migration_required": True,
+                "notice": PHASE3_017_MIGRATION_NOTICE,
+            }
+        raise
 
 
 async def create_workspace_message(
@@ -162,33 +180,36 @@ async def create_workspace_message(
     cfg = get_yaml_config().team_chat
     clean_body = validate_team_chat_body(body, max_length=cfg.message_max_length)
 
-    inserted = (
-        client.table("workspace_messages")
-        .insert(
-            {
-                "workspace_id": workspace_id,
-                "author_id": user.id,
-                "body": clean_body,
-            }
+    def _insert() -> dict:
+        inserted = (
+            client.table("workspace_messages")
+            .insert(
+                {
+                    "workspace_id": workspace_id,
+                    "author_id": user.id,
+                    "body": clean_body,
+                }
+            )
+            .execute()
         )
-        .execute()
-    )
-    if not inserted.data:
-        raise FileException("Could not send message", status_code=500)
+        if not inserted.data:
+            raise FileException("Could not send message", status_code=500)
 
-    row = inserted.data[0]
-    profile = (
-        client.table("profiles")
-        .select("id, display_name, email")
-        .eq("id", user.id)
-        .limit(1)
-        .execute()
-        .data
-        or [None]
-    )[0]
-    payload = _serialize_message(row, {user.id: profile} if profile else {})
-    payload["is_own"] = True
-    return payload
+        row = inserted.data[0]
+        profile = (
+            client.table("profiles")
+            .select("id, display_name, email")
+            .eq("id", user.id)
+            .limit(1)
+            .execute()
+            .data
+            or [None]
+        )[0]
+        payload = _serialize_message(row, {user.id: profile} if profile else {})
+        payload["is_own"] = True
+        return payload
+
+    return run_or_raise_team_chat(_insert)
 
 
 async def delete_workspace_message(
@@ -221,7 +242,11 @@ async def delete_workspace_message(
         raise ForbiddenException("You cannot delete this message")
 
     now = datetime.now(timezone.utc).isoformat()
-    client.table("workspace_messages").update({"deleted_at": now, "deleted_by": user.id}).eq(
-        "id", message_id
-    ).eq("workspace_id", workspace_id).execute()
-    return {"deleted": True, "message_id": message_id}
+
+    def _delete() -> dict:
+        client.table("workspace_messages").update({"deleted_at": now, "deleted_by": user.id}).eq(
+            "id", message_id
+        ).eq("workspace_id", workspace_id).execute()
+        return {"deleted": True, "message_id": message_id}
+
+    return run_or_raise_team_chat(_delete)

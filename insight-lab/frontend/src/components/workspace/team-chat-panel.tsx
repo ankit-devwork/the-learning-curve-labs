@@ -52,6 +52,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
   const [draft, setDraft] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -87,6 +88,12 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
       }
       setAccessDenied(false);
       const payload = (await response.json()) as WorkspaceMessagesResponse;
+      if (payload.migration_required && payload.notice) {
+        setMigrationNotice(payload.notice);
+        setMessages([]);
+        return;
+      }
+      setMigrationNotice(null);
       setMessages(payload.messages ?? []);
     },
     [accessToken, setId],
@@ -188,6 +195,11 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
       </CardHeader>
       <CardContent className="space-y-4">
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {migrationNotice ? (
+          <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {migrationNotice}
+          </p>
+        ) : null}
 
         <div
           ref={scrollRef}

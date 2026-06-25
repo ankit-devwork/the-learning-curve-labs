@@ -1,24 +1,17 @@
-import pytest
+"""Migration guard helpers for Phase 3 schema."""
 
-from app.core.migration_guard import is_missing_phase2_schema
-
-
-def test_is_missing_phase2_schema_detects_document_concepts_error():
-    exc = Exception(
-        "{'message': \"Could not find the table 'public.document_concepts' in the schema cache\", "
-        "'code': 'PGRST205'}"
-    )
-    assert is_missing_phase2_schema(exc) is True
+from app.core.migration_guard import (
+    is_missing_study_sessions_schema,
+    is_missing_team_chat_schema,
+)
 
 
-def test_is_missing_phase2_schema_ignores_unrelated_errors():
-    assert is_missing_phase2_schema(Exception("connection timeout")) is False
+def test_study_sessions_schema_markers():
+    assert is_missing_study_sessions_schema(Exception("Could not find the table 'study_sessions'"))
+    assert is_missing_study_sessions_schema(Exception("PGRST205 study_session_steps"))
+    assert not is_missing_study_sessions_schema(Exception("connection timeout"))
 
 
-def test_run_or_none_phase2_returns_none_when_schema_missing():
-    from app.core.migration_guard import run_or_none_phase2
-
-    def _failing_call():
-        raise Exception("Could not find the table 'public.document_concepts' in the schema cache")
-
-    assert run_or_none_phase2(_failing_call) is None
+def test_team_chat_schema_markers():
+    assert is_missing_team_chat_schema(Exception("Could not find the table 'workspace_messages'"))
+    assert not is_missing_team_chat_schema(Exception("rate limit exceeded"))
