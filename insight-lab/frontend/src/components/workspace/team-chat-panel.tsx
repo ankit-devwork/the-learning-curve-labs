@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch, type TeamChatMessage, type WorkspaceMessagesResponse } from "@/lib/api";
+import { apiFetch, parseApiError, type TeamChatMessage, type WorkspaceMessagesResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,8 +82,11 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
         if (response.status === 403) {
           setAccessDenied(true);
           setError("You do not have access to this study sheet chat.");
+        } else if (response.status === 503 && body.notice) {
+          setMigrationNotice(body.notice);
+          setMessages([]);
         } else {
-          setError(body.error || `Could not load team chat (${response.status})`);
+          setError(parseApiError(body, `Could not load team chat (${response.status})`));
         }
         return;
       }
@@ -185,7 +188,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
     setSending(false);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error || `Could not send message (${response.status})`);
+      setError(parseApiError(body, `Could not send message (${response.status})`));
       return;
     }
     setDraft("");
@@ -202,7 +205,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error || `Could not delete message (${response.status})`);
+      setError(parseApiError(body, `Could not delete message (${response.status})`));
       return;
     }
     await loadMessages({ silent: true });
