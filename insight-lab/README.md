@@ -24,7 +24,7 @@ Part of [The Learning Curve Labs](https://github.com/ankit-devwork/the-learning-
 | Backend | FastAPI, LiteLLM (service-layer orchestration) |
 | Observability | pycorekit, Langfuse |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design. For production, see [docs/DEPLOY-ECR.md](docs/DEPLOY-ECR.md) (recommended) or [docs/DEPLOY-EC2.md](docs/DEPLOY-EC2.md) (manual venv). For security, see [docs/SECURITY.md](docs/SECURITY.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design. For **how to use the app**, see [docs/USER-MANUAL.md](docs/USER-MANUAL.md). For production, see [docs/DEPLOY-ECR.md](docs/DEPLOY-ECR.md) (recommended) or [docs/DEPLOY-EC2.md](docs/DEPLOY-EC2.md) (manual venv). For security, see [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Repository structure
 
@@ -33,7 +33,7 @@ insight-lab/
 ├── frontend/          # Next.js app (auth, dashboard, UI)
 ├── backend/           # FastAPI services + LiteLLM
 ├── supabase/          # SQL migrations and RLS policies
-├── docs/              # Architecture, deploy runbooks, SECURITY.md
+├── docs/              # Architecture, user manual, deploy runbooks, SECURITY.md
 └── docker-compose.yml # Local Neo4j + Redis
 ```
 

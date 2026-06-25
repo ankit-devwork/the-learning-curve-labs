@@ -249,19 +249,18 @@ export function SetQuizPanel({
   return (
     <Card className="shadow-sm" id="set-quiz" data-tour="set-quiz">
       <CardHeader>
-        <CardTitle>Set-wide adaptive quiz</CardTitle>
+        <CardTitle>Practice quiz (whole sheet)</CardTitle>
         <CardDescription>
-          Practice weak topics across all documents in this study sheet after completing at least one
-          document quiz.
+          Test yourself on weak topics from every file in this sheet. Take at least one file quiz first.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <FeatureGuide
           title="How it works"
           steps={[
-            "Take a quiz on any document in this set first.",
-            "We track topic mastery per document.",
-            "Editors can generate, review, and publish a set-wide quiz from weak topics.",
+            "Take a quiz on any file in this sheet first.",
+            "We track topic mastery per file.",
+            "Editors can generate, review, and publish a whole-sheet quiz from weak topics.",
           ]}
         />
 
@@ -333,7 +332,7 @@ export function SetQuizPanel({
               disabled={!hasReadyDocuments || generating || !weakAvailable}
               onClick={() => void generateAdaptiveQuiz()}
             >
-              {generating ? "Generating…" : "Generate set-wide adaptive quiz"}
+              {generating ? "Generating…" : "Generate practice quiz"}
             </Button>
           </>
         ) : (

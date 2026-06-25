@@ -482,7 +482,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
           ) : null}
 
           {activeTab === "concepts" ? (
-            <div id="concepts">
+            <div id="concepts" data-tour="excel-concepts">
               <DocumentConceptGraphPanel
                 documentId={documentId}
                 ready={status === "ready" && Boolean(analysis?.summary)}
@@ -493,7 +493,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
           ) : null}
 
           {activeTab === "quiz" ? (
-            <div id="quiz">
+            <div id="quiz" data-tour="excel-quiz">
               <DocumentQuizPanel
                 documentId={documentId}
                 ready={status === "ready" && Boolean(analysis?.summary)}

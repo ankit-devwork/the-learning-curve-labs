@@ -26,7 +26,7 @@ export function ProgressDashboardPanel({ progress }: ProgressDashboardPanelProps
   ];
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" data-tour="progress-dashboard">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Progress</CardTitle>
       </CardHeader>
@@ -60,7 +60,7 @@ export function ProgressDashboardPanel({ progress }: ProgressDashboardPanelProps
           </p>
           {progress.study_next.action === "adaptive_quiz" ? (
             <Button type="button" size="sm" variant="outline" asChild>
-              <Link href={`#set-quiz`}>Open set quiz</Link>
+              <Link href="#set-quiz">Go to practice quiz</Link>
             </Button>
           ) : null}
         </div>

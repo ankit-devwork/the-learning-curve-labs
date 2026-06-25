@@ -31,6 +31,19 @@ function stepDescription(step: StudySessionPlan["steps"][number]): string {
   return "";
 }
 
+function stepActionLabel(step: StudySessionPlan["steps"][number]): string {
+  if (step.step === "brief") {
+    return "Go to brief";
+  }
+  if (step.step === "flashcards") {
+    return "Go to cards";
+  }
+  if (step.step === "quiz") {
+    return "Go to quiz";
+  }
+  return "Go";
+}
+
 export function StudySessionPanel({
   documentId,
   accessToken,
@@ -98,7 +111,7 @@ export function StudySessionPanel({
     setStarting(false);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error || "Could not start study session");
+      setError(body.error || "Could not start study plan");
       return;
     }
     updateSession((await response.json()) as StudySessionRecord);
@@ -163,20 +176,20 @@ export function StudySessionPanel({
 
   if (!ready) {
     return (
-      <Card className="notebook-surface border-0 shadow-none">
+      <Card className="notebook-surface border-0 shadow-none" data-tour="document-session">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Study session</CardTitle>
-          <CardDescription>Guided flow through brief, flashcards, and quiz.</CardDescription>
+          <CardTitle className="text-lg">Guided study plan</CardTitle>
+          <CardDescription>Brief → flashcards → quiz for this file.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Process this document to start a tracked session.</p>
+          <p className="text-sm text-muted-foreground">Process this file to see your study plan.</p>
         </CardContent>
       </Card>
     );
   }
 
   if (loading && !displayPlan) {
-    return <p className="text-sm text-muted-foreground">Loading study session…</p>;
+    return <p className="text-sm text-muted-foreground">Loading study plan…</p>;
   }
 
   if (!displayPlan) {
@@ -184,11 +197,11 @@ export function StudySessionPanel({
   }
 
   return (
-    <Card className="notebook-surface border-0 shadow-none">
+    <Card className="notebook-surface border-0 shadow-none" data-tour="document-session">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Study session</CardTitle>
+        <CardTitle className="text-lg">Guided study plan</CardTitle>
         <CardDescription>
-          ~{displayPlan.estimated_minutes} min guided flow
+          ~{displayPlan.estimated_minutes} min · brief → flashcards → quiz
           {displayPlan.focus_topic ? ` · focus: ${displayPlan.focus_topic}` : ""}
         </CardDescription>
       </CardHeader>
@@ -197,7 +210,7 @@ export function StudySessionPanel({
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>
-                {progress.completed_steps} / {progress.total_steps} steps
+                {progress.completed_steps} / {progress.total_steps} steps done
               </span>
               <span>{progress.percent}%</span>
             </div>
@@ -211,13 +224,21 @@ export function StudySessionPanel({
         ) : null}
 
         {!session ? (
-          <Button type="button" disabled={starting || loading || busy} onClick={() => void startSession()}>
-            {starting ? "Starting…" : "Start tracked session"}
-          </Button>
+          <div className="space-y-2">
+            <Button type="button" disabled={starting || loading || busy} onClick={() => void startSession()}>
+              {starting ? "Starting…" : "Start my plan"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Optional — saves progress. You can also open Brief, Quiz, or Flashcards directly from Studio.
+            </p>
+          </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Session active — complete steps below or mark them done as you go.
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">Plan in progress.</p>
+            <Button type="button" size="sm" disabled={busy} onClick={() => void runStep(session.current_step_index)}>
+              Resume plan
+            </Button>
+          </div>
         )}
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -262,7 +283,7 @@ export function StudySessionPanel({
                   <p className="text-xs text-muted-foreground">{stepDescription(step)}</p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  {session && status !== "completed" ? (
+                  {status !== "completed" ? (
                     <>
                       <Button
                         type="button"
@@ -271,40 +292,20 @@ export function StudySessionPanel({
                         disabled={busy}
                         onClick={() => void runStep(index)}
                       >
-                        Start
+                        {stepActionLabel(step)}
                       </Button>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => void markComplete(index)}>
-                        Done
-                      </Button>
+                      {session ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={() => void markComplete(index)}>
+                          Mark done
+                        </Button>
+                      ) : null}
                     </>
-                  ) : session ? null : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => void runStep(index)}
-                    >
-                      Start
-                    </Button>
-                  )}
+                  ) : null}
                 </div>
               </li>
             );
           })}
         </ol>
-
-        <div className="flex flex-wrap gap-2">
-          {session ? (
-            <Button type="button" disabled={busy} onClick={() => void runStep(session.current_step_index)}>
-              Continue session
-            </Button>
-          ) : (
-            <Button type="button" disabled={busy} onClick={() => void runStep(0)}>
-              Start full session
-            </Button>
-          )}
-        </div>
       </CardContent>
     </Card>
   );

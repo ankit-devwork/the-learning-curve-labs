@@ -505,7 +505,7 @@ export function DocumentWorkspaceClient({
         ) : null}
 
         <section className="min-w-0 space-y-4">
-          <Card className="notebook-surface border-0 shadow-none" id="chat">
+          <Card className="notebook-surface border-0 shadow-none" id="chat" data-tour="document-chat">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Chat with this source</CardTitle>
               <CardDescription>Ask questions grounded in your document. Citations link to excerpts.</CardDescription>
@@ -707,7 +707,7 @@ export function DocumentWorkspaceClient({
           ) : null}
 
           {activeTab === "concepts" ? (
-            <div id="concepts">
+            <div id="concepts" data-tour="document-concepts">
               <DocumentConceptGraphPanel documentId={documentId} ready={ready} accessToken={accessToken} />
             </div>
           ) : null}
