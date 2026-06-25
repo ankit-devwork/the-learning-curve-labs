@@ -2,7 +2,7 @@
 
 A plain-language guide for students, teachers, and teams using InsightLab to study documents and spreadsheets with AI.
 
-**Tip:** In the app sidebar, click **User guide** for this help anytime, or **Show tour** for a quick walkthrough of the current page.
+**In the app:** open **User guide** in the sidebar for the same help inside InsightLab. Use **Show tour** on any page for a quick walkthrough.
 
 ---
 
@@ -218,7 +218,7 @@ Excel files open in the spreadsheet workspace; PDFs/Word open in the document wo
 | Problem | What to try |
 |---------|-------------|
 | File stuck processing | Wait a minute; click **Refresh** on the sheet |
-| Quiz or chat says migration required | Ask your admin to run Supabase migrations (see deploy docs) |
+| Feature unavailable (yellow notice) | Contact your administrator — the app may need a database update |
 | Cannot upload | You may be a viewer — ask the sheet owner for editor access |
 | Team chat not updating live | Messages still save; page refreshes automatically or on send |
 | Weak topics empty | Take at least one quiz on a file first |
@@ -236,4 +236,4 @@ Excel files open in the spreadsheet workspace; PDFs/Word open in the document wo
 ## Need more help?
 
 - Click **Show tour** in the sidebar for a page-specific walkthrough.
-- Developers: see [IMPLEMENTATION.md](IMPLEMENTATION.md) and [SECURITY.md](SECURITY.md).
+- Open **User guide** in the sidebar for the full in-app manual.
