@@ -497,11 +497,22 @@ Migration: `011_phase8_member_rls.sql` (chunks, quizzes, flashcards, study guide
 
 Migration: `017_workspace_team_chat.sql` (member-scoped RLS, soft delete).
 
+## Phase 13 (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Learning path → session reorder | `apply_learning_path_order()` when starting workspace session with `learning_path_id` | Steps follow path document order in `WorkspaceStudySessionPanel` |
+| Document tracked sessions | `POST/GET /documents/{id}/study-session/start`, `.../active` | `StudySessionPanel` progress bar + step advance (parity with set sessions) |
+| Team chat Realtime | Migration **019** — `workspace_messages` on `supabase_realtime` publication | `TeamChatPanel` Supabase `postgres_changes` (30s poll fallback) |
+| Excel concept graph | `POST /documents/{id}/excel/graph/sync`, shared `GET .../graph` | Concepts tab on Excel notebook |
+
+Migration: `018_storage_member_read.sql` (workspace member Storage SELECT; backend remains primary read path).
+
+Migration: `019_workspace_messages_realtime.sql` (Realtime publication for team chat; member RLS unchanged).
+
 Still planned:
 
 - SCORM 1.2 packages
-
-Migration: `018_storage_member_read.sql` (workspace member Storage SELECT; backend remains primary read path).
 
 ## Security & resilience checklist
 
@@ -509,10 +520,11 @@ See [SECURITY.md](SECURITY.md) for the full production security guide.
 
 | Control | Status |
 |---------|--------|
-| Supabase RLS + Storage policies (migrations 005–017) | Required in prod |
+| Supabase RLS + Storage policies (migrations 005–019) | Required in prod |
 | JWT auth on all document/quiz/excel/workspace routes | Done |
 | Team chat: member-scoped RLS + plain-text validation (migration 017) | Done |
 | Storage member read policies (migration 018) | Done |
+| Team chat Realtime publication (migration 019) | Done |
 | JWT `role === authenticated` enforcement | Done |
 | Public quiz rate limits + answer validation | Done |
 | Invite tokens not in list API (link endpoint) | Done |

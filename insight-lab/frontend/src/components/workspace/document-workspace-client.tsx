@@ -11,6 +11,7 @@ import {
   type FlashcardSetResponse,
   type ProcessingStatus,
   type QuizResponse,
+  type StudySessionRecord,
   type StudyGuideResponse,
   type InfographicResponse,
   type SummaryResponse,
@@ -40,6 +41,7 @@ import { StudyGuideView } from "@/components/workspace/study-guide-view";
 import { InfographicView } from "@/components/workspace/infographic-view";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
 import { STUDIO_TAB_LABELS, type StudioTab } from "@/lib/notebook-utils";
+import { resolveDocumentQuizStepId } from "@/lib/study-session-utils";
 import { cacheResponseLabel, canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 
 type ChatMessage = {
@@ -83,6 +85,7 @@ export function DocumentWorkspaceClient({
   const [audioOverview, setAudioOverview] = useState<AudioOverviewResponse | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState<StudioTab>("brief");
+  const [trackedSession, setTrackedSession] = useState<StudySessionRecord | null>(null);
   const [sourceViewer, setSourceViewer] = useState<{
     title: string;
     content: string;
@@ -585,6 +588,7 @@ export function DocumentWorkspaceClient({
                 onSelectTab={selectTab}
                 onGenerateFlashcards={() => void generateFlashcards()}
                 onGenerateQuiz={() => void generateQuiz()}
+                onSessionChange={setTrackedSession}
               />
             </div>
           ) : null}
@@ -597,6 +601,7 @@ export function DocumentWorkspaceClient({
                 accessToken={accessToken}
                 initialQuiz={existingQuiz}
                 canEdit={canEdit}
+                studySessionStepId={resolveDocumentQuizStepId(trackedSession)}
               />
             </div>
           ) : null}

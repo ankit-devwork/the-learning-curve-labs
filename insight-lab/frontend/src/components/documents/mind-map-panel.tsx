@@ -12,13 +12,21 @@ type DocumentConceptGraphPanelProps = {
   documentId: string;
   ready: boolean;
   accessToken: string | null;
+  variant?: "document" | "excel";
+  syncPath?: string;
 };
 
 export function DocumentConceptGraphPanel({
   documentId,
   ready,
   accessToken,
+  variant = "document",
+  syncPath,
 }: DocumentConceptGraphPanelProps) {
+  const isExcel = variant === "excel";
+  const resolvedSyncPath =
+    syncPath ?? (isExcel ? `/documents/${documentId}/excel/graph/sync` : `/documents/${documentId}/graph/sync`);
+
   const [graph, setGraph] = useState<DocumentGraphResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -53,7 +61,7 @@ export function DocumentConceptGraphPanel({
     }
     setSyncing(true);
     setError(null);
-    const response = await apiFetch(`/documents/${documentId}/graph/sync`, accessToken, {
+    const response = await apiFetch(resolvedSyncPath, accessToken, {
       method: "POST",
     });
     setSyncing(false);
@@ -74,12 +82,22 @@ export function DocumentConceptGraphPanel({
   const nodeCount = nodes.length;
   const connectionCount = edges.length;
 
+  const emptyCopy = isExcel
+    ? "No concepts yet. Analyze the spreadsheet, then update the graph from insights and charts."
+    : "No concepts yet. They appear automatically after the document is processed.";
+
+  const notReadyCopy = isExcel
+    ? "Analyze the spreadsheet to build its concept graph."
+    : "Process the document to see its concept graph.";
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Concept graph</CardTitle>
         <CardDescription>
-          Topics from this document, colored by your quiz mastery. Focus on weak areas to study smarter.
+          {isExcel
+            ? "Topics extracted from spreadsheet insights and charts, colored by quiz mastery when available."
+            : "Topics from this document, colored by your quiz mastery. Focus on weak areas to study smarter."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,9 +130,7 @@ export function DocumentConceptGraphPanel({
         ) : null}
 
         {graph && graph.nodes.length === 0 && !loading && !graph.migration_required ? (
-          <p className="text-sm text-muted-foreground">
-            No concepts yet. They appear automatically after the document is processed.
-          </p>
+          <p className="text-sm text-muted-foreground">{emptyCopy}</p>
         ) : null}
 
         {graph && graph.nodes.length > 0 && weakOnly && nodeCount === 0 ? (
@@ -135,9 +151,7 @@ export function DocumentConceptGraphPanel({
           </>
         ) : null}
 
-        {!ready ? (
-          <p className="text-sm text-muted-foreground">Process the document to see its concept graph.</p>
-        ) : null}
+        {!ready ? <p className="text-sm text-muted-foreground">{notReadyCopy}</p> : null}
       </CardContent>
     </Card>
   );

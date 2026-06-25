@@ -9,7 +9,9 @@ import {
   type QuizResponse,
   type QuizSubmitResponse,
   type QuizQuestionEditable,
+  type StudySessionRecord,
 } from "@/lib/api";
+import { resolveDocumentQuizStepId } from "@/lib/study-session-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,6 +156,18 @@ export function DocumentQuizPanel({
     setQuiz((await response.json()) as QuizResponse);
   }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit]);
 
+  async function fetchActiveSession(): Promise<StudySessionRecord | null> {
+    if (!accessToken || !ready) {
+      return null;
+    }
+    const response = await apiFetch(`/documents/${documentId}/study-session/active`, accessToken);
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    return (data.session as StudySessionRecord | null) ?? null;
+  }
+
   async function handleSubmit() {
     if (!accessToken || !quiz) {
       return;
@@ -165,12 +179,14 @@ export function DocumentQuizPanel({
 
     setSubmitting(true);
     setError(null);
+    const activeSession = studySessionStepId ? null : await fetchActiveSession();
+    const resolvedStepId = studySessionStepId ?? resolveDocumentQuizStepId(activeSession);
     const response = await apiFetch(`/quizzes/${quiz.quiz_id}/submit`, accessToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         answers,
-        study_session_step_id: studySessionStepId ?? undefined,
+        study_session_step_id: resolvedStepId ?? undefined,
       }),
     });
     setSubmitting(false);

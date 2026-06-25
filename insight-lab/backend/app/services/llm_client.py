@@ -305,6 +305,43 @@ async def generate_excel_quiz_draft(
     )
 
 
+async def extract_concepts_from_excel(
+    *,
+    summary: str,
+    charts: list[dict],
+    filename: str,
+) -> str:
+    cfg = get_yaml_config().graph
+    chart_lines = []
+    for index, chart in enumerate(charts[: cfg.max_concepts_per_document]):
+        chart_lines.append(
+            f"- {chart.get('title') or 'Chart'} ({chart.get('chart_type')}) "
+            f"x={chart.get('x_column')} y={chart.get('y_column')}"
+        )
+    charts_block = "\n".join(chart_lines) if chart_lines else "No charts"
+    prompt = (
+        "Extract key learning concepts from this spreadsheet summary and charts. "
+        "Return ONLY valid JSON with:\n"
+        "- concepts (array): each item has id (slug), name, topic (optional), "
+        "chunk_indexes (use [] for spreadsheets)\n"
+        "- relationships (array): each item has source_id, target_id, "
+        "type (related_to|prerequisite_for|belongs_to)\n\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('summary', summary[:8000])}\n\n"
+        f"{tag_block('charts', charts_block)}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.concept_extract_max_tokens,
+    )
+
+
 async def extract_concepts_from_chunks(
     *,
     context_chunks: list[str],

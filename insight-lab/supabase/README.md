@@ -23,8 +23,9 @@ SQL migrations and RLS policies for InsightLab.
 17. Run `016_study_sessions_learning_paths.sql` for study session progress and learning paths.
 18. Run `017_workspace_team_chat.sql` for member-only team chat.
 19. Run `018_storage_member_read.sql` for workspace member Storage read access.
-20. Create a Storage bucket named `uploads` (private).
-21. Copy project URL and keys to `.env` files.
+20. Run `019_workspace_messages_realtime.sql` for team chat Realtime (member RLS unchanged).
+21. Create a Storage bucket named `uploads` (private).
+22. Copy project URL and keys to `.env` files.
 
 ## Local CLI (optional)
 

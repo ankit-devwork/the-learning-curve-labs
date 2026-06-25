@@ -9,6 +9,7 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.services.mastery_service import get_weak_concepts, get_workspace_weak_concepts
+from app.services.study_session_plan_utils import apply_learning_path_order
 from app.services.workspace_access import get_accessible_document, require_workspace_role
 
 
@@ -200,3 +201,9 @@ async def get_workspace_study_session_plan(
         "focus_topic": focus,
         "estimated_minutes": sum(step["duration_min"] for step in steps),
     }
+
+
+__all__ = ["apply_learning_path_order", "get_study_session_plan", "get_workspace_study_session_plan"]
+
+# Re-export for callers that import from this module.
+from app.services.study_session_plan_utils import apply_learning_path_order  # noqa: E402,F401
