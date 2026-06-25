@@ -99,6 +99,10 @@ This is different from the guided study plan: the plan is a checklist; the pract
 
 On the sheet page (or **Compare** in the sidebar), select multiple ready files and ask one question. You get a combined answer with citations.
 
+### Source links (Excel sheets only)
+
+If your study sheet includes **spreadsheets**, you can link each Excel file to a related PDF or Word document so spreadsheet chat can cite document excerpts. **PDF-only sheets do not need this** — open each file from Materials and use chat and quiz there. The Source links button appears only when the sheet has at least one spreadsheet.
+
 ### Course pack
 
 Generates summary, quiz, flashcards, study guide, and audio for every ready document. Good for a fast bulk setup.

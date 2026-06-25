@@ -17,7 +17,7 @@ import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
 import { ProgressDashboardPanel } from "@/components/workspace/progress-dashboard-panel";
 import { ClassroomAnalyticsPanel } from "@/components/workspace/classroom-analytics-panel";
-import { SourceLinksPanel } from "@/components/workspace/source-links-panel";
+import { SourceLinksPanel, shouldShowSourceLinks } from "@/components/workspace/source-links-panel";
 import { CoursePackPanel } from "@/components/workspace/course-pack-panel";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { ShareWorkspacePanel } from "@/components/workspace/share-workspace-panel";
@@ -61,6 +61,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const [deleting, setDeleting] = useState(false);
   const [drawerPanel, setDrawerPanel] = useState<SheetDrawerPanel | null>(null);
   const [learningPathId, setLearningPathId] = useState<string | null>(null);
+  const [sourceLinkCount, setSourceLinkCount] = useState(0);
 
   const loadAll = useCallback(async () => {
     setError(null);
@@ -75,10 +76,11 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     }
     setAccessToken(session.access_token);
 
-    const [workspaceRes, docsRes, statsRes] = await Promise.all([
+    const [workspaceRes, docsRes, statsRes, linksRes] = await Promise.all([
       apiFetch(`/workspaces/${setId}`, session.access_token),
       apiFetch(`/workspaces/${setId}/documents`, session.access_token),
       apiFetch(`/workspaces/${setId}/progress`, session.access_token),
+      apiFetch(`/workspaces/${setId}/source-links`, session.access_token),
     ]);
 
     if (!workspaceRes.ok || !docsRes.ok || !statsRes.ok) {
@@ -93,6 +95,12 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     setWorkspace(workspaceData);
     setDocuments(docsData.documents ?? []);
     setProgress(statsData as WorkspaceProgress);
+    if (linksRes.ok) {
+      const linksData = await linksRes.json();
+      setSourceLinkCount((linksData.links ?? []).length);
+    } else {
+      setSourceLinkCount(0);
+    }
     setLoading(false);
   }, [setId]);
 
@@ -214,6 +222,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   ).length;
   const hasReadyDocuments = readyDocumentCount > 0;
   const materialsScrollable = documents.length > MATERIAL_MAX_VISIBLE_ROWS;
+  const showSourceLinks = shouldShowSourceLinks(documents, sourceLinkCount);
 
   function openDrawer(panel: SheetDrawerPanel) {
     setDrawerPanel(panel);
@@ -243,7 +252,9 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     },
     links: {
       title: "Source links",
-      description: "Connect spreadsheets to related documents for richer Excel Q&A.",
+      description: showSourceLinks
+        ? "Connect spreadsheets to related PDF or Word files for richer Excel Q&A."
+        : "Only applies when this sheet includes spreadsheets.",
     },
   };
 
@@ -292,14 +303,16 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
                 <Upload className="mr-1.5 h-4 w-4" aria-hidden />
                 Upload
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openDrawer("links")}
-              >
-                Source links
-              </Button>
+              {showSourceLinks ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDrawer("links")}
+                >
+                  Source links
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"

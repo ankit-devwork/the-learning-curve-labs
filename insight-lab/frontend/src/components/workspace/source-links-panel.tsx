@@ -12,24 +12,6 @@ type SourceLinksPanelProps = {
   canEdit: boolean;
 };
 
-function ReadyFileList({ docs, label }: { docs: DocumentSummary[]; label: string }) {
-  if (docs.length === 0) {
-    return null;
-  }
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <ul className="space-y-1 text-sm">
-        {docs.map((doc) => (
-          <li key={doc.id} className="truncate rounded-md border px-3 py-2">
-            {doc.filename}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 export function SourceLinksPanel({
   setId,
   documents,
@@ -42,7 +24,8 @@ export function SourceLinksPanel({
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const excelDocs = documents.filter((doc) => doc.file_type === "excel" && doc.status === "ready");
+  const spreadsheetDocs = documents.filter((doc) => doc.file_type === "excel");
+  const excelDocs = spreadsheetDocs.filter((doc) => doc.status === "ready");
   const textDocs = documents.filter((doc) => doc.file_type === "document" && doc.status === "ready");
   const canLink = excelDocs.length > 0 && textDocs.length > 0;
 
@@ -91,33 +74,45 @@ export function SourceLinksPanel({
     await loadLinks();
   }
 
+  if (spreadsheetDocs.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          This study sheet has no spreadsheets. Source links are only used when you combine Excel data with
+          related PDF or Word notes so spreadsheet chat can cite document excerpts.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          For PDF-only sheets, open each file from <strong className="font-medium text-foreground">Materials</strong>{" "}
+          and use chat and quiz there — nothing to set up here.
+        </p>
+      </div>
+    );
+  }
+
   if (!canLink) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Source links connect a spreadsheet to a related PDF or Word doc so Excel Q&amp;A can cite document
-          excerpts alongside your data.
+          Connect a ready spreadsheet to a related PDF or Word file so Excel Q&amp;A can cite document excerpts
+          alongside your data.
         </p>
         {excelDocs.length === 0 && textDocs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No ready materials yet. Upload and process at least one spreadsheet and one PDF/Word document in
-            this sheet.
+            Wait until at least one spreadsheet and one PDF/Word file show status <strong className="font-medium text-foreground">Ready</strong>, then return here to create links.
           </p>
         ) : null}
         {excelDocs.length === 0 && textDocs.length > 0 ? (
           <p className="text-sm text-muted-foreground">
-            You have ready documents but no ready spreadsheets. Upload and analyze a spreadsheet to create
-            links.
+            Your PDF/Word files are ready. Spreadsheet analysis is still in progress — links unlock when a
+            spreadsheet shows Ready.
           </p>
         ) : null}
         {excelDocs.length > 0 && textDocs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            You have ready spreadsheets but no ready PDF or Word documents. Upload a document to link with
-            your data — Excel chat works without links, but citations need a related document.
+            Your spreadsheet is ready. Upload and process at least one PDF or Word document in this sheet to
+            link with it. Excel chat works without links, but document citations need a related file.
           </p>
         ) : null}
-        <ReadyFileList docs={excelDocs} label="Ready spreadsheets" />
-        <ReadyFileList docs={textDocs} label="Ready documents" />
       </div>
     );
   }
@@ -125,7 +120,7 @@ export function SourceLinksPanel({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Connect spreadsheets to related PDFs/Word docs so Excel Q&amp;A can pull document citations.
+        Connect spreadsheets to related PDFs or Word docs so Excel Q&amp;A can pull document citations.
       </p>
 
       {links.length > 0 ? (
@@ -199,4 +194,10 @@ export function SourceLinksPanel({
       ) : null}
     </div>
   );
+}
+
+/** Show Source links UI when the sheet has spreadsheets or existing links. */
+export function shouldShowSourceLinks(documents: DocumentSummary[], linkCount: number): boolean {
+  const hasSpreadsheets = documents.some((doc) => doc.file_type === "excel");
+  return hasSpreadsheets || linkCount > 0;
 }

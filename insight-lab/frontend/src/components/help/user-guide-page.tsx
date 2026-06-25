@@ -64,6 +64,10 @@ const sections = [
         body: "Invite viewers (study only) or editors (upload and generate). Copy the invite link and send it yourself.",
       },
       {
+        heading: "Source links (Excel only)",
+        body: "If your sheet includes spreadsheets, link each one to a related PDF or Word file so Excel chat can cite document excerpts. PDF-only sheets do not need this — use chat on each file from Materials.",
+      },
+      {
         heading: "Classroom analytics",
         body: "Editors and owners can see quiz averages and activity across sheet members — useful for teachers.",
       },
