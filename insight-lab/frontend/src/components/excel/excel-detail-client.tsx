@@ -19,6 +19,7 @@ import { ExcelChartView } from "@/components/excel/excel-chart-view";
 import { ExcelChartBuilder } from "@/components/excel/excel-chart-builder";
 import { ExcelPreviewTable } from "@/components/excel/excel-preview-table";
 import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
+import { DocumentConceptGraphPanel } from "@/components/documents/mind-map-panel";
 import { ExcelToolsPanel } from "@/components/excel/excel-tools-panel";
 import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { NotebookTabs } from "@/components/ui/notebook-tabs";
@@ -258,6 +259,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
     { id: "preview", label: EXCEL_TAB_LABELS.preview },
     { id: "charts", label: EXCEL_TAB_LABELS.charts, badge: chartCount || undefined },
     { id: "builder", label: EXCEL_TAB_LABELS.builder },
+    { id: "concepts", label: EXCEL_TAB_LABELS.concepts },
   ];
 
   const breadcrumbItems = setId
@@ -476,6 +478,17 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
                   </CardContent>
                 </Card>
               )}
+            </div>
+          ) : null}
+
+          {activeTab === "concepts" ? (
+            <div id="concepts">
+              <DocumentConceptGraphPanel
+                documentId={documentId}
+                ready={status === "ready" && Boolean(analysis?.summary)}
+                accessToken={accessToken}
+                variant="excel"
+              />
             </div>
           ) : null}
 

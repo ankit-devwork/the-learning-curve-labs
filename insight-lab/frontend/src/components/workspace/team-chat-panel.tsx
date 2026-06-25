@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ProcessingContentSkeleton } from "@/components/ui/loading-skeletons";
 import { cn } from "@/lib/utils";
 
-const POLL_INTERVAL_MS = 12_000;
+const FALLBACK_POLL_INTERVAL_MS = 30_000;
 const PLAIN_TEXT_PATTERN = /^[A-Za-z0-9\s.,?!'":;\-()]*$/;
 
 type TeamChatPanelProps = {
@@ -53,6 +53,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -114,16 +115,50 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
     if (!accessToken || accessDenied) {
       return;
     }
+
     void loadMessages();
-    pollRef.current = setInterval(() => {
-      void loadMessages({ silent: true });
-    }, POLL_INTERVAL_MS);
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`workspace-messages-${setId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "workspace_messages",
+          filter: `workspace_id=eq.${setId}`,
+        },
+        () => {
+          void loadMessages({ silent: true });
+        },
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setRealtimeConnected(true);
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setRealtimeConnected(false);
+          if (!pollRef.current) {
+            pollRef.current = setInterval(() => {
+              void loadMessages({ silent: true });
+            }, FALLBACK_POLL_INTERVAL_MS);
+          }
+        }
+      });
+
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
+        pollRef.current = null;
       }
+      void supabase.removeChannel(channel);
     };
-  }, [accessDenied, accessToken, loadMessages]);
+  }, [accessDenied, accessToken, loadMessages, setId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -260,7 +295,9 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
           </Button>
         </form>
         <p className="text-[11px] text-muted-foreground">
-          Messages refresh every 12 seconds. Only members of this study sheet can read or post.
+          {realtimeConnected
+            ? "Live updates via Supabase Realtime. Only members of this study sheet can read or post."
+            : "Live updates unavailable — refreshing every 30 seconds. Only members of this study sheet can read or post."}
         </p>
       </CardContent>
     </Card>

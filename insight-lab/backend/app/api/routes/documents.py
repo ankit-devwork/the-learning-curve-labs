@@ -19,6 +19,10 @@ from app.services.document_extras import (
 )
 from app.services.multi_doc_service import ask_multiple_documents, retrieve_multiple_documents
 from app.services.study_session_service import get_study_session_plan
+from app.services.study_session_progress_service import (
+    get_active_document_study_session,
+    start_document_study_session,
+)
 
 router = APIRouter()
 
@@ -178,3 +182,27 @@ async def get_study_session_plan_route(
     plan = await get_study_session_plan(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**plan, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/study-session/start")
+@with_observability("start_document_study_session")
+async def start_document_study_session_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await start_document_study_session(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/study-session/active")
+@with_observability("get_active_document_study_session")
+async def get_active_document_study_session_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = get_active_document_study_session(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}

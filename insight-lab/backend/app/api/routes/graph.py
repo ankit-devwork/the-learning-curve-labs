@@ -5,7 +5,7 @@ from pycorekit.tracing.decorators import with_observability
 from app.core.auth import AuthUser
 from app.core.deps import get_current_user
 from app.core.supabase_client import get_supabase_client
-from app.services.graph_service import get_document_graph, sync_document_graph
+from app.services.graph_service import get_document_graph, sync_document_graph, sync_excel_document_graph
 
 router = APIRouter()
 
@@ -18,6 +18,18 @@ async def sync_document_graph_route(
     user: AuthUser = Depends(get_current_user),
 ):
     result = await sync_document_graph(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/excel/graph/sync")
+@with_observability("sync_excel_document_graph")
+async def sync_excel_document_graph_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await sync_excel_document_graph(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
 

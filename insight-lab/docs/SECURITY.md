@@ -84,7 +84,7 @@ NEXT_PUBLIC_SHOW_DEV_PANEL=false
 
 ### Supabase
 
-Run migrations **001–018** (see [supabase/README.md](../supabase/README.md)).
+Run migrations **001–019** (see [supabase/README.md](../supabase/README.md)).
 
 | Migration | Purpose |
 |-----------|---------|
@@ -92,6 +92,9 @@ Run migrations **001–018** (see [supabase/README.md](../supabase/README.md)).
 | **016** | Tracked study sessions and learning paths |
 | **017** | Member-only team chat (`workspace_messages` RLS) |
 | **018** | Storage read policies for workspace members on shared documents |
+| **019** | Supabase Realtime publication for `workspace_messages` (member RLS still applies to subscribers) |
+
+Team chat posts and deletes remain **backend-only** (rate-limited FastAPI routes). Realtime is read-only on the client — members only receive rows their RLS policies allow.
 
 ### Deploy verification
 

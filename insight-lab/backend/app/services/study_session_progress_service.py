@@ -16,8 +16,12 @@ from app.core.migration_guard import (
     is_missing_study_sessions_schema,
     run_or_raise_study_sessions,
 )
-from app.services.study_session_service import get_study_session_plan, get_workspace_study_session_plan
-from app.services.workspace_access import require_workspace_role
+from app.services.study_session_service import (
+    apply_learning_path_order,
+    get_study_session_plan,
+    get_workspace_study_session_plan,
+)
+from app.services.workspace_access import get_accessible_document, require_workspace_role
 
 
 def _now() -> str:
@@ -169,6 +173,28 @@ async def start_workspace_study_session(
     require_workspace_role(client, workspace_id, user, min_role="viewer")
     plan = await get_workspace_study_session_plan(client, workspace_id, user)
     if learning_path_id:
+        path_row = (
+            client.table("learning_paths")
+            .select("id")
+            .eq("id", learning_path_id)
+            .eq("workspace_id", workspace_id)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not path_row:
+            raise NotFoundException("Learning path not found")
+        path_nodes = (
+            client.table("learning_path_nodes")
+            .select("sort_order, document_id, concept_id, concept_name, topic")
+            .eq("path_id", learning_path_id)
+            .order("sort_order")
+            .execute()
+            .data
+            or []
+        )
+        if path_nodes:
+            plan = apply_learning_path_order(plan, path_nodes)
         plan["learning_path_id"] = learning_path_id
     _abandon_active_sessions(client, user_id=user.id, workspace_id=workspace_id)
     return _persist_session(
@@ -207,6 +233,37 @@ def get_study_session(client: Client, session_id: str, user: AuthUser) -> dict[s
         return _serialize_session(row, steps)
 
     return run_or_raise_study_sessions(_load)
+
+
+def get_active_document_study_session(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+) -> dict[str, Any]:
+    get_accessible_document(client, document_id, user, min_role="viewer")
+    try:
+        session = (
+            client.table("study_sessions")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("document_id", document_id)
+            .eq("status", "active")
+            .order("last_activity_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not session:
+            return {"session": None}
+        return {"session": get_study_session(client, session[0]["id"], user)}
+    except Exception as exc:
+        if is_missing_study_sessions_schema(exc):
+            return {
+                "session": None,
+                "migration_required": True,
+                "notice": PHASE3_016_MIGRATION_NOTICE,
+            }
+        raise
 
 
 def get_active_workspace_study_session(

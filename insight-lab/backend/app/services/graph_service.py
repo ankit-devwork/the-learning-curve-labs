@@ -16,7 +16,7 @@ from app.core.migration_guard import (
 from app.core.neo4j_client import neo4j_client
 from app.core.yaml_config import get_yaml_config
 from app.services.concept_extraction import draft_to_rows, parse_concept_extraction
-from app.services.llm_client import extract_concepts_from_chunks, graph_cache_key
+from app.services.llm_client import extract_concepts_from_chunks, extract_concepts_from_excel, graph_cache_key
 from app.services.workspace_access import get_accessible_document, require_editable_document
 
 log = get_logger("graph")
@@ -200,6 +200,99 @@ async def sync_document_graph(
     await cache_set(cache_key, payload, cfg.cache_ttl)
     log.info(
         "Document graph synced",
+        document_id=document_id,
+        user_id=user.id,
+        concept_count=len(concept_rows),
+        neo4j_synced=neo4j_synced,
+    )
+    return payload
+
+
+async def sync_excel_document_graph(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+    *,
+    skip_rate_limit: bool = False,
+) -> dict[str, Any]:
+    cfg = get_yaml_config().graph
+    if not skip_rate_limit:
+        allowed, retry_after = await check_rate_limit(
+            key=f"graph_sync:{user.id}",
+            limit=cfg.sync_rate_limit_per_hour,
+            window_seconds=3600,
+        )
+        if not allowed:
+            raise RateLimitException(
+                f"Graph sync rate limit reached ({cfg.sync_rate_limit_per_hour}/hour)",
+                retry_after=retry_after,
+            )
+
+    doc = require_editable_document(client, document_id, user)
+    if doc["file_type"] != "excel":
+        raise FileException("Excel concept graphs are only available for spreadsheet uploads")
+    if doc["status"] != "ready":
+        raise FileException("Spreadsheet must be analyzed before syncing concepts", status_code=409)
+
+    summary = (doc.get("excel_summary") or "").strip()
+    charts = doc.get("excel_charts") or []
+    if not summary and not charts:
+        raise FileException("Analyze the spreadsheet before syncing concepts", status_code=409)
+
+    cache_key = graph_cache_key(user.id, document_id)
+    cached = await cache_get(cache_key)
+    if cached and doc.get("neo4j_synced_at"):
+        return {**cached, "cached": True}
+
+    raw = await extract_concepts_from_excel(
+        summary=summary,
+        charts=charts,
+        filename=doc["filename"],
+    )
+    try:
+        draft = parse_concept_extraction(raw, max_concepts=cfg.max_concepts_per_document)
+    except (ValueError, Exception) as exc:
+        raise FileException(f"Invalid concept payload from LLM: {exc}", status_code=502) from exc
+
+    concept_rows, relationship_rows = draft_to_rows(draft, document_id=document_id)
+
+    run_or_raise_phase2(
+        lambda: client.table("document_concepts").delete().eq("document_id", document_id).execute()
+    )
+    run_or_raise_phase2(
+        lambda: client.table("concept_relationships").delete().eq("document_id", document_id).execute()
+    )
+    if concept_rows:
+        run_or_raise_phase2(lambda: client.table("document_concepts").insert(concept_rows).execute())
+    if relationship_rows:
+        run_or_raise_phase2(
+            lambda: client.table("concept_relationships").insert(relationship_rows).execute()
+        )
+
+    neo4j_synced = await _sync_to_neo4j(
+        user_id=user.id,
+        document_id=document_id,
+        workspace_id=doc["workspace_id"],
+        filename=doc["filename"],
+        concepts=concept_rows,
+        relationships=relationship_rows,
+    )
+
+    synced_at = datetime.now(timezone.utc).isoformat()
+    client.table("documents").update({"neo4j_synced_at": synced_at}).eq("id", document_id).execute()
+
+    payload = {
+        "document_id": document_id,
+        "concept_count": len(concept_rows),
+        "relationship_count": len(relationship_rows),
+        "neo4j_synced": neo4j_synced,
+        "synced_at": synced_at,
+        "cached": False,
+        "source": "excel",
+    }
+    await cache_set(cache_key, payload, cfg.cache_ttl)
+    log.info(
+        "Excel graph synced",
         document_id=document_id,
         user_id=user.id,
         concept_count=len(concept_rows),
