@@ -16,6 +16,8 @@ from app.core.migration_guard import (
     is_missing_team_chat_schema,
     run_or_raise_team_chat,
 )
+from app.services.team_chat_validation import validate_team_chat_body
+from app.services.workspace_access import get_workspace_membership_role, require_workspace_role
 
 
 async def _check_post_rate(user_id: str) -> None:
