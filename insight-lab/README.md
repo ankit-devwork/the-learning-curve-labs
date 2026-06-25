@@ -132,7 +132,7 @@ See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the full checklist.
 - [x] Adaptive quizzes + topic progress UI (Phase 2)
 - [x] Security hardening (RLS, cache scoping, grounded LLM prompts)
 
-**Ops:** Run all Supabase migrations through `011_phase8_member_rls.sql` for study features, sharing, and member RLS. See [supabase/README.md](supabase/README.md).
+**Ops:** Run all Supabase migrations through `017_workspace_team_chat.sql` for study features, sharing, tracked sessions, and team chat. See [supabase/README.md](supabase/README.md).
 
 ## Related projects
 

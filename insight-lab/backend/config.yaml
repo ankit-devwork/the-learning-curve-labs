@@ -68,6 +68,7 @@ team_chat:
   list_page_size: 50
   post_rate_limit_per_min: 30
   list_rate_limit_per_min: 120
+  delete_rate_limit_per_min: 30
 
 email:
   enabled: false

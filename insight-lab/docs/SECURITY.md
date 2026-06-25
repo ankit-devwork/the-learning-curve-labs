@@ -48,7 +48,7 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 
 Configured in `backend/config.yaml`:
 
-- Chat, quiz generate/submit, Excel, upload, sharing invites, team chat (post + list)
+- Chat, quiz generate/submit, Excel, upload, sharing invites, team chat (post, list, delete)
 - Public quiz: `public_get_rate_limit_per_min`, `public_submit_rate_limit_per_min`
 - Redis / Upstash required for distributed rate limiting
 
