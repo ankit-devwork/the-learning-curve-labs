@@ -7,23 +7,50 @@ import type { WorkspaceProgress } from "@/lib/api";
 
 type ProgressDashboardPanelProps = {
   progress: WorkspaceProgress;
+  compact?: boolean;
 };
 
-export function ProgressDashboardPanel({ progress }: ProgressDashboardPanelProps) {
+export function ProgressDashboardPanel({ progress, compact = false }: ProgressDashboardPanelProps) {
   const items = [
-    { label: "Ready files", value: `${progress.ready_count}/${progress.document_count}` },
-    { label: "Quiz attempts", value: progress.quiz_attempts },
+    { label: "Ready", value: `${progress.ready_count}/${progress.document_count}` },
+    { label: "Quizzes", value: progress.quiz_attempts },
     {
-      label: "Avg quiz score",
+      label: "Avg score",
       value: progress.avg_quiz_percent != null ? `${progress.avg_quiz_percent}%` : "—",
     },
     {
-      label: "Mastery avg",
+      label: "Mastery",
       value: progress.mastery_avg_percent != null ? `${progress.mastery_avg_percent}%` : "—",
     },
-    { label: "Flashcard reviews", value: progress.flashcard_reviews },
-    { label: "Spreadsheets", value: progress.excel_files },
+    { label: "Cards", value: progress.flashcard_reviews },
+    { label: "Sheets", value: progress.excel_files },
   ];
+
+  if (compact) {
+    return (
+      <div
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card px-4 py-3 text-sm shadow-sm"
+        data-tour="progress-dashboard"
+      >
+        <span className="font-medium text-muted-foreground">Progress</span>
+        {items.map((item) => (
+          <span key={item.label} className="tabular-nums">
+            <span className="text-muted-foreground">{item.label}</span>{" "}
+            <span className="font-semibold">{item.value}</span>
+          </span>
+        ))}
+        <span className="hidden h-4 w-px bg-border sm:inline" aria-hidden />
+        <span className="min-w-0 flex-1 text-muted-foreground">
+          <span className="font-medium text-foreground">Next:</span> {progress.study_next.label}
+        </span>
+        {progress.study_next.action === "adaptive_quiz" ? (
+          <Button type="button" size="sm" variant="outline" asChild>
+            <Link href="#set-quiz">Practice quiz</Link>
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <Card className="shadow-sm" data-tour="progress-dashboard">

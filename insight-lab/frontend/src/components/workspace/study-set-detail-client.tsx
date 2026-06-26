@@ -32,6 +32,7 @@ import { FileSpreadsheet, FileText, Package, Share2, Upload } from "lucide-react
 import { canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 import { cn } from "@/lib/utils";
 import { SlideOverDrawer } from "@/components/ui/slide-over-drawer";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 type SheetDrawerPanel = "share" | "upload" | "course-pack" | "links";
 
@@ -395,34 +396,6 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         </div>
       </div>
 
-      {progress ? <ProgressDashboardPanel progress={progress} /> : null}
-
-      <WorkspaceStudySessionPanel
-        setId={setId}
-        accessToken={accessToken}
-        hasReadyDocuments={hasReadyDocuments}
-        learningPathId={learningPathId}
-      />
-
-      <LearningPathPanel
-        setId={setId}
-        accessToken={accessToken}
-        hasReadyDocuments={hasReadyDocuments}
-        onPathGenerated={setLearningPathId}
-      />
-
-      <WorkspaceConceptGraphPanel
-        setId={setId}
-        accessToken={accessToken}
-        hasReadyDocuments={hasReadyDocuments}
-      />
-
-      <TeamChatPanel setId={setId} accessToken={accessToken} isOwner={isOwner} />
-
-      {canEdit ? (
-        <ClassroomAnalyticsPanel setId={setId} accessToken={accessToken} canManage={canEdit} />
-      ) : null}
-
       <Card className="shadow-sm" data-tour="sources-strip">
         <CardHeader>
           <CardTitle>Materials</CardTitle>
@@ -508,6 +481,59 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {progress ? <ProgressDashboardPanel progress={progress} compact /> : null}
+
+      {hasReadyDocuments ? (
+        <div className="space-y-3">
+          <CollapsibleSection
+            title="Guided study plan"
+            description="Optional step-by-step checklist with saved progress"
+            tourId="study-session"
+          >
+            <WorkspaceStudySessionPanel
+              setId={setId}
+              accessToken={accessToken}
+              hasReadyDocuments={hasReadyDocuments}
+              learningPathId={learningPathId}
+              embedded
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Learning path"
+            description="Concepts ordered by prerequisites and quiz mastery"
+            tourId="learning-path"
+          >
+            <LearningPathPanel
+              setId={setId}
+              accessToken={accessToken}
+              hasReadyDocuments={hasReadyDocuments}
+              onPathGenerated={setLearningPathId}
+              embedded
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Concept graph"
+            description="Topics across all documents in this sheet"
+            tourId="concept-graph"
+          >
+            <WorkspaceConceptGraphPanel
+              setId={setId}
+              accessToken={accessToken}
+              hasReadyDocuments={hasReadyDocuments}
+              embedded
+            />
+          </CollapsibleSection>
+        </div>
+      ) : null}
+
+      <TeamChatPanel setId={setId} accessToken={accessToken} isOwner={isOwner} />
+
+      {canEdit ? (
+        <ClassroomAnalyticsPanel setId={setId} accessToken={accessToken} canManage={canEdit} />
+      ) : null}
 
       <SetQuizPanel
         setId={setId}

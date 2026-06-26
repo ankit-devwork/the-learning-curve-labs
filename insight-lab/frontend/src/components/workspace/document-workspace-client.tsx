@@ -589,6 +589,7 @@ export function DocumentWorkspaceClient({
             active={activeTab}
             onChange={(id) => selectTab(id as DocumentWorkspaceTab)}
             sticky
+            className="xl:hidden"
           />
 
           <div className="mt-4 space-y-4">
