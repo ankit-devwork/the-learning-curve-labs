@@ -124,12 +124,23 @@ with st.sidebar:
 
     if uploaded_file:
         try:
-            with st.spinner("Uploading and ingesting..."):
+            with st.spinner(
+                "Uploading and ingesting… first upload on EC2 can take several minutes "
+                "(embedding model download + indexing)."
+            ):
                 result = client.upload_document(uploaded_file)
         except BackendAPIError as exc:
             st.error(str(exc))
             if exc.correlation_id:
                 st.caption(f"Correlation ID: `{exc.correlation_id}`")
+            st.stop()
+        except requests.exceptions.Timeout:
+            st.error(
+                "Upload timed out. The backend may still be processing — wait 2–3 minutes "
+                "and refresh the Documents list. For faster uploads on small instances, set "
+                "`LANGCHAIN_TRACING_V2=false` and `APP_RAG__SEMANTIC_DEDUPE=false` in `.env`, "
+                "then restart containers."
+            )
             st.stop()
 
         if isinstance(result, dict) and result.get("duplicate"):

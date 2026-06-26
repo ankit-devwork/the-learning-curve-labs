@@ -58,9 +58,14 @@ class BackendClient:
             data["correlation_id"] = correlation_id
         return data
 
-    def upload_document(self, file) -> dict:
+    def upload_document(self, file, timeout: int | None = None) -> dict:
         files = {"file": (file.name, file.getvalue())}
-        resp = requests.post(f"{self.base_url}/upload-and-ingest", files=files, timeout=300)
+        upload_timeout = timeout or int(os.getenv("UPLOAD_TIMEOUT_SECONDS", "600"))
+        resp = requests.post(
+            f"{self.base_url}/upload-and-ingest",
+            files=files,
+            timeout=upload_timeout,
+        )
         return self._handle_response(resp)
 
     def ask_question(self, question: str, thread_id: str) -> dict:
