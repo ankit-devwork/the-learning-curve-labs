@@ -799,6 +799,9 @@ async def solve_homework_step_by_step(
         "steps": cleaned_steps,
         "summary": str(payload.get("summary", "")).strip(),
     }
+
+
+def _join_chunks(chunks: list[str]) -> str:
     return "\n\n---\n\n".join(chunk[:2000] for chunk in chunks[:8])
 
 
