@@ -18,6 +18,8 @@ type TeamChatPanelProps = {
   isOwner: boolean;
   /** When true, omit outer card chrome (for embedded study sheet). */
   embedded?: boolean;
+  /** Content only — used inside the floating corner dock. */
+  dock?: boolean;
 };
 
 function validateClientMessage(body: string): string | null {
@@ -37,7 +39,7 @@ function validateClientMessage(body: string): string | null {
   return null;
 }
 
-export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }: TeamChatPanelProps) {
+export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, dock = false }: TeamChatPanelProps) {
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -235,8 +237,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }:
           <MessageCircle className="h-10 w-10 opacity-40" />
           <p className="text-sm font-medium text-foreground">Start a conversation</p>
           <p className="max-w-xs text-xs">
-            Invite teammates from Share, then coordinate here — like LinkedIn messaging, scoped to
-            this study sheet.
+            Invite teammates from Share, then coordinate study plans and deadlines here.
           </p>
         </div>
       ) : (
@@ -292,12 +293,15 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }:
   );
 
   const body = (
-    <div className="flex min-h-0 flex-1 flex-col" data-tour={embedded ? "team-chat" : undefined}>
+    <div className="flex min-h-0 flex-1 flex-col" data-tour={embedded || dock ? undefined : "team-chat"}>
       {threadArea}
       {composer}
     </div>
   );
 
+  if (dock) {
+    return body;
+  }
   if (embedded) {
     return (
       <div className="flex max-h-[min(520px,70vh)] min-h-[280px] flex-col overflow-hidden rounded-lg border bg-card">
