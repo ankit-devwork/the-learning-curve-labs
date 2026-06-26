@@ -147,7 +147,7 @@ export function DocumentQuizPanel({
     }
 
     setQuiz((await response.json()) as QuizResponse);
-  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit, generatePath]);
+  }, [accessToken, questionType, difficulty, numQuestions, canEdit, generatePath]);
 
   const generatePracticeQuiz = useCallback(async () => {
     if (!accessToken || !canEdit || isExcel) {
@@ -180,7 +180,7 @@ export function DocumentQuizPanel({
     }
 
     setQuiz((await response.json()) as QuizResponse);
-  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit]);
+  }, [accessToken, documentId, questionType, difficulty, numQuestions, canEdit, isExcel]);
 
   async function fetchActiveSession(): Promise<StudySessionRecord | null> {
     if (!accessToken || !ready) {

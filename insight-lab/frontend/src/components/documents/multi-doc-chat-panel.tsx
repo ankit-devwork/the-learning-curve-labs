@@ -71,8 +71,10 @@ export function MultiDocChatPanel({
     if (!accessToken || !workspaceId) {
       return;
     }
+    const token = accessToken;
+    const wsId = workspaceId;
     async function loadHistory() {
-      const response = await apiFetch(`/workspaces/${workspaceId}/compare/chat/history`, accessToken);
+      const response = await apiFetch(`/workspaces/${wsId}/compare/chat/history`, token);
       if (!response.ok) {
         return;
       }
