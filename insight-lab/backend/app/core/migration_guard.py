@@ -24,6 +24,14 @@ PHASE3_017_MIGRATION_HINT = (
 
 PHASE3_017_MIGRATION_NOTICE = PHASE3_017_MIGRATION_HINT
 
+PHASE3_020_MIGRATION_HINT = (
+    "Phase 14 study enhancements migration required. "
+    "Run supabase/migrations/020_phase14_study_enhancements.sql in the Supabase SQL Editor, "
+    "then reload the API schema (Project Settings → API → Reload)."
+)
+
+PHASE3_020_MIGRATION_NOTICE = PHASE3_020_MIGRATION_HINT
+
 
 def _message_has_markers(message: str, markers: tuple[str, ...]) -> bool:
     return any(marker in message for marker in markers)
@@ -61,6 +69,22 @@ def is_missing_team_chat_schema(exc: BaseException) -> bool:
     message = str(exc).lower()
     markers = (
         "workspace_messages",
+        "pgrst205",
+        "could not find the table",
+        "schema cache",
+    )
+    return _message_has_markers(message, markers)
+
+
+def is_missing_phase14_schema(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    markers = (
+        "document_chat_messages",
+        "workspace_compare_chat_messages",
+        "flashcard_srs_states",
+        "document_audio_overviews",
+        "document_slide_decks",
+        "document_homework_solutions",
         "pgrst205",
         "could not find the table",
         "schema cache",
@@ -137,5 +161,14 @@ def run_or_none_team_chat(callable_fn):
         return callable_fn()
     except Exception as exc:
         if is_missing_team_chat_schema(exc):
+            return None
+        raise
+
+
+def run_or_none_phase14(callable_fn):
+    try:
+        return callable_fn()
+    except Exception as exc:
+        if is_missing_phase14_schema(exc):
             return None
         raise

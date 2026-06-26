@@ -147,16 +147,27 @@ artifacts:
   review_rate_limit_per_min: 120
   max_flashcards: 20
   max_context_chunks: 8
+  max_slides: 12
   flashcard_max_tokens: 2000
   study_guide_max_tokens: 2500
   infographic_max_tokens: 2500
+  slide_deck_max_tokens: 2800
   suggested_questions_max_tokens: 400
   chunk_preview_max_chars: 1200
+
+explain:
+  rate_limit_per_min: 15
+  max_tokens: 900
+
+homework:
+  rate_limit_per_min: 10
+  max_tokens: 1800
 
 audio_overview:
   generate_rate_limit_per_min: 5
   max_tokens: 1200
   target_words: 450
+  tts_enabled: true
 
 excel_preview:
   default_limit: 50

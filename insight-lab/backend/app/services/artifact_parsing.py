@@ -211,3 +211,43 @@ def infographic_to_content(draft: InfographicDraft) -> dict[str, Any]:
         "theme": theme,
         "blocks": blocks[:8],
     }
+
+
+class SlideDeckSlideDraft(BaseModel):
+    title: str
+    bullets: list[str] = Field(default_factory=list)
+    speaker_notes: str = ""
+
+
+class SlideDeckDraft(BaseModel):
+    title: str
+    slides: list[SlideDeckSlideDraft] = Field(min_length=1)
+
+
+def parse_slide_deck_draft(raw: str, *, max_slides: int) -> SlideDeckDraft:
+    payload = json.loads(_strip_json_fence(raw))
+    draft = SlideDeckDraft.model_validate(payload)
+    draft.slides = draft.slides[:max_slides]
+    if not draft.slides:
+        raise ValueError("Slide deck must contain at least one slide")
+    return draft
+
+
+def slide_deck_to_content(draft: SlideDeckDraft) -> dict[str, Any]:
+    slides: list[dict[str, Any]] = []
+    for index, slide in enumerate(draft.slides):
+        bullets = [bullet.strip() for bullet in slide.bullets if bullet.strip()][:8]
+        title = slide.title.strip()
+        if not title or not bullets:
+            continue
+        slides.append(
+            {
+                "slide_number": index + 1,
+                "title": title,
+                "bullets": bullets,
+                "speaker_notes": slide.speaker_notes.strip(),
+            }
+        )
+    if not slides:
+        raise ValueError("Slide deck must contain at least one valid slide")
+    return {"title": draft.title.strip(), "slides": slides}

@@ -17,7 +17,9 @@ from app.services.embeddings import (
     embed_texts_batched,
     search_similar_chunks,
 )
+from app.core.migration_guard import run_or_none_phase14
 from app.core.safe_errors import GENERIC_PROCESSING_ERROR, sanitize_stored_error
+from app.services.chat_history_service import list_document_chat_messages, save_document_chat_message
 from app.services.graph_service import sync_document_graph
 from app.services.citations import build_source_citations, collapse_sources_by_document
 from app.services.llm_client import (
@@ -341,4 +343,21 @@ async def ask_document(
         question=question,
         payload=payload,
     )
+    run_or_none_phase14(
+        lambda: save_document_chat_message(
+            client,
+            document_id=document_id,
+            workspace_id=doc["workspace_id"],
+            user=user,
+            question=question,
+            answer=payload["answer"],
+            sources=sources,
+            retrieval_method=retrieval_method,
+            cached=False,
+        )
+    )
     return payload
+
+
+def get_document_chat_history(client: Client, document_id: str, user: AuthUser) -> list[dict]:
+    return run_or_none_phase14(lambda: list_document_chat_messages(client, document_id, user)) or []

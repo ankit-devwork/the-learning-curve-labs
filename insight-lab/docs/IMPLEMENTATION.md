@@ -511,6 +511,20 @@ Migration: `018_storage_member_read.sql` (workspace member Storage SELECT; backe
 
 Migration: `019_workspace_messages_realtime.sql` (Realtime publication for team chat; member RLS unchanged).
 
+## Phase 14 (implemented)
+
+| Feature | Backend | Frontend |
+|---------|---------|----------|
+| Persist document chat history | `document_chat_messages` + save on `POST /ask` | Document workspace loads `/chat/history` on open |
+| Persist compare chat history | `workspace_compare_chat_messages` | Compare page loads `/workspaces/{id}/compare/chat/history` |
+| Explain wrong quiz / flashcards | `POST /quizzes/{id}/questions/{qid}/explain`, `POST /flashcards/.../explain` | Explain buttons on quiz results + flashcard study |
+| Flashcard spaced repetition | `flashcard_srs_states` + due count on flashcard set | **Review due today** mode in flashcard study |
+| MP3 audio overview | `document_audio_overviews` + edge-tts → Storage; `GET .../audio-overview/mp3` | HTML5 audio player (browser TTS fallback) |
+| Slide deck generate + export | `document_slide_decks`; `GET /slide-decks/{id}/export/markdown` | Studio **Slides** tab + Markdown export |
+| Homework solver | `POST /documents/{id}/homework/solve` (grounded steps) | Studio **Homework help** tab |
+
+Migration: `020_phase14_study_enhancements.sql` (chat history, SRS, audio, slides, homework; user-scoped RLS).
+
 Still planned:
 
 - SCORM 1.2 packages
@@ -531,7 +545,7 @@ See [SECURITY.md](SECURITY.md) for the full production security guide.
 | Invite tokens not in list API (link endpoint) | Done |
 | Export routes require editor (Markdown, LMS, QTI) | Done |
 | User-scoped cache keys (summary, chat, quiz, excel) | Done |
-| Rate limits (upload, process, chat, quiz, excel, sharing, public quiz, team chat) | Done |
+| Rate limits (upload, process, chat, quiz, excel, sharing, public quiz, team chat, explain, homework) | Done |
 | Grounded LLM prompts + excerpt marker stripping | Done |
 | Retry + circuit breaker on LLM/Storage | Done |
 | Phase 2 migration guard (graceful degradation) | Done |
