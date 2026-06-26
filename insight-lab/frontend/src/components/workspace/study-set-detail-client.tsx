@@ -59,6 +59,8 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [uploadAcknowledged, setUploadAcknowledged] = useState(false);
   const [drawerPanel, setDrawerPanel] = useState<SheetDrawerPanel | null>(null);
   const [learningPathId, setLearningPathId] = useState<string | null>(null);
   const [sourceLinkCount, setSourceLinkCount] = useState(0);
@@ -123,6 +125,14 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
     if (!uploadConfig) {
       return;
     }
+    if (uploadConfig.guidance?.require_acknowledgment && !uploadAcknowledged) {
+      toast({
+        title: "Confirm upload guidance",
+        description: "Please acknowledge the privacy notice before uploading.",
+        variant: "error",
+      });
+      return;
+    }
     if (file.size > uploadConfig.max_bytes) {
       toast({
         title: "File too large",
@@ -159,9 +169,48 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         return;
       }
       toast({ title: "File uploaded", description: file.name, variant: "success" });
+      setUploadAcknowledged(false);
       await loadAll();
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleDeleteDocument(doc: DocumentSummary) {
+    if (
+      !window.confirm(
+        `Delete "${doc.filename}" permanently? This removes the file, chat history, quizzes, and other generated content.`,
+      )
+    ) {
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return;
+    }
+
+    setDeletingDocumentId(doc.id);
+    try {
+      const response = await apiFetch(`/documents/${doc.id}`, session.access_token, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({
+          title: "Could not delete file",
+          description: body.error || body.detail,
+          variant: "error",
+        });
+        return;
+      }
+      toast({ title: "File deleted", description: doc.filename, variant: "success" });
+      await loadAll();
+    } finally {
+      setDeletingDocumentId(null);
     }
   }
 
@@ -225,6 +274,9 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const showSourceLinks = shouldShowSourceLinks(documents, sourceLinkCount);
 
   function openDrawer(panel: SheetDrawerPanel) {
+    if (panel === "upload") {
+      setUploadAcknowledged(false);
+    }
     setDrawerPanel(panel);
   }
 
@@ -429,7 +481,21 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
                         </p>
                       </div>
                     </div>
-                    <StatusBadge status={doc.status} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusBadge status={doc.status} />
+                      {canEdit ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          disabled={deletingDocumentId === doc.id}
+                          onClick={() => void handleDeleteDocument(doc)}
+                        >
+                          {deletingDocumentId === doc.id ? "Deleting…" : "Delete"}
+                        </Button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -473,6 +539,9 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
               accept={uploadConfig?.accept}
               disabled={!uploadConfig}
               uploading={uploading}
+              guidance={uploadConfig?.guidance ?? null}
+              acknowledged={uploadAcknowledged}
+              onAcknowledgedChange={setUploadAcknowledged}
               onFileSelected={(file) => void handleUpload(file)}
             />
           ) : (

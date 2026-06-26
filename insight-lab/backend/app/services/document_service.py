@@ -29,6 +29,7 @@ from app.services.llm_client import (
     summary_cache_key,
 )
 from app.services.semantic_cache import get_semantic_cached_answer, store_semantic_cached_answer
+from app.services.document_storage import download_document_blob
 from app.services.workspace_access import get_accessible_document, require_editable_document
 
 log = get_logger("documents")
@@ -39,11 +40,7 @@ def _get_owned_document(client: Client, document_id: str, user: AuthUser) -> dic
 
 
 def _download_document_bytes(client: Client, document: dict) -> bytes:
-    upload = get_yaml_config().upload
-    try:
-        return client.storage.from_(upload.storage_bucket).download(document["storage_path"])
-    except Exception as exc:
-        raise FileException(f"Failed to download document from storage: {exc}", status_code=502) from exc
+    return download_document_blob(client, document)
 
 
 async def get_document(client: Client, document_id: str, user: AuthUser) -> dict:

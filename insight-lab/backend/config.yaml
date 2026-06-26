@@ -10,9 +10,18 @@ upload:
   storage_bucket: uploads
   max_bytes: 10485760
   rate_limit_per_hour: 10
+  delete_rate_limit_per_hour: 20
   filename_max_length: 255
   default_workspace_name: My Workspace
   documents_list_default_limit: 20
+  guidance:
+    summary: >-
+      Only upload study materials you are comfortable sharing with everyone on this study sheet.
+    points:
+      - Do not upload medical records, financial statements, government IDs, or passwords.
+      - Do not upload copyrighted or confidential content you do not have permission to share.
+      - Uploaded files can be viewed by study sheet members and are stored until you delete them.
+    require_acknowledgment: true
   excel:
     extensions:
       - .xlsx
@@ -83,6 +92,7 @@ documents:
   max_context_chunks: 6
   process_rate_limit_per_hour: 10
   chat_rate_limit_per_min: 20
+  delete_rate_limit_per_hour: 20
 
 llm:
   model: groq/llama-3.3-70b-versatile

@@ -9,11 +9,15 @@ Security model, known risks, and production checklist for InsightLab.
 | **Frontend** | Supabase Auth (Google OAuth); session JWT on API calls |
 | **Backend** | Verifies JWT (`role === authenticated`); service-role Supabase for DB |
 | **Database** | RLS on all tables; backend is primary enforcement boundary |
-| **Storage** | Private bucket; signed URLs via backend |
+| **Storage** | Private bucket; optional app-level Fernet encryption at rest; signed URLs via backend |
 
 Team chat messages are **never** exposed across study sheets: Postgres RLS (`is_workspace_member`) plus backend `require_workspace_role()` on every list/post/delete. Message bodies are validated server-side (ASCII English, no links/files/HTML/emoji).
 
-Storage objects in the `uploads` bucket use path `{owner_id}/{document_id}/{filename}`. Migration **018** adds a SELECT policy so workspace members can read files for documents in shared study sheets (defense-in-depth; the backend still serves content via the service role).
+Storage objects in the `uploads` bucket use path `{owner_id}/{document_id}/{filename}`. When `DOCUMENT_STORAGE_ENCRYPTION_KEY` is set, new uploads are encrypted with Fernet before storage (`documents.storage_encrypted = true`). Legacy plaintext blobs remain readable until re-uploaded.
+
+Editors can delete individual documents via `DELETE /documents/{id}` — storage blobs, derived artifacts (DB cascade), Redis caches, and Neo4j nodes are cleaned up. Study sheet deletion also purges all workspace storage paths.
+
+Migration **018** adds a SELECT policy so workspace members can read files for documents in shared study sheets (defense-in-depth; the backend still serves content via the service role).
 
 The backend uses the **Supabase service role**, which bypasses RLS. Every route must call `require_workspace_role()` or `get_accessible_document()` before reading or writing user data.
 
@@ -30,6 +34,7 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 |--------|----------------|
 | View study sheet / documents | viewer |
 | Upload, generate artifacts, exports | editor |
+| Delete uploaded files | editor |
 | Share, invites, classroom analytics | editor |
 | Remove members, change roles | owner |
 | Delete any team chat message | owner |
@@ -68,6 +73,8 @@ SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...    # never expose to frontend
 SUPABASE_JWT_SECRET=...          # HS256 projects
 
+DOCUMENT_STORAGE_ENCRYPTION_KEY=...   # Fernet key — encrypt uploads at rest (recommended in production)
+
 CORS_ALLOW_ORIGINS=https://your-app.vercel.app   # HTTPS only, no wildcard
 
 RESEND_API_KEY=...               # optional invite email
@@ -95,6 +102,7 @@ Run migrations **001–019** (see [supabase/README.md](../supabase/README.md)).
 | **018** | Storage read policies for workspace members on shared documents |
 | **019** | Supabase Realtime publication for `workspace_messages` (member RLS still applies to subscribers) |
 | **020** | Chat history, flashcard SRS, persisted audio/slides, homework solutions (user-scoped RLS) |
+| **021** | `storage_encrypted` flag; editor document delete RLS |
 
 Team chat posts and deletes remain **backend-only** (rate-limited FastAPI routes). Realtime is read-only on the client — members only receive rows their RLS policies allow.
 

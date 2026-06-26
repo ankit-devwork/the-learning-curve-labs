@@ -15,6 +15,7 @@ from app.services.document_service import (
 )
 from app.services.homework_service import list_homework_solutions, solve_document_homework
 from app.services.multi_doc_service import get_compare_chat_history
+from app.services.upload import delete_document
 from app.services.document_extras import (
     get_document_chunk,
     get_document_processing_status,
@@ -98,6 +99,18 @@ async def read_document(
     document = await get_document(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**document, "correlation_id": correlation_id}
+
+
+@router.delete("/documents/{document_id}")
+@with_observability("delete_document")
+async def delete_document_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await delete_document(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
 
 
 @router.post("/documents/{document_id}/process")

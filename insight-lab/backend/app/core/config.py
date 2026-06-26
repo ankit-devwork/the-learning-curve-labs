@@ -59,6 +59,8 @@ class Settings(BaseSettings):
 
     groq_api_key: str = ""
 
+    document_storage_encryption_key: str = ""
+
     retry_max_attempts: int = 4
     retry_base_delay_sec: float = 1.0
     retry_max_delay_sec: float = 30.0

@@ -6,6 +6,7 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.exceptions import ForbiddenException, NotFoundException
+from app.services.document_storage import collect_workspace_storage_paths, remove_storage_paths
 from app.services.upload import ensure_profile_and_workspace
 from app.services.workspace_access import (
     get_workspace_membership_role,
@@ -157,7 +158,9 @@ def delete_workspace(client: Client, workspace_id: str, user: AuthUser) -> None:
     )
     if len(owned_sets) <= 1:
         raise FileException("You must keep at least one study set", status_code=409)
+    storage_paths = collect_workspace_storage_paths(client, workspace["id"])
     client.table("workspaces").delete().eq("id", workspace["id"]).execute()
+    remove_storage_paths(client, storage_paths)
 
 
 def get_workspace(client: Client, workspace_id: str, user: AuthUser) -> dict:

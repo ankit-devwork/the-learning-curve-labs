@@ -247,7 +247,10 @@ Excel files open in the spreadsheet workspace; PDFs/Word open in the document wo
 
 - Only members of a study sheet can see its files and chat.
 - Team chat is plain text only — no links or attachments.
-- Do not upload confidential data you would not share with your study group.
+- Before uploading, confirm the privacy notice: only share study materials appropriate for your group.
+- Do not upload confidential data you would not share with your study group (medical, financial, IDs, passwords).
+- Editors can delete uploaded files from the Materials list; deletion removes the file and generated content.
+- When configured, uploaded files are encrypted at rest in storage before upload completes.
 
 ---
 

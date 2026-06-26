@@ -31,6 +31,7 @@ from app.services.semantic_cache import (
     get_semantic_cached_answer_by_index,
     store_semantic_cached_answer_by_index,
 )
+from app.services.document_storage import download_document_blob
 from app.services.workspace_access import get_accessible_document, require_editable_document
 from app.services.source_links_service import (
     build_linked_citations,
@@ -45,13 +46,8 @@ def _get_readable_document(client: Client, document_id: str, user: AuthUser) -> 
 
 
 async def _download_document_bytes(client: Client, document: dict) -> bytes:
-    upload = get_yaml_config().upload
-
     async def _fetch() -> bytes:
-        return await asyncio.to_thread(
-            client.storage.from_(upload.storage_bucket).download,
-            document["storage_path"],
-        )
+        return await asyncio.to_thread(download_document_blob, client, document)
 
     async def _with_retry() -> bytes:
         return await with_retry(_fetch, operation="storage.download")
