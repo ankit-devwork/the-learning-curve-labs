@@ -97,7 +97,7 @@ def save_compare_chat_message(
     return row[0] if row else {}
 
 
-from app.services.chat_history_format import format_excel_chat_sources, parse_excel_chat_sources
+def list_compare_chat_messages(
     client: Client,
     workspace_id: str,
     user: AuthUser,
