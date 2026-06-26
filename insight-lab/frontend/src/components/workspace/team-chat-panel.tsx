@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, MessageCircle, Send, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch, parseApiError, type TeamChatMessage, type WorkspaceMessagesResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { ProcessingContentSkeleton } from "@/components/ui/loading-skeletons";
+import { TeamChatThread } from "@/components/workspace/team-chat-thread";
 import { cn } from "@/lib/utils";
 
 const FALLBACK_POLL_INTERVAL_MS = 30_000;
@@ -16,17 +16,9 @@ type TeamChatPanelProps = {
   setId: string;
   accessToken: string | null;
   isOwner: boolean;
+  /** When true, omit outer card chrome (for embedded study sheet). */
   embedded?: boolean;
 };
-
-function formatMessageTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function validateClientMessage(body: string): string | null {
   const trimmed = body.trim();
@@ -49,21 +41,15 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }:
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const scrollToBottom = useCallback(() => {
-    const container = scrollRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
-  }, []);
 
   const loadMessages = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -165,11 +151,20 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }:
   }, [accessDenied, accessToken, loadMessages, setId]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  async function handleSend(event: React.FormEvent) {
-    event.preventDefault();
+  const canDeleteMessage = useCallback(
+    (message: TeamChatMessage) => {
+      if (message.is_own || message.author_id === currentUserId) {
+        return true;
+      }
+      return isOwner;
+    },
+    [currentUserId, isOwner],
+  );
+
+  const handleSend = async () => {
     if (!accessToken) {
       return;
     }
@@ -194,127 +189,139 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }:
     }
     setDraft("");
     await loadMessages({ silent: true });
-  }
+  };
 
-  async function handleDelete(messageId: string) {
+  const handleDelete = async (messageId: string) => {
     if (!accessToken) {
       return;
     }
+    setDeletingId(messageId);
     setError(null);
     const response = await apiFetch(`/workspaces/${setId}/messages/${messageId}`, accessToken, {
       method: "DELETE",
     });
+    setDeletingId(null);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       setError(parseApiError(body, `Could not delete message (${response.status})`));
       return;
     }
     await loadMessages({ silent: true });
-  }
+  };
 
-  const canDeleteMessage = useCallback(
-    (message: TeamChatMessage) => {
-      if (message.is_own || message.author_id === currentUserId) {
-        return true;
-      }
-      return isOwner;
-    },
-    [currentUserId, isOwner],
-  );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
+  };
 
-  const emptyState = !loading && messages.length === 0;
+  const composerDisabled = !accessToken || sending || accessDenied || Boolean(migrationNotice);
 
-  const content = (
-    <div className="space-y-3" data-tour={embedded ? "team-chat" : undefined}>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+  const threadArea = (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
       {migrationNotice ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+        <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
           {migrationNotice}
         </p>
       ) : null}
 
-      <div
-        ref={scrollRef}
-        className={cn(
-          "space-y-3 overflow-y-auto rounded-lg border bg-muted/20 p-3",
-          embedded ? "max-h-64" : "max-h-80",
-        )}
-        aria-live="polite"
-      >
-        {loading ? <ProcessingContentSkeleton lines={3} /> : null}
-        {emptyState ? (
-          <p className="text-sm text-muted-foreground">
-            No messages yet. Invite teammates from Share, then coordinate here.
+      {loading ? (
+        <div className="flex h-40 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : messages.length === 0 ? (
+        <div className="flex h-40 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+          <MessageCircle className="h-10 w-10 opacity-40" />
+          <p className="text-sm font-medium text-foreground">Start a conversation</p>
+          <p className="max-w-xs text-xs">
+            Invite teammates from Share, then coordinate here — like LinkedIn messaging, scoped to
+            this study sheet.
           </p>
-        ) : null}
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex flex-col gap-1 rounded-lg px-3 py-2 text-sm",
-              message.is_own || message.author_id === currentUserId
-                ? "ml-8 bg-primary/10"
-                : "mr-8 bg-card ring-1 ring-border/60",
-            )}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-medium text-foreground">
-                {message.is_own || message.author_id === currentUserId ? "You" : message.author_name}
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">{formatMessageTime(message.created_at)}</span>
-                {canDeleteMessage(message) ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-[10px] text-muted-foreground"
-                    onClick={() => void handleDelete(message.id)}
-                  >
-                    Delete
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-            <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
-          </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <TeamChatThread
+          messages={messages}
+          currentUserId={currentUserId}
+          deletingId={deletingId}
+          canDelete={canDeleteMessage}
+          onDelete={(messageId) => void handleDelete(messageId)}
+        />
+      )}
+      <div ref={bottomRef} />
+    </div>
+  );
 
-      <form onSubmit={(event) => void handleSend(event)} className="flex gap-2">
-        <Input
+  const composer = (
+    <div className="shrink-0 border-t bg-muted/20 px-3 py-3 sm:px-4">
+      {error ? (
+        <p className="mb-2 text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex items-end gap-2">
+        <textarea
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Type a plain English message for your team..."
-          disabled={!accessToken || sending || accessDenied}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Write a message…"
+          rows={1}
           maxLength={2000}
+          className={cn(
+            "flex min-h-[44px] max-h-32 w-full resize-none rounded-2xl border border-muted-foreground/20 bg-background px-4 py-3 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          )}
+          disabled={composerDisabled}
           aria-label="Team chat message"
         />
-        <Button type="submit" disabled={!accessToken || sending || accessDenied || !draft.trim()}>
-          {sending ? "Sending..." : "Send"}
+        <Button
+          type="button"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-full"
+          onClick={() => void handleSend()}
+          disabled={composerDisabled || !draft.trim()}
+          aria-label="Send message"
+        >
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
-      </form>
-      <p className="text-[11px] text-muted-foreground">
-        {realtimeConnected
-          ? "Live updates via Supabase Realtime. Only members of this study sheet can read or post."
-          : "Live updates unavailable — refreshing every 30 seconds. Only members of this study sheet can read or post."}
+      </div>
+      <p className="mt-1.5 text-[10px] text-muted-foreground">
+        Enter to send · Shift+Enter for new line · Plain text only ·{" "}
+        {realtimeConnected ? "Live updates" : "Refreshing every 30s"}
       </p>
     </div>
   );
 
+  const body = (
+    <div className="flex min-h-0 flex-1 flex-col" data-tour={embedded ? "team-chat" : undefined}>
+      {threadArea}
+      {composer}
+    </div>
+  );
+
   if (embedded) {
-    return content;
+    return (
+      <div className="flex max-h-[min(520px,70vh)] min-h-[280px] flex-col overflow-hidden rounded-lg border bg-card">
+        {body}
+      </div>
+    );
   }
 
   return (
-    <Card className="shadow-sm" data-tour="team-chat">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Team chat</CardTitle>
-        <CardDescription>
-          Plain-text discussion for study sheet members only. No AI, links, files, or emoji.
-        </CardDescription>
+    <Card className="flex h-[min(640px,75vh)] flex-col overflow-hidden shadow-sm" data-tour="team-chat">
+      <CardHeader className="shrink-0 border-b bg-muted/30 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+            <Users className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-base">Team chat</CardTitle>
+            <CardDescription>
+              Plain-text discussion for study sheet members. No AI, links, files, or emoji.
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>{content}</CardContent>
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">{body}</CardContent>
     </Card>
   );
 }

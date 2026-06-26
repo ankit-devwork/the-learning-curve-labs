@@ -77,11 +77,14 @@ def _author_label(profile: dict | None) -> str:
 def _serialize_message(row: dict, profile_map: dict[str, dict]) -> dict:
     author_id = row["author_id"]
     profile = profile_map.get(author_id)
+    email = (profile.get("email") or "").strip() if profile else ""
     return {
         "id": row["id"],
         "workspace_id": row["workspace_id"],
         "author_id": author_id,
         "author_name": _author_label(profile),
+        "author_email": email or None,
+        "author_avatar_url": (profile.get("avatar_url") or "").strip() or None if profile else None,
         "body": row["body"],
         "created_at": row["created_at"],
         "is_own": False,
@@ -133,7 +136,7 @@ async def list_workspace_messages(
         if author_ids:
             profiles = (
                 client.table("profiles")
-                .select("id, display_name, email")
+                .select("id, display_name, email, avatar_url")
                 .in_("id", author_ids)
                 .execute()
                 .data

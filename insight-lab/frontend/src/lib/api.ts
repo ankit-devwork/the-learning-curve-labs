@@ -289,6 +289,8 @@ export type TeamChatMessage = {
   workspace_id: string;
   author_id: string;
   author_name: string;
+  author_email?: string | null;
+  author_avatar_url?: string | null;
   body: string;
   created_at: string;
   is_own: boolean;
