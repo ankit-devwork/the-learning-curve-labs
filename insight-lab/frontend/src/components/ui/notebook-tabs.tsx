@@ -13,17 +13,22 @@ type NotebookTabsProps = {
   active: string;
   onChange: (id: string) => void;
   className?: string;
+  sticky?: boolean;
 };
 
-export function NotebookTabs({ tabs, active, onChange, className }: NotebookTabsProps) {
+export function NotebookTabs({ tabs, active, onChange, className, sticky }: NotebookTabsProps) {
   return (
     <div
       className={cn(
-        "flex gap-1 overflow-x-auto rounded-xl border bg-muted/30 p-1",
+        sticky &&
+          "sticky top-0 z-20 -mx-1 bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80",
         className,
       )}
-      role="tablist"
     >
+      <div
+        className="flex gap-1 overflow-x-auto rounded-xl border bg-muted/30 p-1"
+        role="tablist"
+      >
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -46,6 +51,7 @@ export function NotebookTabs({ tabs, active, onChange, className }: NotebookTabs
           ) : null}
         </button>
       ))}
+      </div>
     </div>
   );
 }

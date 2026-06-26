@@ -26,8 +26,9 @@ import { DocumentQuizPanel } from "@/components/documents/document-quiz-panel";
 import { DocumentConceptGraphPanel } from "@/components/documents/mind-map-panel";
 import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { NotebookTabs } from "@/components/ui/notebook-tabs";
+import { PanelHeader } from "@/components/ui/panel-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { AudioOverviewPanel } from "@/components/workspace/audio-overview-panel";
@@ -37,14 +38,18 @@ import { ProcessingStepper } from "@/components/workspace/processing-stepper";
 import { SourcesRail } from "@/components/workspace/sources-rail";
 import { SourceViewerDrawer } from "@/components/workspace/source-viewer-drawer";
 import { StudySessionPanel } from "@/components/workspace/study-session-panel";
-import { StudioPanel } from "@/components/workspace/studio-panel";
+import { StudioPanel, StudioChatShortcut } from "@/components/workspace/studio-panel";
 import { ArtifactEmptyState } from "@/components/workspace/artifact-empty-state";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
 import { HomeworkPanel } from "@/components/workspace/homework-panel";
 import { InfographicView } from "@/components/workspace/infographic-view";
 import { SlideDeckView } from "@/components/workspace/slide-deck-view";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
-import { STUDIO_TAB_LABELS, type StudioTab } from "@/lib/notebook-utils";
+import {
+  DOCUMENT_WORKSPACE_TAB_LABELS,
+  type DocumentWorkspaceTab,
+  type StudioTab,
+} from "@/lib/notebook-utils";
 import { resolveDocumentQuizStepId } from "@/lib/study-session-utils";
 import { cacheResponseLabel, canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 
@@ -57,7 +62,7 @@ type ChatMessage = {
   similarity?: number;
 };
 
-const VALID_TABS = new Set<string>(Object.keys(STUDIO_TAB_LABELS));
+const VALID_TABS = new Set<string>(Object.keys(DOCUMENT_WORKSPACE_TAB_LABELS));
 
 export function DocumentWorkspaceClient({
   setId,
@@ -89,7 +94,7 @@ export function DocumentWorkspaceClient({
   const [audioOverview, setAudioOverview] = useState<AudioOverviewResponse | null>(null);
   const [slideDeck, setSlideDeck] = useState<SlideDeckResponse | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const [activeTab, setActiveTab] = useState<StudioTab>("brief");
+  const [activeTab, setActiveTab] = useState<DocumentWorkspaceTab>("chat");
   const [trackedSession, setTrackedSession] = useState<StudySessionRecord | null>(null);
   const [sourceViewer, setSourceViewer] = useState<{
     title: string;
@@ -99,10 +104,17 @@ export function DocumentWorkspaceClient({
   const autoProcessed = useRef(false);
   const audioControls = useRef<{ playPause: () => void; stop: () => void } | null>(null);
 
-  const selectTab = useCallback((tab: StudioTab) => {
+  const selectTab = useCallback((tab: DocumentWorkspaceTab) => {
     setActiveTab(tab);
     window.history.replaceState(null, "", `#${tab}`);
   }, []);
+
+  const selectStudioTab = useCallback(
+    (tab: StudioTab) => {
+      selectTab(tab);
+    },
+    [selectTab],
+  );
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
@@ -112,7 +124,7 @@ export function DocumentWorkspaceClient({
       return;
     }
     if (VALID_TABS.has(hash)) {
-      setActiveTab(hash as StudioTab);
+      setActiveTab(hash as DocumentWorkspaceTab);
     }
   }, []);
 
@@ -519,11 +531,13 @@ export function DocumentWorkspaceClient({
     slides: slideDeck ? "✓" : undefined,
     audio: audioOverview ? "✓" : undefined,
   };
-  const mobileTabs = (Object.keys(STUDIO_TAB_LABELS) as StudioTab[]).map((id) => ({
-    id,
-    label: STUDIO_TAB_LABELS[id],
-    badge: studioBadges[id],
-  }));
+  const centerTabs = (Object.keys(DOCUMENT_WORKSPACE_TAB_LABELS) as DocumentWorkspaceTab[]).map(
+    (id) => ({
+      id,
+      label: DOCUMENT_WORKSPACE_TAB_LABELS[id],
+      badge: id === "chat" ? undefined : studioBadges[id as StudioTab],
+    }),
+  );
 
   return (
     <div className={audioPlaying ? "space-y-4 pb-24" : "space-y-4"}>
@@ -555,8 +569,8 @@ export function DocumentWorkspaceClient({
       <div
         className={
           showSourcesRail
-            ? "grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_240px]"
-            : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px]"
+            ? "grid gap-4 xl:grid-cols-[auto_minmax(0,1fr)_11rem]"
+            : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_11rem]"
         }
       >
         {showSourcesRail ? (
@@ -564,83 +578,91 @@ export function DocumentWorkspaceClient({
             setId={setId}
             documents={setDocuments}
             activeDocumentId={documentId}
-            className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"
+            defaultCollapsed={setDocuments.length <= 2}
+            className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start"
           />
         ) : null}
 
-        <section className="min-w-0 space-y-4">
-          <Card className="notebook-surface border-0 shadow-none" id="chat" data-tour="document-chat">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Chat with this source</CardTitle>
-              <CardDescription>Ask questions grounded in your document. Citations link to excerpts.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {messages.length === 0 ? (
-                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-                  Try a suggested question below, or ask your own.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message, index) => (
-                    <div key={`${message.question}-${index}`} className="space-y-3">
-                      <ChatMessageBubble role="user" question={message.question} />
-                      <ChatMessageBubble
-                        role="assistant"
-                        answer={message.answer}
-                        sources={message.sources}
-                        footer={cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
-                        onCitationClick={(source) => void openCitation(source)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <SuggestedQuestions
-                questions={suggestedQuestions}
-                disabled={asking || !ready}
-                onSelect={(value) => setQuestion(value)}
-              />
-              <form onSubmit={handleAsk} className="flex gap-2">
-                <Input
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  placeholder="Ask a question about this source…"
-                  disabled={asking || !ready}
-                />
-                <Button type="submit" disabled={asking || !ready}>
-                  {asking ? "Thinking…" : "Ask"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
+        <section className="min-w-0">
           <NotebookTabs
-            tabs={mobileTabs}
+            tabs={centerTabs}
             active={activeTab}
-            onChange={(id) => selectTab(id as StudioTab)}
-            className="xl:hidden"
+            onChange={(id) => selectTab(id as DocumentWorkspaceTab)}
+            sticky
           />
 
-          {activeTab === "brief" ? (
-            <Card className="notebook-surface border-0 shadow-none" id="brief">
-              <CardHeader>
-                <CardTitle className="text-lg">Brief</CardTitle>
-                <CardDescription>AI summary of this source — read before quizzing.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {processing ? (
-                  <p className="text-sm text-muted-foreground">Processing document…</p>
-                ) : summary ? (
-                  <div className="max-h-[420px] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                    {summary}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Summary will appear after processing.</p>
-                )}
-              </CardContent>
-            </Card>
-          ) : null}
+          <div className="mt-4 space-y-4">
+            {activeTab === "chat" ? (
+              <Card className="notebook-surface border-0 shadow-none" id="chat" data-tour="document-chat">
+                <PanelHeader
+                  hintId="document-chat"
+                  title="Chat with this source"
+                  description="Ask questions grounded in your document. Citations link to excerpts."
+                />
+                <CardContent className="space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                      Try a suggested question below, or ask your own.
+                    </div>
+                  ) : (
+                    <div className="max-h-[min(520px,60vh)] space-y-4 overflow-y-auto pr-1">
+                      {messages.map((message, index) => (
+                        <div key={`${message.question}-${index}`} className="space-y-3">
+                          <ChatMessageBubble role="user" question={message.question} />
+                          <ChatMessageBubble
+                            role="assistant"
+                            answer={message.answer}
+                            sources={message.sources}
+                            footer={cacheResponseLabel(message.cached, message.cacheMatch, message.similarity)}
+                            onCitationClick={(source) => void openCitation(source)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <SuggestedQuestions
+                    questions={suggestedQuestions}
+                    disabled={asking || !ready}
+                    onSelect={(value) => {
+                      setQuestion(value);
+                    }}
+                  />
+                  <form onSubmit={handleAsk} className="flex gap-2">
+                    <Input
+                      value={question}
+                      onChange={(event) => setQuestion(event.target.value)}
+                      placeholder="Ask a question about this source…"
+                      disabled={asking || !ready}
+                    />
+                    <Button type="submit" disabled={asking || !ready}>
+                      {asking ? "Thinking…" : "Ask"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {activeTab === "brief" ? (
+              <Card className="notebook-surface border-0 shadow-none" id="brief">
+                <PanelHeader
+                  hintId="document-brief"
+                  title="Brief"
+                  description="AI summary of this source — read before quizzing."
+                />
+                <CardContent>
+                  {processing ? (
+                    <p className="text-sm text-muted-foreground">Processing document…</p>
+                  ) : summary ? (
+                    <div className="max-h-[min(560px,65vh)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                      {summary}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Summary will appear after processing.</p>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
 
           {activeTab === "session" ? (
             <div id="session">
@@ -649,7 +671,7 @@ export function DocumentWorkspaceClient({
                 accessToken={accessToken}
                 ready={ready}
                 busy={studioBusy}
-                onSelectTab={selectTab}
+                onSelectTab={selectStudioTab}
                 onGenerateFlashcards={() => void generateFlashcards()}
                 onGenerateQuiz={() => void generateQuiz()}
                 onSessionChange={setTrackedSession}
@@ -829,15 +851,17 @@ export function DocumentWorkspaceClient({
               <DocumentConceptGraphPanel documentId={documentId} ready={ready} accessToken={accessToken} />
             </div>
           ) : null}
+          </div>
         </section>
 
-        <aside className="hidden space-y-4 xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
+        <aside className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
+          <StudioChatShortcut active={activeTab === "chat"} onSelect={() => selectTab("chat")} />
           <StudioPanel
             activeTab={activeTab}
             ready={ready}
             busy={studioBusy}
             badges={studioBadges}
-            onSelectTab={selectTab}
+            onSelectTab={selectStudioTab}
           />
         </aside>
       </div>

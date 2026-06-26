@@ -23,6 +23,7 @@ import { DocumentConceptGraphPanel } from "@/components/documents/mind-map-panel
 import { ExcelToolsPanel } from "@/components/excel/excel-tools-panel";
 import { ChatMessageBubble } from "@/components/ui/chat-message";
 import { NotebookTabs } from "@/components/ui/notebook-tabs";
+import { PanelHeader } from "@/components/ui/panel-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ import {
   ExcelDetailSkeleton,
   ProcessingContentSkeleton,
 } from "@/components/ui/loading-skeletons";
-import { EXCEL_TAB_LABELS, type ExcelCanvasTab } from "@/lib/notebook-utils";
+import { EXCEL_WORKSPACE_TAB_LABELS, type ExcelWorkspaceTab } from "@/lib/notebook-utils";
 import { cacheResponseLabel, canEditWorkspace, workspaceRoleLabel } from "@/lib/workspace-roles";
 
 type ExcelChatMessage = {
@@ -50,7 +51,7 @@ type ExcelDetailClientProps = {
   setId?: string;
 };
 
-const VALID_EXCEL_TABS = new Set<string>(Object.keys(EXCEL_TAB_LABELS));
+const VALID_EXCEL_TABS = new Set<string>(Object.keys(EXCEL_WORKSPACE_TAB_LABELS));
 
 export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps) {
   const [analysis, setAnalysis] = useState<ExcelAnalysisResponse | null>(null);
@@ -70,10 +71,10 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
   const [messages, setMessages] = useState<ExcelChatMessage[]>([]);
   const [asking, setAsking] = useState(false);
   const [canEdit, setCanEdit] = useState(true);
-  const [activeTab, setActiveTab] = useState<ExcelCanvasTab>("brief");
+  const [activeTab, setActiveTab] = useState<ExcelWorkspaceTab>("chat");
   const autoAnalyzed = useRef(false);
 
-  const selectTab = useCallback((tab: ExcelCanvasTab) => {
+  const selectTab = useCallback((tab: ExcelWorkspaceTab) => {
     setActiveTab(tab);
     window.history.replaceState(null, "", `#${tab}`);
   }, []);
@@ -81,7 +82,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
     if (VALID_EXCEL_TABS.has(hash)) {
-      setActiveTab(hash as ExcelCanvasTab);
+      setActiveTab(hash as ExcelWorkspaceTab);
     }
   }, []);
 
@@ -254,13 +255,21 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
 
   const ready = status === "ready";
   const chartCount = (analysis?.charts.length ?? 0) + customCharts.length;
-  const tabItems = [
-    { id: "brief", label: EXCEL_TAB_LABELS.brief, badge: analysis?.summary ? "✓" : undefined },
-    { id: "preview", label: EXCEL_TAB_LABELS.preview },
-    { id: "charts", label: EXCEL_TAB_LABELS.charts, badge: chartCount || undefined },
-    { id: "builder", label: EXCEL_TAB_LABELS.builder },
-    { id: "concepts", label: EXCEL_TAB_LABELS.concepts },
-  ];
+  const showSourcesRail = Boolean(setId) && setDocuments.length > 1;
+  const tabItems = (Object.keys(EXCEL_WORKSPACE_TAB_LABELS) as ExcelWorkspaceTab[]).map((id) => ({
+    id,
+    label: EXCEL_WORKSPACE_TAB_LABELS[id],
+    badge:
+      id === "chat"
+        ? undefined
+        : id === "brief"
+          ? analysis?.summary
+            ? "✓"
+            : undefined
+          : id === "charts"
+            ? chartCount || undefined
+            : undefined,
+  }));
 
   const breadcrumbItems = setId
     ? [
@@ -286,125 +295,140 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_260px]">
-        {setId ? (
+      <div
+        className={
+          showSourcesRail
+            ? "grid gap-4 xl:grid-cols-[auto_minmax(0,1fr)_15rem]"
+            : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_15rem]"
+        }
+      >
+        {showSourcesRail && setId ? (
           <SourcesRail
             setId={setId}
             documents={setDocuments}
             activeDocumentId={documentId}
-            className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"
+            defaultCollapsed={setDocuments.length <= 2}
+            className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start"
           />
         ) : null}
 
-        <section className="min-w-0 space-y-4">
-          <Card className="notebook-surface border-0 shadow-none" id="excel-chat">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Chat with this spreadsheet</CardTitle>
-              <CardDescription>
-                Ask about trends, outliers, and comparisons — grounded in your columns and charts.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {messages.length === 0 ? (
-                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-                  Try: &quot;Which month had the highest revenue?&quot; or &quot;Summarize the main trend.&quot;
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message, index) => (
-                    <div key={`${message.question}-${index}`} className="space-y-3">
-                      <ChatMessageBubble role="user" question={message.question} />
-                      <ChatMessageBubble
-                        role="assistant"
-                        answer={message.answer}
-                        footer={[
-                          cacheResponseLabel(message.cached, message.cacheMatch, message.similarity),
-                          message.sources?.length ? `Columns: ${message.sources.join(", ")}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      />
-                      {message.documentCitations && message.documentCitations.length > 0 ? (
-                        <SourceCitations
-                          sources={message.documentCitations}
-                          groupByDocument
-                          className="ml-1"
-                        />
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={handleAsk} className="flex gap-2">
-                <Input
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  placeholder="Ask a question about your data…"
-                  disabled={asking || !ready}
-                />
-                <Button type="submit" disabled={asking || !ready}>
-                  {asking ? "Thinking…" : "Ask"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
+        <section className="min-w-0">
           <NotebookTabs
             tabs={tabItems}
             active={activeTab}
-            onChange={(id) => selectTab(id as ExcelCanvasTab)}
+            onChange={(id) => selectTab(id as ExcelWorkspaceTab)}
+            sticky
           />
 
-          {activeTab === "brief" ? (
-            <div id="brief">
-              {analyzing ? (
-                <Card className="notebook-surface border-0 shadow-none">
-                  <CardHeader>
-                    <CardTitle>Insights</CardTitle>
-                    <CardDescription>Analyzing your spreadsheet…</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ProcessingContentSkeleton lines={5} />
-                  </CardContent>
-                </Card>
-              ) : analysis?.summary ? (
-                <Card className="notebook-surface border-0 shadow-none">
-                  <CardHeader>
-                    <CardTitle>Insights</CardTitle>
-                    <CardDescription>
-                      AI summary of patterns in your data {analysis.cached ? "(cached)" : ""}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="max-h-[420px] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {analysis.summary}
+          <div className="mt-4 space-y-4">
+            {activeTab === "chat" ? (
+              <Card className="notebook-surface border-0 shadow-none" id="excel-chat">
+                <PanelHeader
+                  hintId="excel-chat"
+                  title="Chat with this spreadsheet"
+                  description="Ask about trends, outliers, and comparisons — grounded in your columns and charts."
+                />
+                <CardContent className="space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                      Try: &quot;Which month had the highest revenue?&quot; or &quot;Summarize the main trend.&quot;
                     </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="notebook-surface border-0 shadow-none">
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    {canEdit
-                      ? "Insights appear after analysis — use Re-analyze in Spreadsheet tools."
-                      : "Insights will appear once an editor analyzes this file."}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          ) : null}
+                  ) : (
+                    <div className="max-h-[min(520px,60vh)] space-y-4 overflow-y-auto pr-1">
+                      {messages.map((message, index) => (
+                        <div key={`${message.question}-${index}`} className="space-y-3">
+                          <ChatMessageBubble role="user" question={message.question} />
+                          <ChatMessageBubble
+                            role="assistant"
+                            answer={message.answer}
+                            footer={[
+                              cacheResponseLabel(message.cached, message.cacheMatch, message.similarity),
+                              message.sources?.length ? `Columns: ${message.sources.join(", ")}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          />
+                          {message.documentCitations && message.documentCitations.length > 0 ? (
+                            <SourceCitations
+                              sources={message.documentCitations}
+                              groupByDocument
+                              className="ml-1"
+                            />
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-          {activeTab === "preview" ? (
-            <Card className="notebook-surface border-0 shadow-none" id="preview" data-tour="excel-preview">
-              <CardHeader>
-                <CardTitle>Data preview</CardTitle>
-                <CardDescription>First rows from your spreadsheet</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ExcelPreviewTable preview={preview} loading={previewLoading || analyzing} />
-              </CardContent>
-            </Card>
-          ) : null}
+                  <form onSubmit={handleAsk} className="flex gap-2">
+                    <Input
+                      value={question}
+                      onChange={(event) => setQuestion(event.target.value)}
+                      placeholder="Ask a question about your data…"
+                      disabled={asking || !ready}
+                    />
+                    <Button type="submit" disabled={asking || !ready}>
+                      {asking ? "Thinking…" : "Ask"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {activeTab === "brief" ? (
+              <div id="brief">
+                {analyzing ? (
+                  <Card className="notebook-surface border-0 shadow-none">
+                    <PanelHeader
+                      hintId="excel-insights"
+                      title="Insights"
+                      description="Analyzing your spreadsheet…"
+                    />
+                    <CardContent>
+                      <ProcessingContentSkeleton lines={5} />
+                    </CardContent>
+                  </Card>
+                ) : analysis?.summary ? (
+                  <Card className="notebook-surface border-0 shadow-none">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b px-6 pb-3 pt-6">
+                      <div className="min-w-0">
+                        <h2 className="text-lg font-semibold">Insights</h2>
+                        {analysis.cached ? (
+                          <p className="mt-1 text-sm text-muted-foreground">Cached analysis</p>
+                        ) : null}
+                      </div>
+                      <ExcelInsightStats analysis={analysis} />
+                    </div>
+                    <CardContent className="pt-4">
+                      <div className="max-h-[min(560px,65vh)] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                        {analysis.summary}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="notebook-surface border-0 shadow-none">
+                    <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                      {canEdit
+                        ? "Insights appear after analysis — use Re-analyze in Spreadsheet tools."
+                        : "Insights will appear once an editor analyzes this file."}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : null}
+
+            {activeTab === "preview" ? (
+              <Card className="notebook-surface border-0 shadow-none" id="preview" data-tour="excel-preview">
+                <PanelHeader
+                  hintId="excel-preview"
+                  title="Data preview"
+                  description="First rows from your spreadsheet"
+                />
+                <CardContent>
+                  <ExcelPreviewTable preview={preview} loading={previewLoading || analyzing} />
+                </CardContent>
+              </Card>
+            ) : null}
 
           {activeTab === "charts" ? (
             <div id="charts" className="space-y-4">
@@ -503,16 +527,14 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
               />
             </div>
           ) : null}
+          </div>
         </section>
 
-        <aside className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
+        <aside className="hidden xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start">
           <ExcelToolsPanel
             analysis={analysis}
             canEdit={canEdit}
             reanalyzing={analyzing}
-            onFocusAsk={() => {
-              window.document.getElementById("excel-chat")?.scrollIntoView({ behavior: "smooth" });
-            }}
             onReanalyze={async () => {
               if (!accessToken) {
                 return;
@@ -522,6 +544,26 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
           />
         </aside>
       </div>
+    </div>
+  );
+}
+
+function ExcelInsightStats({ analysis }: { analysis: ExcelAnalysisResponse }) {
+  const stats = [
+    { label: "Rows", value: analysis.profile.row_count },
+    { label: "Cols", value: analysis.profile.column_count },
+    { label: "Charts", value: analysis.charts.length },
+  ];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {stats.map((stat) => (
+        <span
+          key={stat.label}
+          className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs tabular-nums text-muted-foreground"
+        >
+          {stat.value} {stat.label.toLowerCase()}
+        </span>
+      ))}
     </div>
   );
 }
