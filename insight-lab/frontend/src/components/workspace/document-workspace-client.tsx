@@ -41,6 +41,7 @@ import { StudioPanel } from "@/components/workspace/studio-panel";
 import { ArtifactEmptyState } from "@/components/workspace/artifact-empty-state";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
 import { HomeworkPanel } from "@/components/workspace/homework-panel";
+import { InfographicView } from "@/components/workspace/infographic-view";
 import { SlideDeckView } from "@/components/workspace/slide-deck-view";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
 import { STUDIO_TAB_LABELS, type StudioTab } from "@/lib/notebook-utils";

@@ -121,7 +121,7 @@ export function AudioOverviewPanel({
     }
   }
 
-  function stopAll() {
+  const stopAll = useCallback(() => {
     audioRef.current?.pause();
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -129,9 +129,9 @@ export function AudioOverviewPanel({
     window.speechSynthesis?.cancel();
     setPlaying(false);
     onPlayingChange?.(false, localOverview);
-  }
+  }, [localOverview, onPlayingChange]);
 
-  function togglePlay() {
+  const togglePlay = useCallback(() => {
     if (audioUrl && audioRef.current) {
       if (playing) {
         audioRef.current.pause();
@@ -164,11 +164,11 @@ export function AudioOverviewPanel({
     window.speechSynthesis.speak(utterance);
     setPlaying(true);
     onPlayingChange?.(true, localOverview);
-  }
+  }, [audioUrl, localOverview, onPlayingChange, playing]);
 
   useEffect(() => {
     onControlsReady?.({ playPause: togglePlay, stop: stopAll });
-  }, [onControlsReady, localOverview, audioUrl]);
+  }, [onControlsReady, togglePlay, stopAll]);
 
   return (
     <Card className="shadow-sm">
