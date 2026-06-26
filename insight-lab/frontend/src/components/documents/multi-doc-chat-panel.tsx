@@ -32,9 +32,11 @@ type ChatMessage = {
 export function MultiDocChatPanel({
   documents,
   workspaceId,
+  embedded = false,
 }: {
   documents: DocumentSummary[];
   workspaceId?: string;
+  embedded?: boolean;
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
@@ -236,15 +238,9 @@ export function MultiDocChatPanel({
     }
   }
 
-  return (
-    <Card className="notebook-surface border-0 shadow-none" data-tour="compare-docs">
-      <CardHeader>
-        <CardTitle className="text-lg">Compare documents</CardTitle>
-        <CardDescription>
-          Ask one question across multiple files — useful for comparing readings or lecture notes.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const content = (
+    <div className="space-y-4" data-tour={embedded ? "compare-docs" : undefined}>
+      {!embedded ? (
         <FeatureGuide
           title="Steps"
           steps={[
@@ -253,6 +249,7 @@ export function MultiDocChatPanel({
             "Click Continue to get an answer combined from your selected documents.",
           ]}
         />
+      ) : null}
         {readyDocuments.length === 0 ? (
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>
@@ -369,7 +366,22 @@ export function MultiDocChatPanel({
             </div>
           ))}
         </div>
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Card className="notebook-surface border-0 shadow-none" data-tour="compare-docs">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Compare documents</CardTitle>
+        <CardDescription>
+          Ask one question across multiple files — useful for comparing readings or lecture notes.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }
