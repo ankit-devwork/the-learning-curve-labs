@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MultiDocChatPanel } from "@/components/documents/multi-doc-chat-panel";
 import { UploadDropzone } from "@/components/workspace/upload-dropzone";
+import { UploadGuidance, UploadGuidanceNotice } from "@/components/workspace/upload-guidance";
 import { ProgressDashboardPanel } from "@/components/workspace/progress-dashboard-panel";
 import { ClassroomAnalyticsPanel } from "@/components/workspace/classroom-analytics-panel";
 import { SourceLinksPanel, shouldShowSourceLinks } from "@/components/workspace/source-links-panel";
@@ -275,10 +276,23 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   const showSourceLinks = shouldShowSourceLinks(documents, sourceLinkCount);
 
   function openDrawer(panel: SheetDrawerPanel) {
-    if (panel === "upload") {
-      setUploadAcknowledged(false);
-    }
     setDrawerPanel(panel);
+  }
+
+  function tryOpenUploadDrawer() {
+    if (
+      uploadConfig?.guidance?.require_acknowledgment &&
+      !uploadAcknowledged &&
+      documents.length === 0
+    ) {
+      toast({
+        title: "Confirm upload notice",
+        description: "Please acknowledge the privacy notice in the Materials section first.",
+        variant: "error",
+      });
+      return;
+    }
+    openDrawer("upload");
   }
 
   function closeDrawer() {
@@ -351,7 +365,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
                 variant="outline"
                 size="sm"
                 data-tour="upload-btn"
-                onClick={() => openDrawer("upload")}
+                onClick={() => tryOpenUploadDrawer()}
               >
                 <Upload className="mr-1.5 h-4 w-4" aria-hidden />
                 Upload
@@ -405,16 +419,35 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
               : `${readyCount} of ${documents.length} ready — open a file for chat, quiz, and study tools.`}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {canEdit && uploadConfig?.guidance ? (
+            documents.length === 0 ? (
+              <UploadGuidance
+                guidance={uploadConfig.guidance}
+                acknowledged={uploadAcknowledged}
+                onAcknowledgedChange={setUploadAcknowledged}
+              />
+            ) : (
+              <UploadGuidanceNotice guidance={uploadConfig.guidance} compact />
+            )
+          ) : null}
           {documents.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <div className="flex flex-col items-center gap-3 py-2 text-center">
               <p className="text-sm text-muted-foreground">
                 {canEdit
                   ? "No materials yet — upload your first file to start studying."
                   : "No materials in this sheet yet."}
               </p>
               {canEdit ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => openDrawer("upload")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    Boolean(uploadConfig?.guidance?.require_acknowledgment) && !uploadAcknowledged
+                  }
+                  onClick={() => tryOpenUploadDrawer()}
+                >
                   <Upload className="mr-1.5 h-4 w-4" aria-hidden />
                   Upload materials
                 </Button>
