@@ -6,8 +6,19 @@ from pycorekit.exceptions.file import FileException
 from supabase import Client
 
 from app.core.auth import AuthUser
+from app.core.cache import check_rate_limit
+from app.core.exceptions import RateLimitException
 from app.core.yaml_config import get_yaml_config
+from app.services.cache_invalidation import invalidate_document_caches
+from app.services.document_storage import (
+    collect_document_storage_paths,
+    remove_storage_paths,
+    should_encrypt_uploads,
+    upload_document_blob,
+)
+from app.services.graph_service import delete_document_from_neo4j
 from app.services.upload_validation import ValidatedUpload
+from app.services.workspace_access import require_editable_document
 
 log = get_logger("upload")
 
@@ -63,16 +74,17 @@ def upload_document(
     document_id = str(uuid.uuid4())
     storage_path = f"{user.id}/{document_id}/{validated.safe_filename}"
     file_hash = hashlib.sha256(content).hexdigest()
+    storage_encrypted = False
 
     try:
-        client.storage.from_(upload.storage_bucket).upload(
-            storage_path,
-            content,
-            file_options={
-                "content-type": mime_type or "application/octet-stream",
-                "upsert": "false",
-            },
+        storage_encrypted = upload_document_blob(
+            client,
+            storage_path=storage_path,
+            content=content,
+            mime_type=mime_type,
         )
+    except FileException:
+        raise
     except Exception as exc:
         raise FileException(f"Storage upload failed: {exc}", status_code=502) from exc
 
@@ -90,12 +102,13 @@ def upload_document(
                     "mime_type": mime_type,
                     "file_hash": file_hash,
                     "status": "pending",
+                    "storage_encrypted": storage_encrypted,
                 }
             )
             .execute()
         )
     except Exception as exc:
-        client.storage.from_(upload.storage_bucket).remove([storage_path])
+        remove_storage_paths(client, [storage_path])
         raise FileException(f"Failed to save document metadata: {exc}", status_code=500) from exc
 
     if not inserted.data:
@@ -109,6 +122,7 @@ def upload_document(
         filename=row["filename"],
         file_type=row["file_type"],
         storage_path=row["storage_path"],
+        storage_encrypted=storage_encrypted,
         status=row["status"],
     )
     return {
@@ -119,6 +133,44 @@ def upload_document(
         "status": row["status"],
         "created_at": row["created_at"],
     }
+
+
+async def delete_document(client: Client, document_id: str, user: AuthUser) -> dict:
+    cfg = get_yaml_config().documents
+    allowed, retry_after = await check_rate_limit(
+        key=f"delete_document:{user.id}",
+        limit=cfg.delete_rate_limit_per_hour,
+        window_seconds=3600,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Document delete limit reached ({cfg.delete_rate_limit_per_hour}/hour)",
+            retry_after=retry_after,
+        )
+
+    doc = require_editable_document(client, document_id, user)
+    workspace_id = doc["workspace_id"]
+    file_hash = doc.get("file_hash")
+    storage_paths = collect_document_storage_paths(client, document_id)
+
+    client.table("documents").delete().eq("id", document_id).execute()
+    remove_storage_paths(client, storage_paths)
+    await delete_document_from_neo4j(document_id)
+    await invalidate_document_caches(
+        client,
+        user_id=user.id,
+        document_id=document_id,
+        file_hash=file_hash,
+    )
+
+    log.info(
+        "Document deleted",
+        document_id=document_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        storage_paths_removed=len(storage_paths),
+    )
+    return {"deleted": True, "document_id": document_id}
 
 
 def list_documents(client: Client, user: AuthUser, *, limit: int | None = None) -> list[dict]:
@@ -137,6 +189,7 @@ def list_documents(client: Client, user: AuthUser, *, limit: int | None = None) 
 
 def get_upload_public_config() -> dict:
     upload = get_yaml_config().upload
+    guidance = upload.guidance
     return {
         "max_bytes": upload.max_bytes,
         "max_mb": round(upload.max_bytes / (1024 * 1024), 2),
@@ -144,4 +197,10 @@ def get_upload_public_config() -> dict:
         "allowed_extensions": sorted(upload.all_extensions()),
         "excel_extensions": upload.excel.extensions,
         "document_extensions": upload.document.extensions,
+        "guidance": {
+            "summary": guidance.summary,
+            "points": guidance.points,
+            "require_acknowledgment": guidance.require_acknowledgment,
+        },
+        "storage_encrypted": should_encrypt_uploads(),
     }

@@ -405,6 +405,12 @@ export type DocumentsResponse = {
   correlation_id?: string;
 };
 
+export type UploadGuidanceConfig = {
+  summary: string;
+  points: string[];
+  require_acknowledgment: boolean;
+};
+
 export type UploadConfigResponse = {
   max_bytes: number;
   max_mb: number;
@@ -412,6 +418,8 @@ export type UploadConfigResponse = {
   allowed_extensions: string[];
   excel_extensions: string[];
   document_extensions: string[];
+  guidance?: UploadGuidanceConfig;
+  storage_encrypted?: boolean;
 };
 
 export async function fetchUploadConfig(): Promise<UploadConfigResponse> {

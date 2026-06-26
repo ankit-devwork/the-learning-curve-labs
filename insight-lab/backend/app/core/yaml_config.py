@@ -25,6 +25,20 @@ class UploadTypeConfig(BaseModel):
     signatures: dict[str, str] = Field(default_factory=dict)
 
 
+class UploadGuidanceSection(BaseModel):
+    summary: str = (
+        "Only upload study materials you are comfortable sharing with everyone on this study sheet."
+    )
+    points: list[str] = Field(
+        default_factory=lambda: [
+            "Do not upload medical records, financial statements, government IDs, or passwords.",
+            "Do not upload copyrighted or confidential content you do not have permission to share.",
+            "Uploaded files can be viewed by study sheet members and are stored until you delete them.",
+        ]
+    )
+    require_acknowledgment: bool = True
+
+
 class UploadSection(BaseModel):
     storage_bucket: str
     max_bytes: int
@@ -32,8 +46,10 @@ class UploadSection(BaseModel):
     filename_max_length: int
     default_workspace_name: str
     documents_list_default_limit: int = 20
+    delete_rate_limit_per_hour: int = 20
     excel: UploadTypeConfig
     document: UploadTypeConfig
+    guidance: UploadGuidanceSection = Field(default_factory=UploadGuidanceSection)
 
     def all_extensions(self) -> set[str]:
         return {ext.lower() for ext in self.excel.extensions + self.document.extensions}
@@ -156,6 +172,7 @@ class DocumentsSection(BaseModel):
     max_context_chunks: int = 6
     process_rate_limit_per_hour: int = 10
     chat_rate_limit_per_min: int = 20
+    delete_rate_limit_per_hour: int = 20
 
 
 class LlmSection(BaseModel):

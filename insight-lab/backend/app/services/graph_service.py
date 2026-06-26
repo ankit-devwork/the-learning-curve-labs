@@ -106,6 +106,29 @@ async def _sync_to_neo4j(
         return False
 
 
+async def delete_document_from_neo4j(document_id: str) -> None:
+    if not neo4j_client.is_configured:
+        return
+
+    try:
+        driver = neo4j_client.get_driver()
+        async with driver.session() as session:
+            await session.run(
+                """
+                MATCH (d:Document {id: $document_id})
+                OPTIONAL MATCH (d)-[:MENTIONS]->(c:Concept)
+                DETACH DELETE c, d
+                """,
+                document_id=document_id,
+            )
+    except Exception as exc:
+        log.warning(
+            "Neo4j document cleanup failed",
+            document_id=document_id,
+            error=str(exc),
+        )
+
+
 async def sync_document_graph(
     client: Client,
     document_id: str,
