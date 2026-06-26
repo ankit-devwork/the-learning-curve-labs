@@ -9,6 +9,7 @@ import {
   type QuizResponse,
   type QuizSubmitResponse,
   type QuizQuestionEditable,
+  type ExplainResponse,
   type StudySessionRecord,
 } from "@/lib/api";
 import { resolveDocumentQuizStepId } from "@/lib/study-session-utils";
@@ -72,6 +73,8 @@ export function DocumentQuizPanel({
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [exportingQti, setExportingQti] = useState(false);
+  const [explainLoadingId, setExplainLoadingId] = useState<string | null>(null);
+  const [deepExplanations, setDeepExplanations] = useState<Record<string, ExplainResponse>>({});
   const { toast } = useToast();
 
   const loadMastery = useCallback(async () => {
@@ -93,6 +96,29 @@ export function DocumentQuizPanel({
   useEffect(() => {
     void loadMastery();
   }, [loadMastery]);
+
+  async function explainQuestion(questionId: string) {
+    if (!accessToken || !quiz?.quiz_id || explainLoadingId) {
+      return;
+    }
+    setExplainLoadingId(questionId);
+    try {
+      const response = await apiFetch(
+        `/quizzes/${quiz.quiz_id}/questions/${questionId}/explain`,
+        accessToken,
+        { method: "POST" },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({ title: "Explain failed", description: body.error, variant: "error" });
+        return;
+      }
+      const data = (await response.json()) as ExplainResponse;
+      setDeepExplanations((current) => ({ ...current, [questionId]: data }));
+    } finally {
+      setExplainLoadingId(null);
+    }
+  }
 
   const generateQuiz = useCallback(async () => {
     if (!accessToken || !canEdit) {
@@ -611,6 +637,24 @@ export function DocumentQuizPanel({
                     <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{result.source_preview}</p>
                   </div>
                 )}
+                {!result.correct && quiz?.quiz_id ? (
+                  <div className="mt-3 space-y-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={explainLoadingId === result.question_id}
+                      onClick={() => void explainQuestion(result.question_id)}
+                    >
+                      {explainLoadingId === result.question_id ? "Explaining…" : "Explain with citation"}
+                    </Button>
+                    {deepExplanations[result.question_id]?.explanation ? (
+                      <p className="whitespace-pre-wrap text-muted-foreground">
+                        {deepExplanations[result.question_id].explanation}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))}
             <div className="flex flex-wrap gap-2">

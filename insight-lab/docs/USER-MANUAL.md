@@ -123,7 +123,19 @@ Open a ready document from your sheet.
 
 ### Chat
 
-Ask questions about the file. Answers include citations you can click to see the source excerpt.
+Ask questions about the file. Answers include citations you can click to see the source excerpt. **Chat history is saved** — when you return to the document, previous questions and answers reload automatically.
+
+### Homework help
+
+Paste an assignment question to get **step-by-step help** grounded in this document when possible. Verify critical steps with your instructor.
+
+### Flashcards — review due today
+
+After you review cards, InsightLab schedules the next review (spaced repetition). Use **Review due today** to focus on cards that are due. Tap **Explain with citation** on any difficult card.
+
+### Quiz — explain wrong answers
+
+After submitting a quiz, tap **Explain with citation** on any wrong answer for a deeper explanation from your document.
 
 ### Studio (right panel)
 
@@ -135,7 +147,9 @@ Ask questions about the file. Answers include citations you can click to see the
 | **Flashcards** | Flip cards; export to Anki CSV |
 | **Study guide** | Structured outline; export to PDF |
 | **Infographic** | Visual summary |
-| **Audio overview** | Listen to a narrated summary |
+| **Slides** | Presentation outline; export Markdown for Google Slides / PowerPoint |
+| **Homework help** | Step-by-step solver grounded in your document |
+| **Audio overview** | MP3 narration (or browser voice fallback) |
 | **Concept graph** | Topics from this file, colored by mastery |
 
 ### Guided study plan (single file)

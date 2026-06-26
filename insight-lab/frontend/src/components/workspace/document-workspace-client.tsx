@@ -16,6 +16,8 @@ import {
   type InfographicResponse,
   type SummaryResponse,
   type AudioOverviewResponse,
+  type SlideDeckResponse,
+  type ExplainResponse,
   type SourceCitation,
   type WorkspaceSummary,
 } from "@/lib/api";
@@ -38,7 +40,8 @@ import { StudySessionPanel } from "@/components/workspace/study-session-panel";
 import { StudioPanel } from "@/components/workspace/studio-panel";
 import { ArtifactEmptyState } from "@/components/workspace/artifact-empty-state";
 import { StudyGuideView } from "@/components/workspace/study-guide-view";
-import { InfographicView } from "@/components/workspace/infographic-view";
+import { HomeworkPanel } from "@/components/workspace/homework-panel";
+import { SlideDeckView } from "@/components/workspace/slide-deck-view";
 import { SuggestedQuestions } from "@/components/workspace/suggested-questions";
 import { STUDIO_TAB_LABELS, type StudioTab } from "@/lib/notebook-utils";
 import { resolveDocumentQuizStepId } from "@/lib/study-session-utils";
@@ -83,6 +86,7 @@ export function DocumentWorkspaceClient({
   const [studyGuide, setStudyGuide] = useState<StudyGuideResponse | null>(null);
   const [infographic, setInfographic] = useState<InfographicResponse | null>(null);
   const [audioOverview, setAudioOverview] = useState<AudioOverviewResponse | null>(null);
+  const [slideDeck, setSlideDeck] = useState<SlideDeckResponse | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState<StudioTab>("brief");
   const [trackedSession, setTrackedSession] = useState<StudySessionRecord | null>(null);
@@ -216,6 +220,38 @@ export function DocumentWorkspaceClient({
     }
   }, [documentId]);
 
+  const loadChatHistory = useCallback(async (token: string) => {
+    const response = await apiFetch(`/documents/${documentId}/chat/history`, token);
+    if (!response.ok) {
+      return;
+    }
+    const data = await response.json();
+    const history = (data.messages ?? []) as Array<{
+      question: string;
+      answer: string;
+      sources?: SourceCitation[];
+      cached?: boolean;
+    }>;
+    setMessages(
+      history.map((item) => ({
+        question: item.question,
+        answer: item.answer,
+        sources: item.sources,
+        cached: item.cached,
+      })),
+    );
+  }, [documentId]);
+
+  const loadSlideDeck = useCallback(async (token: string) => {
+    const response = await apiFetch(`/documents/${documentId}/slide-decks`, token);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.slide_deck) {
+        setSlideDeck(data.slide_deck as SlideDeckResponse);
+      }
+    }
+  }, [documentId]);
+
   const processDocument = useCallback(async (token: string) => {
     setProcessing(true);
     const response = await apiFetch(`/documents/${documentId}/process`, token, { method: "POST" });
@@ -244,6 +280,8 @@ export function DocumentWorkspaceClient({
           loadFlashcards(token),
           loadStudyGuide(token),
           loadInfographic(token),
+          loadChatHistory(token),
+          loadSlideDeck(token),
         ]);
         return;
       }
@@ -268,6 +306,8 @@ export function DocumentWorkspaceClient({
     loadSummary,
     loadQuiz,
     loadSuggested,
+    loadChatHistory,
+    loadSlideDeck,
     processDocument,
     refreshStatus,
   ]);
@@ -415,6 +455,28 @@ export function DocumentWorkspaceClient({
     }
   }
 
+  async function generateSlideDeck() {
+    if (!accessToken) {
+      return;
+    }
+    setStudioBusy(true);
+    selectTab("slides");
+    try {
+      const response = await apiFetch(`/documents/${documentId}/slide-decks/generate`, accessToken, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast({ title: "Slide deck failed", description: body.error, variant: "error" });
+        return;
+      }
+      setSlideDeck((await response.json()) as SlideDeckResponse);
+      toast({ title: "Slide deck ready", variant: "success" });
+    } finally {
+      setStudioBusy(false);
+    }
+  }
+
   async function generateInfographic() {
     if (!accessToken) {
       return;
@@ -453,6 +515,7 @@ export function DocumentWorkspaceClient({
     flashcards: flashcards ? flashcards.card_count : undefined,
     guide: studyGuide ? "✓" : undefined,
     infographic: infographic ? "✓" : undefined,
+    slides: slideDeck ? "✓" : undefined,
     audio: audioOverview ? "✓" : undefined,
   };
   const mobileTabs = (Object.keys(STUDIO_TAB_LABELS) as StudioTab[]).map((id) => ({
@@ -613,6 +676,9 @@ export function DocumentWorkspaceClient({
                   title={flashcards.title}
                   setId={flashcards.set_id}
                   cards={flashcards.cards}
+                  dueIds={flashcards.due_ids}
+                  dueCount={flashcards.due_count}
+                  accessToken={accessToken}
                   onReview={async (flashcardId, knew) => {
                     if (!accessToken) {
                       return;
@@ -622,6 +688,21 @@ export function DocumentWorkspaceClient({
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ flashcard_id: flashcardId, knew }),
                     });
+                    await loadFlashcards(accessToken);
+                  }}
+                  onExplain={async (flashcardId) => {
+                    if (!accessToken) {
+                      return null;
+                    }
+                    const response = await apiFetch(
+                      `/flashcards/${flashcards.set_id}/cards/${flashcardId}/explain`,
+                      accessToken,
+                      { method: "POST" },
+                    );
+                    if (!response.ok) {
+                      return null;
+                    }
+                    return (await response.json()) as ExplainResponse;
                   }}
                   onViewSource={(card) => {
                     if (card.source_chunk_index != null) {
@@ -682,6 +763,42 @@ export function DocumentWorkspaceClient({
                   actionBusy={studioBusy}
                 />
               )}
+            </div>
+          ) : null}
+
+          {activeTab === "slides" ? (
+            <div id="slides">
+              {slideDeck ? (
+                <SlideDeckView
+                  title={slideDeck.title}
+                  content={slideDeck.content}
+                  slideDeckId={slideDeck.slide_deck_id}
+                  accessToken={accessToken}
+                />
+              ) : (
+                <ArtifactEmptyState
+                  message={
+                    canEdit
+                      ? "Generate a slide deck outline from this source."
+                      : "No slide deck yet for this source."
+                  }
+                  actionLabel={canEdit ? "Generate slide deck" : undefined}
+                  onAction={canEdit ? () => void generateSlideDeck() : undefined}
+                  actionDisabled={!ready}
+                  actionBusy={studioBusy}
+                />
+              )}
+            </div>
+          ) : null}
+
+          {activeTab === "homework" ? (
+            <div id="homework">
+              <HomeworkPanel
+                documentId={documentId}
+                accessToken={accessToken}
+                ready={ready}
+                onCitationClick={(source) => void openCitation(source)}
+              />
             </div>
           ) : null}
 

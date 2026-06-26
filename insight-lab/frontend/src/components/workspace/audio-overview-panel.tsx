@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, Pause, Play, Volume2 } from "lucide-react";
-import { apiFetch, type AudioOverviewResponse } from "@/lib/api";
+import { apiFetch, getApiUrl, type AudioOverviewResponse } from "@/lib/api";
 import { downloadTextFile } from "@/lib/export-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,11 +30,40 @@ export function AudioOverviewPanel({
   const [generating, setGenerating] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     setLocalOverview(overview ?? null);
   }, [overview]);
+
+  const revokeAudioUrl = useCallback(() => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+  }, [audioUrl]);
+
+  const loadMp3 = useCallback(async () => {
+    if (!accessToken || !localOverview?.has_audio) {
+      return;
+    }
+    revokeAudioUrl();
+    const response = await fetch(getApiUrl(`/documents/${documentId}/audio-overview/mp3`), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      return;
+    }
+    const blob = await response.blob();
+    setAudioUrl(URL.createObjectURL(blob));
+  }, [accessToken, documentId, localOverview?.has_audio, revokeAudioUrl]);
+
+  useEffect(() => {
+    void loadMp3();
+    return () => revokeAudioUrl();
+  }, [loadMp3, revokeAudioUrl]);
 
   const loadExisting = useCallback(async () => {
     if (!accessToken || !ready) {
@@ -57,131 +86,160 @@ export function AudioOverviewPanel({
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
+      revokeAudioUrl();
     };
-  }, []);
+  }, [revokeAudioUrl]);
 
   async function handleGenerate() {
-    if (!accessToken) {
+    if (!accessToken || !ready) {
       return;
     }
     setGenerating(true);
     setError(null);
     try {
-      const response = await apiFetch(
-        `/documents/${documentId}/audio-overview/generate`,
-        accessToken,
-        { method: "POST" },
-      );
+      const response = await apiFetch(`/documents/${documentId}/audio-overview/generate`, accessToken, {
+        method: "POST",
+      });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        setError(body.error || "Failed to generate audio overview");
+        setError(body.error || "Could not generate audio overview.");
         return;
       }
-      const data = (await response.json()) as AudioOverviewResponse;
-      setLocalOverview(data);
-      onGenerated?.(data);
+      const data = await response.json();
+      const next = {
+        document_id: documentId,
+        title: data.title,
+        script: data.script,
+        estimated_minutes: data.estimated_minutes,
+        has_audio: data.has_audio,
+        overview_id: data.overview_id,
+      } as AudioOverviewResponse;
+      setLocalOverview(next);
+      onGenerated?.(next);
     } finally {
       setGenerating(false);
     }
   }
 
-  function setPlayingState(next: boolean) {
-    setPlaying(next);
-    onPlayingChange?.(next, localOverview);
+  function stopAll() {
+    audioRef.current?.pause();
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+    }
+    window.speechSynthesis?.cancel();
+    setPlaying(false);
+    onPlayingChange?.(false, localOverview);
   }
 
-  function handlePlayPause() {
+  function togglePlay() {
+    if (audioUrl && audioRef.current) {
+      if (playing) {
+        audioRef.current.pause();
+        setPlaying(false);
+        onPlayingChange?.(false, localOverview);
+      } else {
+        void audioRef.current.play();
+        setPlaying(true);
+        onPlayingChange?.(true, localOverview);
+      }
+      return;
+    }
+
     if (!localOverview?.script || typeof window === "undefined" || !window.speechSynthesis) {
       return;
     }
-
     if (playing) {
       window.speechSynthesis.cancel();
-      setPlayingState(false);
+      setPlaying(false);
+      onPlayingChange?.(false, localOverview);
       return;
     }
-
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(localOverview.script);
-    utterance.rate = 1;
-    utterance.onend = () => setPlayingState(false);
-    utterance.onerror = () => setPlayingState(false);
+    utterance.onend = () => {
+      setPlaying(false);
+      onPlayingChange?.(false, localOverview);
+    };
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-    setPlayingState(true);
-  }
-
-  function handleStop() {
-    window.speechSynthesis?.cancel();
-    setPlayingState(false);
+    setPlaying(true);
+    onPlayingChange?.(true, localOverview);
   }
 
   useEffect(() => {
-    onControlsReady?.({ playPause: handlePlayPause, stop: handleStop });
-  });
+    onControlsReady?.({ playPause: togglePlay, stop: stopAll });
+  }, [onControlsReady, localOverview, audioUrl]);
 
   return (
-    <Card className="notebook-surface border-0 shadow-none" data-tour="audio-overview">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Volume2 className="h-4 w-4 text-primary" aria-hidden />
-          <CardTitle className="text-base">Audio overview</CardTitle>
-        </div>
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Audio overview</CardTitle>
         <CardDescription>
-          Listen to a narrated summary of this document using your browser&apos;s text-to-speech.
+          {localOverview?.has_audio
+            ? "Pre-generated MP3 narration from your document summary."
+            : "Generate a narrated summary. MP3 is created when TTS is available on the server."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
         {!localOverview ? (
           <Button type="button" disabled={!ready || generating} onClick={() => void handleGenerate()}>
-            {generating ? "Generating script…" : "Generate audio overview"}
+            {generating ? "Generating…" : "Generate audio overview"}
           </Button>
         ) : (
           <>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="default" className="gap-2" onClick={handlePlayPause}>
-                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {playing ? "Pause" : "Play overview"}
+              <Button type="button" variant="default" onClick={togglePlay}>
+                {playing ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
+                {playing ? "Pause" : "Play"}
               </Button>
-              {playing ? (
-                <Button type="button" variant="outline" onClick={handleStop}>
-                  Stop
+              <Button type="button" variant="outline" onClick={stopAll}>
+                Stop
+              </Button>
+              {localOverview.script ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => downloadTextFile(localOverview.script, "audio-overview-script.txt")}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Script
                 </Button>
               ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                onClick={() =>
-                  downloadTextFile(localOverview.script, `${documentId}-audio-overview.txt`)
-                }
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                Download script
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={generating}
-                onClick={() => void handleGenerate()}
-              >
-                Regenerate
-              </Button>
             </div>
-            {localOverview.estimated_minutes ? (
-              <p className="text-xs text-muted-foreground">
-                ~{localOverview.estimated_minutes} min listen
-                {localOverview.cached ? " · cached" : ""}
+            {audioUrl ? (
+              <audio
+                ref={audioRef}
+                src={audioUrl}
+                className="w-full"
+                controls
+                onPlay={() => {
+                  setPlaying(true);
+                  onPlayingChange?.(true, localOverview);
+                }}
+                onPause={() => {
+                  setPlaying(false);
+                  onPlayingChange?.(false, localOverview);
+                }}
+                onEnded={() => {
+                  setPlaying(false);
+                  onPlayingChange?.(false, localOverview);
+                }}
+              />
+            ) : (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Volume2 className="h-4 w-4" />
+                Using browser voice — regenerate on server with TTS for MP3 quality.
               </p>
+            )}
+            {localOverview.estimated_minutes ? (
+              <p className="text-xs text-muted-foreground">~{localOverview.estimated_minutes} min listen</p>
             ) : null}
-            <div className="max-h-48 overflow-y-auto rounded-md border bg-muted/20 p-3 text-sm leading-relaxed text-muted-foreground">
+            <div className="max-h-48 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground whitespace-pre-wrap">
               {localOverview.script}
             </div>
           </>
         )}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </CardContent>
     </Card>
   );

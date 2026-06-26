@@ -45,6 +45,21 @@ def study_guide_to_markdown(*, title: str, content: dict) -> str:
     return "\n".join(parts).strip() + "\n"
 
 
+def slide_deck_to_markdown(*, title: str, content: dict) -> str:
+    parts = [f"# {title}", ""]
+    for slide in content.get("slides") or []:
+        slide_title = slide.get("title") or "Slide"
+        parts.append(f"## Slide {slide.get('slide_number', '')}: {slide_title}")
+        for bullet in slide.get("bullets") or []:
+            parts.append(f"- {bullet}")
+        notes = slide.get("speaker_notes")
+        if notes:
+            parts.append("")
+            parts.append(f"_Speaker notes:_ {notes}")
+        parts.append("")
+    return "\n".join(parts).strip() + "\n"
+
+
 def quiz_to_qti_xml(*, title: str, questions: list[dict]) -> str:
     """Minimal QTI 1.2 assessment XML for LMS import."""
     import html

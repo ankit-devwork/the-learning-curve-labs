@@ -665,6 +665,58 @@ export type FlashcardSetResponse = {
   title: string;
   cards: FlashcardItem[];
   card_count: number;
+  due_count?: number;
+  due_ids?: string[];
+};
+
+export type ExplainResponse = {
+  explanation: string;
+  sources?: SourceCitation[];
+  kind?: string;
+};
+
+export type ChatHistoryMessage = {
+  id?: string;
+  question: string;
+  answer: string;
+  sources?: SourceCitation[];
+  cached?: boolean;
+  created_at?: string;
+};
+
+export type HomeworkStep = {
+  title: string;
+  detail: string;
+};
+
+export type HomeworkSolutionResponse = {
+  solution_id?: string;
+  document_id: string;
+  question: string;
+  steps: HomeworkStep[];
+  summary?: string;
+  sources?: SourceCitation[];
+  disclaimer?: string;
+};
+
+export type SlideDeckSlide = {
+  slide_number: number;
+  title: string;
+  bullets: string[];
+  speaker_notes?: string;
+};
+
+export type SlideDeckContent = {
+  title: string;
+  slides: SlideDeckSlide[];
+};
+
+export type SlideDeckResponse = {
+  slide_deck_id: string;
+  document_id: string;
+  title: string;
+  content: SlideDeckContent;
+  created_at?: string;
 };
 
 export type StudyGuideContent = {
@@ -742,9 +794,11 @@ export type DocumentChunkResponse = {
 
 export type AudioOverviewResponse = {
   document_id: string;
+  overview_id?: string;
   title: string;
   script: string;
   estimated_minutes?: number;
+  has_audio?: boolean;
   cached?: boolean;
   correlation_id?: string;
 };

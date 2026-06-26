@@ -177,17 +177,30 @@ class ArtifactsSection(BaseModel):
     review_rate_limit_per_min: int = 120
     max_flashcards: int = 20
     max_context_chunks: int = 8
+    max_slides: int = 12
     flashcard_max_tokens: int = 2000
     study_guide_max_tokens: int = 2500
     infographic_max_tokens: int = 2500
+    slide_deck_max_tokens: int = 2800
     suggested_questions_max_tokens: int = 400
     chunk_preview_max_chars: int = 1200
+
+
+class ExplainSection(BaseModel):
+    rate_limit_per_min: int = 15
+    max_tokens: int = 900
+
+
+class HomeworkSection(BaseModel):
+    rate_limit_per_min: int = 10
+    max_tokens: int = 1800
 
 
 class AudioOverviewSection(BaseModel):
     generate_rate_limit_per_min: int = 5
     max_tokens: int = 1200
     target_words: int = 450
+    tts_enabled: bool = True
 
 
 class ExcelPreviewSection(BaseModel):
@@ -210,6 +223,8 @@ class YamlConfig(BaseModel):
     multi_doc: MultiDocSection
     artifacts: ArtifactsSection
     audio_overview: AudioOverviewSection
+    explain: ExplainSection
+    homework: HomeworkSection
     excel_preview: ExcelPreviewSection
     course_pack: CoursePackSection
     sharing: SharingSection

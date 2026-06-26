@@ -11,6 +11,8 @@ from app.core.cache import cache_get, cache_set, check_rate_limit
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.services.workspace_access import get_accessible_document, require_editable_document
 from app.core.yaml_config import get_yaml_config
+from app.core.migration_guard import run_or_none_phase14
+from app.services.chat_history_service import list_compare_chat_messages, save_compare_chat_message
 from app.services.citations import build_source_citations, collapse_sources_by_document, hash_document_ids
 from app.services.embeddings import embed_text, search_workspace_chunks
 from app.services.llm_client import (
@@ -386,9 +388,31 @@ async def ask_multiple_documents(
         document_count=len(approved_sorted),
         source_count=len(sources),
     )
+    resolved_workspace_id = workspace_id or docs[0].get("workspace_id")
+    if resolved_workspace_id:
+        run_or_none_phase14(
+            lambda: save_compare_chat_message(
+                client,
+                workspace_id=resolved_workspace_id,
+                user=user,
+                document_ids=approved_sorted,
+                question=question,
+                answer=payload["answer"],
+                sources=sources,
+                cached=False,
+            )
+        )
     return payload
 
 
 def multi_doc_ids_hash(document_ids: list[str]) -> str:
     joined = ",".join(sorted(document_ids))
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
+
+
+def get_compare_chat_history(
+    client: Client,
+    workspace_id: str,
+    user: AuthUser,
+) -> list[dict[str, Any]]:
+    return run_or_none_phase14(lambda: list_compare_chat_messages(client, workspace_id, user)) or []

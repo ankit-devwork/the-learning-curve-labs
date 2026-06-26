@@ -51,6 +51,7 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 Configured in `backend/config.yaml`:
 
 - Chat, quiz generate/submit, Excel, upload, sharing invites, team chat (post, list, delete)
+- Explain (`explain.rate_limit_per_min`), homework solver (`homework.rate_limit_per_min`), artifact generation
 - Public quiz: `public_get_rate_limit_per_min`, `public_submit_rate_limit_per_min`
 - Redis / Upstash required for distributed rate limiting
 
@@ -93,6 +94,7 @@ Run migrations **001–019** (see [supabase/README.md](../supabase/README.md)).
 | **017** | Member-only team chat (`workspace_messages` RLS) |
 | **018** | Storage read policies for workspace members on shared documents |
 | **019** | Supabase Realtime publication for `workspace_messages` (member RLS still applies to subscribers) |
+| **020** | Chat history, flashcard SRS, persisted audio/slides, homework solutions (user-scoped RLS) |
 
 Team chat posts and deletes remain **backend-only** (rate-limited FastAPI routes). Realtime is read-only on the client — members only receive rows their RLS policies allow.
 

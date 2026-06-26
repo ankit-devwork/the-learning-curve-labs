@@ -15,3 +15,10 @@ def test_study_sessions_schema_markers():
 def test_team_chat_schema_markers():
     assert is_missing_team_chat_schema(Exception("Could not find the table 'workspace_messages'"))
     assert not is_missing_team_chat_schema(Exception("rate limit exceeded"))
+
+
+def test_phase14_schema_markers():
+    from app.core.migration_guard import is_missing_phase14_schema
+
+    assert is_missing_phase14_schema(Exception("document_chat_messages"))
+    assert not is_missing_phase14_schema(Exception("timeout"))

@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+from typing import Any
 
 import litellm
 
@@ -682,6 +683,142 @@ async def generate_audio_overview_script(*, summary: str, filename: str) -> str:
 
 def audio_overview_cache_key(user_id: str, document_id: str, content_hash: str) -> str:
     return f"audio_overview:{user_id}:{document_id}:{content_hash}"
+
+
+def slide_deck_cache_key(user_id: str, document_id: str) -> str:
+    return f"slide_deck:{user_id}:{document_id}"
+
+
+async def generate_slide_deck_draft(
+    *,
+    context_chunks: list[str],
+    summary: str,
+    filename: str,
+    max_slides: int = 12,
+) -> str:
+    cfg = get_yaml_config().artifacts
+    prompt = (
+        "Create a presentation slide deck from the document excerpts below. "
+        "Return ONLY valid JSON with keys: title (string), slides (array). "
+        "Each slide object must have: title (string), bullets (array of 3-6 short strings), "
+        "speaker_notes (string, 1-2 sentences). "
+        f"Use at most {max_slides} slides. Focus on teaching flow, not filler.\n\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('summary', summary[:4000])}\n\n"
+        f"{tag_block('excerpts', _join_chunks(context_chunks))}"
+    )
+    return await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.slide_deck_max_tokens,
+    )
+
+
+async def explain_with_citations(
+    *,
+    topic: str,
+    context_label: str,
+    context_chunks: list[str],
+    filename: str,
+    extra: str = "",
+) -> dict[str, str]:
+    cfg = get_yaml_config().explain
+    prompt = (
+        f"Explain the following topic clearly for a learner. {context_label}.\n"
+        "Return ONLY valid JSON: {\"explanation\": \"...\"}. "
+        "Use 2-4 short paragraphs. Ground the explanation in the excerpts when possible.\n\n"
+        f"{tag_block('topic', topic)}\n"
+        f"{tag_block('filename', filename)}\n"
+        f"{tag_block('extra', extra)}\n\n"
+        f"{tag_block('excerpts', _join_chunks(context_chunks))}"
+    )
+    raw = await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.max_tokens,
+    )
+    text = _strip_json_fence(raw)
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid explain payload")
+    explanation = str(payload.get("explanation", "")).strip()
+    if not explanation:
+        raise ValueError("Empty explanation")
+    return {"explanation": explanation}
+
+
+async def solve_homework_step_by_step(
+    *,
+    question: str,
+    context_chunks: list[str],
+    filename: str,
+) -> dict[str, Any]:
+    cfg = get_yaml_config().homework
+    prompt = (
+        "You are a patient tutor. Solve or explain the homework question using the course excerpts when relevant. "
+        "Return ONLY valid JSON with keys:\n"
+        "- steps: array of {title, detail} (3-8 steps, detail is 1-3 sentences each)\n"
+        "- summary: one-sentence final answer or takeaway\n"
+        "If the excerpts do not contain enough information, say so in step 1 and give general guidance "
+        "without inventing course-specific facts.\n\n"
+        f"{tag_block('question', question)}\n"
+        f"{tag_block('filename', filename)}\n\n"
+        f"{tag_block('excerpts', _join_chunks(context_chunks))}"
+    )
+    raw = await _acompletion_with_resilience(
+        messages=[
+            {
+                "role": "system",
+                "content": grounded_system_prompt("Return JSON only. No markdown."),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=cfg.max_tokens,
+    )
+    text = _strip_json_fence(raw)
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid homework payload")
+    steps = payload.get("steps") or []
+    if not isinstance(steps, list):
+        raise ValueError("Invalid homework steps")
+    cleaned_steps = []
+    for step in steps[:10]:
+        if not isinstance(step, dict):
+            continue
+        title = str(step.get("title", "")).strip()
+        detail = str(step.get("detail", "")).strip()
+        if title and detail:
+            cleaned_steps.append({"title": title, "detail": detail})
+    if not cleaned_steps:
+        raise ValueError("Homework response had no steps")
+    return {
+        "steps": cleaned_steps,
+        "summary": str(payload.get("summary", "")).strip(),
+    }
+
+
+def _strip_json_fence(raw: str) -> str:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+    return text.strip()
+
+
+def _join_chunks(chunks: list[str]) -> str:
+    return "\n\n---\n\n".join(chunk[:2000] for chunk in chunks[:8])
 
 
 def workspace_adaptive_quiz_cache_key(

@@ -8,8 +8,10 @@ import {
   Layers,
   Network,
   PlayCircle,
+  Presentation,
   Sparkles,
   Volume2,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +39,9 @@ const actions: Array<{
   { id: "flashcards", label: "Flashcards", icon: Layers, description: "Term and definition cards" },
   { id: "guide", label: "Study guide", icon: BookOpen, description: "Structured overview" },
   { id: "infographic", label: "Infographic", icon: Image, description: "Visual summary card" },
-  { id: "audio", label: "Audio overview", icon: Volume2, description: "Narrated summary" },
+  { id: "slides", label: "Slide deck", icon: Presentation, description: "Presentation outline" },
+  { id: "homework", label: "Homework help", icon: Wrench, description: "Step-by-step solver" },
+  { id: "audio", label: "Audio overview", icon: Volume2, description: "Narrated summary (MP3)" },
   { id: "concepts", label: "Concept graph", icon: Network, description: "Topics and mastery" },
 ];
 

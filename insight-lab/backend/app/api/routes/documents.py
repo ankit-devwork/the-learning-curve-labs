@@ -9,9 +9,12 @@ from app.core.supabase_client import get_supabase_client
 from app.services.document_service import (
     ask_document,
     get_document,
+    get_document_chat_history,
     get_document_summary,
     process_document,
 )
+from app.services.homework_service import list_homework_solutions, solve_document_homework
+from app.services.multi_doc_service import get_compare_chat_history
 from app.services.document_extras import (
     get_document_chunk,
     get_document_processing_status,
@@ -29,6 +32,10 @@ router = APIRouter()
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
+
+
+class HomeworkSolveRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=4000)
 
 
 class MultiRetrieveRequest(BaseModel):
@@ -206,3 +213,57 @@ async def get_active_document_study_session_route(
     result = get_active_document_study_session(get_supabase_client(), document_id, user)
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/chat/history")
+@with_observability("get_document_chat_history")
+async def get_document_chat_history_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    messages = get_document_chat_history(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"messages": messages, "correlation_id": correlation_id}
+
+
+@router.post("/documents/{document_id}/homework/solve")
+@with_observability("solve_document_homework")
+async def solve_document_homework_route(
+    document_id: str,
+    body: HomeworkSolveRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await solve_document_homework(
+        get_supabase_client(),
+        document_id,
+        user,
+        question=body.question,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/documents/{document_id}/homework/history")
+@with_observability("list_homework_solutions")
+async def list_homework_solutions_route(
+    document_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    solutions = list_homework_solutions(get_supabase_client(), document_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"solutions": solutions, "correlation_id": correlation_id}
+
+
+@router.get("/workspaces/{workspace_id}/compare/chat/history")
+@with_observability("get_compare_chat_history")
+async def get_compare_chat_history_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    messages = get_compare_chat_history(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {"messages": messages, "correlation_id": correlation_id}

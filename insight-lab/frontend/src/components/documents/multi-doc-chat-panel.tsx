@@ -67,6 +67,22 @@ export function MultiDocChatPanel({
     void loadSession();
   }, []);
 
+  useEffect(() => {
+    if (!accessToken || !workspaceId) {
+      return;
+    }
+    async function loadHistory() {
+      const response = await apiFetch(`/workspaces/${workspaceId}/compare/chat/history`, accessToken);
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json();
+      const history = (data.messages ?? []) as ChatMessage[];
+      setMessages(history);
+    }
+    void loadHistory();
+  }, [accessToken, workspaceId]);
+
   const toggleDocument = useCallback((documentId: string) => {
     setPendingDocuments([]);
     setPendingQuestion("");

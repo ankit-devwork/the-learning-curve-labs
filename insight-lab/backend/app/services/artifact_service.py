@@ -7,6 +7,7 @@ from supabase import Client
 
 from app.core.auth import AuthUser
 from app.core.cache import cache_get, cache_set, check_rate_limit
+from app.core.migration_guard import PHASE3_020_MIGRATION_NOTICE, run_or_none_phase14
 from app.core.exceptions import NotFoundException, RateLimitException
 from app.core.safe_errors import sanitize_stored_error
 from app.core.yaml_config import get_yaml_config
@@ -15,15 +16,20 @@ from app.services.artifact_parsing import (
     infographic_to_content,
     parse_flashcard_draft,
     parse_infographic_draft,
+    parse_slide_deck_draft,
     parse_study_guide_draft,
+    slide_deck_to_content,
     study_guide_to_content,
 )
+from app.services.flashcard_srs_service import get_due_flashcard_ids, _update_srs_safe
 from app.services.llm_client import (
     flashcard_cache_key,
     generate_flashcard_draft,
     generate_infographic_draft,
+    generate_slide_deck_draft,
     generate_study_guide_draft,
     infographic_cache_key,
+    slide_deck_cache_key,
     study_guide_cache_key,
 )
 from app.services.workspace_access import get_accessible_document, require_editable_document
@@ -146,12 +152,18 @@ async def get_flashcard_set(client: Client, set_id: str, user: AuthUser) -> dict
         .data
         or []
     )
+    card_ids = [row["id"] for row in cards]
+    srs = run_or_none_phase14(lambda: get_due_flashcard_ids(client, user, flashcard_ids=card_ids))
+    due_count = srs["due_count"] if srs else len(cards)
+    due_ids = srs["due_ids"] if srs else card_ids
     return {
         "set_id": flashcard_set["id"],
         "document_id": flashcard_set["document_id"],
         "title": flashcard_set["title"],
         "cards": cards,
         "card_count": len(cards),
+        "due_count": due_count,
+        "due_ids": due_ids,
     }
 
 
@@ -194,7 +206,13 @@ async def review_flashcard(
             "knew": knew,
         }
     ).execute()
-    return {"flashcard_id": flashcard_id, "knew": knew, "recorded": True}
+    srs = _update_srs_safe(client, user, flashcard_id=flashcard_id, knew=knew)
+    return {
+        "flashcard_id": flashcard_id,
+        "knew": knew,
+        "recorded": True,
+        "srs": srs,
+    }
 
 
 async def generate_document_study_guide(
@@ -396,6 +414,125 @@ async def get_infographic_by_id(client: Client, infographic_id: str, user: AuthU
     get_accessible_document(client, row["document_id"], user, min_role="viewer")
     return {
         "infographic_id": row["id"],
+        "document_id": row["document_id"],
+        "title": row["title"],
+        "content": row["content"],
+        "created_at": row["created_at"],
+    }
+
+
+async def generate_document_slide_deck(
+    client: Client,
+    document_id: str,
+    user: AuthUser,
+) -> dict[str, Any]:
+    cfg = get_yaml_config().artifacts
+    allowed, retry_after = await check_rate_limit(
+        key=f"slide_deck:{user.id}",
+        limit=cfg.generate_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            f"Slide deck generation limit reached ({cfg.generate_rate_limit_per_min}/min)",
+            retry_after=retry_after,
+        )
+
+    cache_key = slide_deck_cache_key(user.id, document_id)
+    cached = await cache_get(cache_key)
+    if cached and cached.get("slide_deck_id"):
+        return await get_slide_deck_by_id(client, cached["slide_deck_id"], user)
+
+    doc = require_editable_document(client, document_id, user)
+    if doc["file_type"] != "document":
+        raise FileException("Slide decks are only available for document uploads")
+    if doc["status"] != "ready" or not doc.get("summary"):
+        raise FileException("Document must be processed before generating a slide deck", status_code=409)
+
+    chunks = (
+        client.table("document_chunks")
+        .select("chunk_index, content")
+        .eq("document_id", document_id)
+        .order("chunk_index")
+        .execute()
+        .data
+        or []
+    )
+    sampled = _sample_chunks(chunks, cfg.max_context_chunks)
+    context_chunks = [row["content"] for row in sampled]
+
+    raw = await generate_slide_deck_draft(
+        context_chunks=context_chunks,
+        summary=doc["summary"],
+        filename=doc["filename"],
+        max_slides=cfg.max_slides,
+    )
+    try:
+        draft = parse_slide_deck_draft(raw, max_slides=cfg.max_slides)
+        content = slide_deck_to_content(draft)
+    except (ValueError, Exception) as exc:
+        raise FileException(f"Invalid slide deck payload from LLM: {exc}", status_code=502) from exc
+
+    deck_id = str(uuid4())
+
+    def _insert() -> dict[str, Any]:
+        client.table("document_slide_decks").insert(
+            {
+                "id": deck_id,
+                "document_id": document_id,
+                "workspace_id": doc["workspace_id"],
+                "owner_id": user.id,
+                "title": content["title"] or f"Slides: {doc['filename']}",
+                "content": content,
+            }
+        ).execute()
+        return {"id": deck_id, "content": content}
+
+    inserted = run_or_none_phase14(_insert)
+    if inserted is None:
+        raise FileException(PHASE3_020_MIGRATION_NOTICE, status_code=503)
+
+    await cache_set(cache_key, {"slide_deck_id": deck_id}, get_yaml_config().cache.artifact_ttl)
+    log.info("Slide deck generated", slide_deck_id=deck_id, document_id=document_id, user_id=user.id)
+    return await get_slide_deck_by_id(client, deck_id, user)
+
+
+async def get_document_slide_deck(client: Client, document_id: str, user: AuthUser) -> dict[str, Any] | None:
+    get_accessible_document(client, document_id, user, min_role="viewer")
+
+    def _load() -> dict[str, Any] | None:
+        rows = (
+            client.table("document_slide_decks")
+            .select("id")
+            .eq("document_id", document_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        return rows[0] if rows else None
+
+    row = run_or_none_phase14(_load)
+    if not row:
+        return None
+    return await get_slide_deck_by_id(client, row["id"], user)
+
+
+async def get_slide_deck_by_id(client: Client, slide_deck_id: str, user: AuthUser) -> dict[str, Any]:
+    result = (
+        client.table("document_slide_decks")
+        .select("*")
+        .eq("id", slide_deck_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise NotFoundException("Slide deck not found")
+    row = result.data[0]
+    get_accessible_document(client, row["document_id"], user, min_role="viewer")
+    return {
+        "slide_deck_id": row["id"],
         "document_id": row["document_id"],
         "title": row["title"],
         "content": row["content"],
