@@ -36,7 +36,11 @@ export type StudioTab =
   | "homework"
   | "concepts";
 
+export type DocumentWorkspaceTab = "chat" | StudioTab;
+
 export type ExcelCanvasTab = "brief" | "preview" | "charts" | "builder" | "concepts" | "quiz";
+
+export type ExcelWorkspaceTab = "chat" | ExcelCanvasTab;
 
 export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   brief: "Brief",
@@ -51,6 +55,11 @@ export const STUDIO_TAB_LABELS: Record<StudioTab, string> = {
   concepts: "Concept graph",
 };
 
+export const DOCUMENT_WORKSPACE_TAB_LABELS: Record<DocumentWorkspaceTab, string> = {
+  chat: "Chat",
+  ...STUDIO_TAB_LABELS,
+};
+
 export const EXCEL_TAB_LABELS: Record<ExcelCanvasTab, string> = {
   brief: "Insights",
   preview: "Preview",
@@ -59,3 +68,30 @@ export const EXCEL_TAB_LABELS: Record<ExcelCanvasTab, string> = {
   concepts: "Concept graph",
   quiz: "Quiz",
 };
+
+export const EXCEL_WORKSPACE_TAB_LABELS: Record<ExcelWorkspaceTab, string> = {
+  chat: "Chat",
+  ...EXCEL_TAB_LABELS,
+};
+
+export const STUDIO_TAB_ORDER: StudioTab[] = [
+  "brief",
+  "session",
+  "quiz",
+  "flashcards",
+  "guide",
+  "infographic",
+  "slides",
+  "homework",
+  "audio",
+  "concepts",
+];
+
+export const EXCEL_TAB_ORDER: ExcelCanvasTab[] = [
+  "brief",
+  "preview",
+  "charts",
+  "builder",
+  "concepts",
+  "quiz",
+];

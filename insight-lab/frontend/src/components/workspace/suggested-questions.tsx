@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const VISIBLE_COUNT = 2;
 
 type SuggestedQuestionsProps = {
   questions: string[];
@@ -16,17 +19,41 @@ export function SuggestedQuestions({
   onSelect,
   className,
 }: SuggestedQuestionsProps) {
+  const [expanded, setExpanded] = useState(false);
+
   if (questions.length === 0) {
     return null;
   }
 
+  const visible = expanded ? questions : questions.slice(0, VISIBLE_COUNT);
+  const hiddenCount = questions.length - VISIBLE_COUNT;
+
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Suggested questions
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Try asking
+        </p>
+        {!expanded && hiddenCount > 0 ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+            onClick={() => setExpanded(true)}
+          >
+            Show {hiddenCount} more
+          </button>
+        ) : expanded && questions.length > VISIBLE_COUNT ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+            onClick={() => setExpanded(false)}
+          >
+            Show less
+          </button>
+        ) : null}
+      </div>
       <div className="flex flex-wrap gap-2">
-        {questions.map((question) => (
+        {visible.map((question) => (
           <Button
             key={question}
             type="button"
