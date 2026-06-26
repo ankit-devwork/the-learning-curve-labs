@@ -318,6 +318,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
             active={activeTab}
             onChange={(id) => selectTab(id as ExcelWorkspaceTab)}
             sticky
+            className="xl:hidden"
           />
 
           <div className="mt-4 space-y-4">

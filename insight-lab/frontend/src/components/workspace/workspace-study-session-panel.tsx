@@ -11,6 +11,7 @@ type WorkspaceStudySessionPanelProps = {
   accessToken: string | null;
   hasReadyDocuments: boolean;
   learningPathId?: string | null;
+  embedded?: boolean;
 };
 
 function stepDescription(step: WorkspaceStudySessionPlan["steps"][number]): string {
@@ -47,6 +48,7 @@ export function WorkspaceStudySessionPanel({
   accessToken,
   hasReadyDocuments,
   learningPathId = null,
+  embedded = false,
 }: WorkspaceStudySessionPanelProps) {
   const [session, setSession] = useState<StudySessionRecord | null>(null);
   const [previewPlan, setPreviewPlan] = useState<WorkspaceStudySessionPlan | null>(null);
@@ -165,6 +167,13 @@ export function WorkspaceStudySessionPanel({
   const steps = session?.steps ?? [];
 
   if (!hasReadyDocuments) {
+    if (embedded) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          Upload and process files to see your study plan.
+        </p>
+      );
+    }
     return (
       <Card className="shadow-sm" data-tour="study-session">
         <CardHeader>
@@ -182,19 +191,17 @@ export function WorkspaceStudySessionPanel({
 
   const focusStep = displayPlan?.steps.find((step) => step.step === "focus");
 
-  return (
-    <Card className="shadow-sm" data-tour="study-session">
-      <CardHeader>
-        <CardTitle>Guided study plan</CardTitle>
-        <CardDescription>
-          {displayPlan
-            ? `~${displayPlan.estimated_minutes} min across ${displayPlan.document_count} file${displayPlan.document_count === 1 ? "" : "s"}`
-            : "Optional checklist with saved progress"}
-          {displayPlan?.focus_topic ? ` · focus: ${displayPlan.focus_topic}` : ""}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {progress ? (
+  const body = (
+    <div className="space-y-4">
+      {displayPlan && !embedded ? (
+        <p className="text-sm text-muted-foreground">
+          ~{displayPlan.estimated_minutes} min across {displayPlan.document_count} file
+          {displayPlan.document_count === 1 ? "" : "s"}
+          {displayPlan.focus_topic ? ` · focus: ${displayPlan.focus_topic}` : ""}
+        </p>
+      ) : null}
+
+      {progress ? (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>
@@ -292,7 +299,25 @@ export function WorkspaceStudySessionPanel({
               );
             })}
         </ol>
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <Card className="shadow-sm" data-tour="study-session">
+      <CardHeader>
+        <CardTitle>Guided study plan</CardTitle>
+        <CardDescription>
+          {displayPlan
+            ? `~${displayPlan.estimated_minutes} min across ${displayPlan.document_count} file${displayPlan.document_count === 1 ? "" : "s"}`
+            : "Optional checklist with saved progress"}
+          {displayPlan?.focus_topic ? ` · focus: ${displayPlan.focus_topic}` : ""}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   );
 }
