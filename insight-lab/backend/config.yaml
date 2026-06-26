@@ -78,6 +78,10 @@ team_chat:
   post_rate_limit_per_min: 30
   list_rate_limit_per_min: 120
   delete_rate_limit_per_min: 30
+  inbox_rate_limit_per_min: 60
+  mark_read_rate_limit_per_min: 120
+  typing_rate_limit_per_min: 120
+  typing_ttl_seconds: 5
 
 email:
   enabled: false

@@ -49,7 +49,7 @@ const sections = [
       },
       {
         heading: "Team chat",
-        body: "Plain-text messages for sheet members. Coordinate with classmates — no links or attachments.",
+        body: "Open Team chat from the bottom-right corner on any dashboard page. See all study sheets in the inbox, unread badges, typing indicators, and read receipts on messages you send. Plain text only — no links or attachments.",
       },
       {
         heading: "Compare",

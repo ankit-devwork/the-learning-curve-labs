@@ -11,7 +11,7 @@ Security model, known risks, and production checklist for InsightLab.
 | **Database** | RLS on all tables; backend is primary enforcement boundary |
 | **Storage** | Private bucket; optional app-level Fernet encryption at rest; signed URLs via backend |
 
-Team chat messages are **never** exposed across study sheets: Postgres RLS (`is_workspace_member`) plus backend `require_workspace_role()` on every list/post/delete. Message bodies are validated server-side (ASCII English, no links/files/HTML/emoji).
+Team chat messages are **never** exposed across study sheets: Postgres RLS (`is_workspace_member`) plus backend `require_workspace_role()` on every list/post/delete/read/inbox route. Message bodies are validated server-side (ASCII English, no links/files/HTML/emoji). Read cursors and read receipts are user-scoped (RLS); message authors may see who read their messages only — not other members' read state.
 
 Storage objects in the `uploads` bucket use path `{owner_id}/{document_id}/{filename}`. When `DOCUMENT_STORAGE_ENCRYPTION_KEY` is set, new uploads are encrypted with Fernet before storage (`documents.storage_encrypted = true`). Legacy plaintext blobs remain readable until re-uploaded.
 
@@ -39,6 +39,7 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 | Remove members, change roles | owner |
 | Delete any team chat message | owner |
 | Post team chat message | viewer (all members) |
+| Mark team chat read / inbox / typing | viewer (own read state; members only) |
 | Course pack / LMS / Markdown export | editor |
 | QTI quiz export | editor |
 
@@ -55,7 +56,7 @@ The backend uses the **Supabase service role**, which bypasses RLS. Every route 
 
 Configured in `backend/config.yaml`:
 
-- Chat, quiz generate/submit, Excel, upload, sharing invites, team chat (post, list, delete)
+- Chat, quiz generate/submit, Excel, upload, sharing invites, team chat (post, list, delete, inbox, mark-read, typing)
 - Explain (`explain.rate_limit_per_min`), homework solver (`homework.rate_limit_per_min`), artifact generation
 - Public quiz: `public_get_rate_limit_per_min`, `public_submit_rate_limit_per_min`
 - Redis / Upstash required for distributed rate limiting
@@ -92,7 +93,7 @@ NEXT_PUBLIC_SHOW_DEV_PANEL=false
 
 ### Supabase
 
-Run migrations **001–019** (see [supabase/README.md](../supabase/README.md)).
+Run migrations **001–023** (see [supabase/README.md](../supabase/README.md)).
 
 | Migration | Purpose |
 |-----------|---------|
@@ -103,8 +104,12 @@ Run migrations **001–019** (see [supabase/README.md](../supabase/README.md)).
 | **019** | Supabase Realtime publication for `workspace_messages` (member RLS still applies to subscribers) |
 | **020** | Chat history, flashcard SRS, persisted audio/slides, homework solutions (user-scoped RLS) |
 | **021** | `storage_encrypted` flag; editor document delete RLS |
+| **022** | Team chat read cursors + per-message read receipts; Realtime on `workspace_message_reads` |
+| **023** | Member-scoped typing presence (`workspace_typing_presence` RLS + Realtime) |
 
-Team chat posts and deletes remain **backend-only** (rate-limited FastAPI routes). Realtime is read-only on the client — members only receive rows their RLS policies allow.
+Team chat posts, deletes, inbox, and mark-read remain **backend-only** (JWT + rate-limited FastAPI routes). Realtime message and read-receipt subscriptions are read-only on the client — members only receive rows their RLS policies allow.
+
+**Typing indicators** use the `workspace_typing_presence` table with member RLS and backend heartbeats (`POST/GET /workspaces/{id}/typing`). Only authenticated study sheet members can publish or subscribe via Realtime; knowing a workspace UUID alone is not sufficient.
 
 ### Deploy verification
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, MoreHorizontal } from "lucide-react";
+import { Loader2, MoreHorizontal, Check, CheckCheck } from "lucide-react";
 import type { TeamChatMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -220,6 +220,35 @@ export function TeamChatThread({
                 )}
               >
                 <p className="whitespace-pre-wrap">{message.body}</p>
+                {isOwn ? (
+                  <div
+                    className={cn(
+                      "mt-1 flex items-center justify-end gap-1 text-[10px]",
+                      (message.read_by_count ?? 0) > 0 ? "text-primary-foreground/80" : "text-primary-foreground/50",
+                    )}
+                    title={
+                      message.read_by && message.read_by.length > 0
+                        ? `Seen by ${message.read_by.map((reader) => reader.name).join(", ")}`
+                        : "Sent"
+                    }
+                  >
+                    {(message.read_by_count ?? 0) > 0 ? (
+                      <>
+                        <CheckCheck className="h-3 w-3" aria-hidden />
+                        <span>
+                          {message.read_by_count === 1
+                            ? "Seen"
+                            : `Seen by ${message.read_by_count}`}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3" aria-hidden />
+                        <span>Sent</span>
+                      </>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

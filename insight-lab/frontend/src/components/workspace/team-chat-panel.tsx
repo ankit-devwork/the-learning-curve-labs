@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MessageCircle, Send, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { apiFetch, parseApiError, type TeamChatMessage, type WorkspaceMessagesResponse } from "@/lib/api";
+import {
+  apiFetch,
+  parseApiError,
+  type TeamChatMessage,
+  type WorkspaceMessagesResponse,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeamChatThread } from "@/components/workspace/team-chat-thread";
+import { useTeamChatTyping } from "@/hooks/use-team-chat-typing";
 import { cn } from "@/lib/utils";
 
 const FALLBACK_POLL_INTERVAL_MS = 30_000;
@@ -16,10 +22,10 @@ type TeamChatPanelProps = {
   setId: string;
   accessToken: string | null;
   isOwner: boolean;
-  /** When true, omit outer card chrome (for embedded study sheet). */
+  workspaceName?: string;
   embedded?: boolean;
-  /** Content only — used inside the floating corner dock. */
   dock?: boolean;
+  onReadStateChange?: () => void;
 };
 
 function validateClientMessage(body: string): string | null {
@@ -39,9 +45,20 @@ function validateClientMessage(body: string): string | null {
   return null;
 }
 
-export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, dock = false }: TeamChatPanelProps) {
+export function TeamChatPanel({
+  setId,
+  accessToken,
+  isOwner,
+  workspaceName,
+  embedded = false,
+  dock = false,
+  onReadStateChange,
+}: TeamChatPanelProps) {
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,22 +67,58 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
   const [accessDenied, setAccessDenied] = useState(false);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const skipAutoScrollRef = useRef(false);
+  const lastMarkedMessageIdRef = useRef<string | null>(null);
 
-  const loadMessages = useCallback(
-    async (options?: { silent?: boolean }) => {
-      if (!accessToken) {
-        return;
+  const applyPayload = useCallback((payload: WorkspaceMessagesResponse, mode: "replace" | "prepend") => {
+    setMigrationNotice(null);
+    setHasMore(Boolean(payload.has_more));
+    setNextBefore(payload.next_before ?? null);
+    setMessages((prev) => {
+      if (mode === "prepend") {
+        const existing = new Set(prev.map((message) => message.id));
+        const older = (payload.messages ?? []).filter((message) => !existing.has(message.id));
+        return [...older, ...prev];
       }
-      if (!options?.silent) {
+      return payload.messages ?? [];
+    });
+  }, []);
+
+  const fetchMessages = useCallback(
+    async (options?: { silent?: boolean; before?: string | null }) => {
+      if (!accessToken) {
+        return null;
+      }
+      const isOlder = Boolean(options?.before);
+      if (!options?.silent && !isOlder) {
         setLoading(true);
       }
+      if (isOlder) {
+        setLoadingOlder(true);
+        skipAutoScrollRef.current = true;
+      }
       setError(null);
-      const response = await apiFetch(`/workspaces/${setId}/messages`, accessToken);
-      if (!options?.silent) {
+
+      const params = new URLSearchParams();
+      if (options?.before) {
+        params.set("before", options.before);
+      }
+      const query = params.toString();
+      const response = await apiFetch(
+        `/workspaces/${setId}/messages${query ? `?${query}` : ""}`,
+        accessToken,
+      );
+
+      if (!options?.silent && !isOlder) {
         setLoading(false);
       }
+      if (isOlder) {
+        setLoadingOlder(false);
+      }
+
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         if (response.status === 403) {
@@ -77,19 +130,51 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
         } else {
           setError(parseApiError(body, `Could not load team chat (${response.status})`));
         }
-        return;
+        return null;
       }
+
       setAccessDenied(false);
       const payload = (await response.json()) as WorkspaceMessagesResponse;
       if (payload.migration_required && payload.notice) {
         setMigrationNotice(payload.notice);
         setMessages([]);
+        return null;
+      }
+
+      if (isOlder) {
+        const container = scrollContainerRef.current;
+        const previousHeight = container?.scrollHeight ?? 0;
+        applyPayload(payload, "prepend");
+        requestAnimationFrame(() => {
+          if (container) {
+            container.scrollTop = container.scrollHeight - previousHeight;
+          }
+          skipAutoScrollRef.current = false;
+        });
+      } else {
+        applyPayload(payload, "replace");
+      }
+      return payload;
+    },
+    [accessToken, applyPayload, setId],
+  );
+
+  const markMessagesRead = useCallback(
+    async (upToMessageId: string | null) => {
+      if (!accessToken || !upToMessageId || lastMarkedMessageIdRef.current === upToMessageId) {
         return;
       }
-      setMigrationNotice(null);
-      setMessages(payload.messages ?? []);
+      lastMarkedMessageIdRef.current = upToMessageId;
+      const response = await apiFetch(`/workspaces/${setId}/messages/read`, accessToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ up_to_message_id: upToMessageId }),
+      });
+      if (response.ok) {
+        onReadStateChange?.();
+      }
     },
-    [accessToken, setId],
+    [accessToken, onReadStateChange, setId],
   );
 
   useEffect(() => {
@@ -104,25 +189,31 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
   }, []);
 
   useEffect(() => {
+    lastMarkedMessageIdRef.current = null;
+  }, [setId]);
+
+  useEffect(() => {
     if (!accessToken || accessDenied) {
       return;
     }
 
-    void loadMessages();
+    void fetchMessages();
 
     const supabase = createClient();
     const channel = supabase
       .channel(`workspace-messages-${setId}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "workspace_messages",
-          filter: `workspace_id=eq.${setId}`,
-        },
+        { event: "*", schema: "public", table: "workspace_messages", filter: `workspace_id=eq.${setId}` },
         () => {
-          void loadMessages({ silent: true });
+          void fetchMessages({ silent: true });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "workspace_message_reads" },
+        () => {
+          void fetchMessages({ silent: true });
         },
       )
       .subscribe((status) => {
@@ -137,7 +228,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
           setRealtimeConnected(false);
           if (!pollRef.current) {
             pollRef.current = setInterval(() => {
-              void loadMessages({ silent: true });
+              void fetchMessages({ silent: true });
             }, FALLBACK_POLL_INTERVAL_MS);
           }
         }
@@ -150,11 +241,30 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
       }
       void supabase.removeChannel(channel);
     };
-  }, [accessDenied, accessToken, loadMessages, setId]);
+  }, [accessDenied, accessToken, fetchMessages, setId]);
 
   useEffect(() => {
+    if (skipAutoScrollRef.current || loading || messages.length === 0) {
+      return;
+    }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [loading, messages]);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      return;
+    }
+    const latest = messages[messages.length - 1];
+    void markMessagesRead(latest.id);
+  }, [markMessagesRead, messages]);
+
+  const { typingLabel } = useTeamChatTyping({
+    workspaceId: setId,
+    accessToken,
+    currentUserId,
+    draft,
+    enabled: !accessDenied && !migrationNotice,
+  });
 
   const canDeleteMessage = useCallback(
     (message: TeamChatMessage) => {
@@ -190,7 +300,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
       return;
     }
     setDraft("");
-    await loadMessages({ silent: true });
+    await fetchMessages({ silent: true });
   };
 
   const handleDelete = async (messageId: string) => {
@@ -208,7 +318,7 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
       setError(parseApiError(body, `Could not delete message (${response.status})`));
       return;
     }
-    await loadMessages({ silent: true });
+    await fetchMessages({ silent: true });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -221,11 +331,33 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
   const composerDisabled = !accessToken || sending || accessDenied || Boolean(migrationNotice);
 
   const threadArea = (
-    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+    <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
       {migrationNotice ? (
         <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
           {migrationNotice}
         </p>
+      ) : null}
+
+      {hasMore && !loading ? (
+        <div className="mb-3 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full text-xs"
+            disabled={loadingOlder || !nextBefore}
+            onClick={() => void fetchMessages({ silent: true, before: nextBefore })}
+          >
+            {loadingOlder ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Loading…
+              </>
+            ) : (
+              "Load older messages"
+            )}
+          </Button>
+        </div>
       ) : null}
 
       {loading ? (
@@ -237,7 +369,9 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
           <MessageCircle className="h-10 w-10 opacity-40" />
           <p className="text-sm font-medium text-foreground">Start a conversation</p>
           <p className="max-w-xs text-xs">
-            Invite teammates from Share, then coordinate study plans and deadlines here.
+            {workspaceName
+              ? `Invite teammates to ${workspaceName} from Share, then coordinate here.`
+              : "Invite teammates from Share, then coordinate study plans and deadlines here."}
           </p>
         </div>
       ) : (
@@ -255,6 +389,11 @@ export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false, d
 
   const composer = (
     <div className="shrink-0 border-t bg-muted/20 px-3 py-3 sm:px-4">
+      {typingLabel ? (
+        <p className="mb-2 text-xs italic text-muted-foreground" aria-live="polite">
+          {typingLabel}
+        </p>
+      ) : null}
       {error ? (
         <p className="mb-2 text-xs text-destructive" role="alert">
           {error}
