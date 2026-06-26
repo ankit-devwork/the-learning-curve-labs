@@ -176,7 +176,7 @@ export function CoursePackPanel({
 
   const introCopy = excelOnly
     ? "This sheet has spreadsheets only. Generate packs spreadsheet analysis summaries. Quizzes, flashcards, and study guides require PDF or Word uploads."
-    : "Generate summary, quiz, flashcards, study guide, and audio for every ready document — plus spreadsheet summaries. Export Markdown, Canvas (.imscc), or an LMS zip.";
+    : "Generate summary, quiz, flashcards, study guide, audio, infographic, slides, and a sample homework walkthrough for every ready document — plus spreadsheet summaries. Export Markdown, Canvas (.imscc), or an LMS zip.";
 
   const content = (
     <div className="space-y-4">

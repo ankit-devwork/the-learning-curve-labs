@@ -46,6 +46,37 @@ type ExcelChatMessage = {
   documentCitations?: SourceCitation[];
 };
 
+function mapExcelChatHistory(
+  messages: Array<{
+    question: string;
+    answer: string;
+    sources?: Array<{ type?: string; label?: string } & SourceCitation>;
+    cached?: boolean;
+  }>,
+): ExcelChatMessage[] {
+  return messages.map((item) => {
+    const columnSources: string[] = [];
+    const documentCitations: SourceCitation[] = [];
+    for (const source of item.sources ?? []) {
+      if (source?.type === "column") {
+        const label = String(source.label ?? "").trim();
+        if (label) {
+          columnSources.push(label);
+        }
+      } else if (source) {
+        documentCitations.push(source);
+      }
+    }
+    return {
+      question: item.question,
+      answer: item.answer,
+      cached: item.cached,
+      sources: columnSources.length > 0 ? columnSources : undefined,
+      documentCitations: documentCitations.length > 0 ? documentCitations : undefined,
+    };
+  });
+}
+
 type ExcelDetailClientProps = {
   documentId: string;
   setId?: string;
@@ -158,6 +189,21 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
     return true;
   }, [documentId, loadPreview]);
 
+  const loadChatHistory = useCallback(async (token: string) => {
+    const response = await apiFetch(`/documents/${documentId}/chat/history`, token);
+    if (!response.ok) {
+      return;
+    }
+    const data = await response.json();
+    const history = (data.messages ?? []) as Array<{
+      question: string;
+      answer: string;
+      sources?: Array<{ type?: string; label?: string } & SourceCitation>;
+      cached?: boolean;
+    }>;
+    setMessages(mapExcelChatHistory(history));
+  }, [documentId]);
+
   const handleCustomChartCreated = useCallback((chart: ExcelChart) => {
     setCustomCharts((current) => {
       const withoutDuplicate = current.filter((item) => item.id !== chart.id);
@@ -194,7 +240,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
       }
       const { token, status: docStatus, accessRole } = result;
       if (docStatus === "ready") {
-        await loadCharts(token);
+        await Promise.all([loadCharts(token), loadChatHistory(token)]);
         return;
       }
       if (
@@ -207,7 +253,7 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
       }
     }
     void init();
-  }, [documentId, loadDocument, loadCharts, analyzeSpreadsheet]);
+  }, [documentId, loadDocument, loadCharts, loadChatHistory, analyzeSpreadsheet]);
 
   async function handleAsk(event: React.FormEvent) {
     event.preventDefault();
@@ -259,9 +305,11 @@ export function ExcelDetailClient({ documentId, setId }: ExcelDetailClientProps)
   const tabItems = (Object.keys(EXCEL_WORKSPACE_TAB_LABELS) as ExcelWorkspaceTab[]).map((id) => ({
     id,
     label: EXCEL_WORKSPACE_TAB_LABELS[id],
-    badge:
+            badge:
       id === "chat"
-        ? undefined
+        ? messages.length > 0
+          ? String(messages.length)
+          : undefined
         : id === "brief"
           ? analysis?.summary
             ? "✓"

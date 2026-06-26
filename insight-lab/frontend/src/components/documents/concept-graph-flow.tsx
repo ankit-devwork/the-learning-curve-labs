@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Background,
@@ -17,11 +17,11 @@ import "@xyflow/react/dist/style.css";
 import type { GraphEdge, GraphNode } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const NODE_WIDTH = 176;
-const NODE_HEIGHT = 52;
-const H_GAP = 48;
+const NODE_WIDTH = 208;
+const NODE_HEIGHT = 64;
+const H_GAP = 40;
 const V_GAP = 72;
-const TOPIC_BAND = 96;
+const TOPIC_BAND = 108;
 
 export const TOPIC_COLORS = [
   "border-blue-400/60 bg-blue-500/10 text-blue-900 dark:text-blue-100",
@@ -37,6 +37,7 @@ type ConceptNodeData = {
   topic: string;
   documentFilename?: string;
   masteryStatus?: "untested" | "needs_practice" | "strong";
+  masteryPercent?: number | null;
   href?: string;
 };
 
@@ -51,19 +52,54 @@ function masteryBorderClass(status: ConceptNodeData["masteryStatus"]): string {
   }
 }
 
+function masteryBadgeClass(status: ConceptNodeData["masteryStatus"]): string {
+  switch (status) {
+    case "needs_practice":
+      return "bg-rose-500/10 text-rose-700 dark:text-rose-300";
+    case "strong":
+      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
 function ConceptNode({ data }: NodeProps<Node<ConceptNodeData>>) {
   const inner = (
     <div
       className={cn(
-        "rounded-lg border bg-card px-3 py-2 shadow-sm",
+        "w-[208px] rounded-lg border bg-card px-3 py-2 shadow-sm",
         masteryBorderClass(data.masteryStatus),
       )}
     >
       <Handle type="target" position={Position.Top} className="!bg-primary" />
-      <p className="max-w-[148px] truncate text-xs font-medium">{data.label}</p>
-      <p className="max-w-[148px] truncate text-[10px] text-muted-foreground">{data.topic}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p
+          className="line-clamp-2 min-w-0 flex-1 text-xs font-medium leading-snug"
+          title={data.label}
+        >
+          {data.label}
+        </p>
+        {data.masteryPercent != null ? (
+          <span
+            className={cn(
+              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+              masteryBadgeClass(data.masteryStatus),
+            )}
+          >
+            {data.masteryPercent}%
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-1 truncate text-[10px] text-muted-foreground" title={data.topic}>
+        {data.topic}
+      </p>
       {data.documentFilename ? (
-        <p className="max-w-[148px] truncate text-[10px] text-muted-foreground/80">{data.documentFilename}</p>
+        <p
+          className="truncate text-[10px] text-muted-foreground/80"
+          title={data.documentFilename}
+        >
+          {data.documentFilename}
+        </p>
       ) : null}
       <Handle type="source" position={Position.Bottom} className="!bg-primary" />
     </div>
@@ -88,6 +124,26 @@ export function topicColorIndex(topic: string): number {
     hash = topic.charCodeAt(index) + ((hash << 5) - hash);
   }
   return Math.abs(hash) % TOPIC_COLORS.length;
+}
+
+export function filterGraphByTopic(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  topic: string | null,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (!topic) {
+    return { nodes, edges };
+  }
+  const visibleIds = new Set(
+    nodes
+      .filter((node) => (node.topic?.trim() || "General") === topic)
+      .map((node) => node.id),
+  );
+  const filteredNodes = nodes.filter((node) => visibleIds.has(node.id));
+  const filteredEdges = edges.filter(
+    (edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target),
+  );
+  return { nodes: filteredNodes, edges: filteredEdges };
 }
 
 export function layoutConceptGraph(
@@ -138,6 +194,7 @@ export function layoutConceptGraph(
           topic: node.topic?.trim() || "General",
           documentFilename: options?.groupByDocument ? undefined : node.document_filename ?? undefined,
           masteryStatus: node.mastery?.status,
+          masteryPercent: node.mastery?.percent,
           href: options?.getNodeHref?.(node),
         },
       });
@@ -147,18 +204,21 @@ export function layoutConceptGraph(
     bandIndex += Math.max(rows, 1) + 0.5;
   }
 
-  const flowEdges: Edge[] = edges.map((edge, index) => ({
-    id: `edge-${edge.source}-${edge.target}-${index}`,
-    source: edge.source,
-    target: edge.target,
-    type: "smoothstep",
-    animated: edge.type === "prerequisite_for",
-    label: edge.type === "prerequisite_for" ? "builds on" : edge.type === "belongs_to" ? "part of" : undefined,
-    style: {
-      stroke: edge.type === "related_to" ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))",
-      strokeDasharray: edge.type === "related_to" ? "4 4" : undefined,
-    },
-  }));
+  const visibleNodeIds = new Set(flowNodes.map((node) => node.id));
+  const flowEdges: Edge[] = edges
+    .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+    .map((edge, index) => ({
+      id: `edge-${edge.source}-${edge.target}-${index}`,
+      source: edge.source,
+      target: edge.target,
+      type: "smoothstep",
+      animated: edge.type === "prerequisite_for",
+      label: edge.type === "prerequisite_for" ? "builds on" : edge.type === "belongs_to" ? "part of" : undefined,
+      style: {
+        stroke: edge.type === "related_to" ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))",
+        strokeDasharray: edge.type === "related_to" ? "4 4" : undefined,
+      },
+    }));
 
   return { nodes: flowNodes, edges: flowEdges };
 }
@@ -178,10 +238,7 @@ export function ConceptGraphFlow({
   groupByDocument = false,
   getNodeHref,
 }: ConceptGraphFlowProps) {
-  const layout = useMemo(
-    () => layoutConceptGraph(nodes, edges, { getNodeHref, groupByDocument }),
-    [nodes, edges, getNodeHref, groupByDocument],
-  );
+  const [activeTopic, setActiveTopic] = useState<string | null>(null);
 
   const topicLegend = useMemo(() => {
     const topics = new Set<string>();
@@ -191,6 +248,16 @@ export function ConceptGraphFlow({
     return Array.from(topics).sort((left, right) => left.localeCompare(right));
   }, [nodes]);
 
+  const filteredGraph = useMemo(
+    () => filterGraphByTopic(nodes, edges, activeTopic),
+    [activeTopic, edges, nodes],
+  );
+
+  const layout = useMemo(
+    () => layoutConceptGraph(filteredGraph.nodes, filteredGraph.edges, { getNodeHref, groupByDocument }),
+    [filteredGraph.edges, filteredGraph.nodes, getNodeHref, groupByDocument],
+  );
+
   if (nodes.length === 0) {
     return null;
   }
@@ -198,17 +265,32 @@ export function ConceptGraphFlow({
   return (
     <div className="space-y-3">
       {topicLegend.length > 1 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+              activeTopic === null
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-background text-muted-foreground hover:bg-muted/40",
+            )}
+            onClick={() => setActiveTopic(null)}
+          >
+            All topics
+          </button>
           {topicLegend.map((topic) => (
-            <span
+            <button
               key={topic}
+              type="button"
               className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                "rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
                 TOPIC_COLORS[topicColorIndex(topic)],
+                activeTopic === topic && "ring-2 ring-primary/40",
               )}
+              onClick={() => setActiveTopic((current) => (current === topic ? null : topic))}
             >
               {topic}
-            </span>
+            </button>
           ))}
         </div>
       ) : null}
@@ -223,27 +305,37 @@ export function ConceptGraphFlow({
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-full border border-border" /> Untested
         </span>
+        {activeTopic ? (
+          <span className="text-foreground">
+            Showing <strong>{filteredGraph.nodes.length}</strong> concept
+            {filteredGraph.nodes.length === 1 ? "" : "s"} in {activeTopic}
+          </span>
+        ) : null}
       </div>
 
-      <div className={cn("overflow-hidden rounded-lg border bg-muted/20", heightClassName)}>
-        <ReactFlow
-          nodes={layout.nodes}
-          edges={layout.edges}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.25}
-          maxZoom={1.5}
-          nodesDraggable
-          nodesConnectable={false}
-          elementsSelectable
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={16} size={1} />
-          <Controls showInteractive={false} />
-          <MiniMap pannable zoomable nodeStrokeWidth={2} className="!bg-background/80" />
-        </ReactFlow>
-      </div>
+      {filteredGraph.nodes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No concepts in this topic.</p>
+      ) : (
+        <div className={cn("overflow-hidden rounded-lg border bg-muted/20", heightClassName)}>
+          <ReactFlow
+            nodes={layout.nodes}
+            edges={layout.edges}
+            nodeTypes={nodeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            minZoom={0.25}
+            maxZoom={1.5}
+            nodesDraggable
+            nodesConnectable={false}
+            elementsSelectable
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background gap={16} size={1} />
+            <Controls showInteractive={false} />
+            <MiniMap pannable zoomable nodeStrokeWidth={2} className="!bg-background/80" />
+          </ReactFlow>
+        </div>
+      )}
     </div>
   );
 }
