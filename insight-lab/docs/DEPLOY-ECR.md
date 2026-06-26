@@ -249,9 +249,12 @@ NEO4J_PASSWORD=insightlab_dev_password
 
 GROQ_API_KEY=gsk_...
 
-# Optional with Vercel proxy (browser hits Vercel, not EC2 directly)
-CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+# Required in production — your Vercel frontend URL (HTTPS only, no trailing slash)
+CORS_ALLOW_ORIGINS=https://insight-lab-pi.vercel.app
+FRONTEND_BASE_URL=https://insight-lab-pi.vercel.app
 ```
+
+> **Do not** leave `http://localhost:3000` in `CORS_ALLOW_ORIGINS` when `APP_APP__ENV=production` — the API refuses to start. Keep localhost only for local dev with `APP_APP__ENV=development`.
 
 ### If `docker-compose.ecr.yml` is missing
 
@@ -515,6 +518,7 @@ Run Next.js on EC2 port 3000 + nginx port 80. No mixed-content issue. See discus
 | `/api-backend/health` fails | EC2 **8080** open? nginx running? `BACKEND_PROXY_URL` correct? |
 | Upload fails on Vercel only | ~4.5 MB proxy limit |
 | `/ready` 503 | `ilab ps` — check redis/neo4j; `ilab logs api` |
+| API crash: `Production CORS origin must use HTTPS` | Set `CORS_ALLOW_ORIGINS=https://YOUR-APP.vercel.app` in `backend/.env` (remove localhost), then `ilab up -d` |
 
 ---
 
