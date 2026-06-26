@@ -11,6 +11,7 @@ from app.core.exceptions import ServiceUnavailableException
 from app.core.llm_prompts import grounded_system_prompt, tag_block
 from app.core.resilience import llm_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
+from app.services.citations import strip_excerpt_markers
 from app.services.llm_json import parse_llm_json
 
 
