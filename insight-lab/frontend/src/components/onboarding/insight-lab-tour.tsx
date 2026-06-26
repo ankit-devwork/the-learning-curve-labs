@@ -83,9 +83,9 @@ const SET_DETAIL_TOUR: TourStep[] = [
   {
     id: "team-chat",
     title: "Team chat",
-    body: "Plain-text chat for sheet members. Coordinate with classmates — messages update live.",
+    body: "Plain-text chat for sheet members. Open the corner panel to coordinate with classmates — messages update live.",
     target: '[data-tour="team-chat"]',
-    placement: "top",
+    placement: "left",
   },
   {
     id: "set-quiz",
