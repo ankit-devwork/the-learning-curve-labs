@@ -40,6 +40,14 @@ PHASE3_022_MIGRATION_HINT = (
 
 PHASE3_022_MIGRATION_NOTICE = PHASE3_022_MIGRATION_HINT
 
+PHASE3_023_MIGRATION_HINT = (
+    "Team chat typing migration required. "
+    "Run supabase/migrations/023_workspace_typing_presence.sql in the Supabase SQL Editor, "
+    "then reload the API schema (Project Settings → API → Reload)."
+)
+
+PHASE3_023_MIGRATION_NOTICE = PHASE3_023_MIGRATION_HINT
+
 
 def _message_has_markers(message: str, markers: tuple[str, ...]) -> bool:
     return any(marker in message for marker in markers)
@@ -77,6 +85,17 @@ def is_missing_team_chat_schema(exc: BaseException) -> bool:
     message = str(exc).lower()
     markers = (
         "workspace_messages",
+        "pgrst205",
+        "could not find the table",
+        "schema cache",
+    )
+    return _message_has_markers(message, markers)
+
+
+def is_missing_team_chat_typing_schema(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    markers = (
+        "workspace_typing_presence",
         "pgrst205",
         "could not find the table",
         "schema cache",

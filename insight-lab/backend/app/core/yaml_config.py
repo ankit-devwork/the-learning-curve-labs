@@ -103,6 +103,8 @@ class TeamChatSection(BaseModel):
     delete_rate_limit_per_min: int = 30
     inbox_rate_limit_per_min: int = 60
     mark_read_rate_limit_per_min: int = 120
+    typing_rate_limit_per_min: int = 120
+    typing_ttl_seconds: int = 5
 
 
 class EmailSection(BaseModel):

@@ -59,6 +59,7 @@ from app.services.workspace_messages_service import (
     list_workspace_messages,
     mark_workspace_messages_read,
 )
+from app.services.workspace_typing_service import list_workspace_typing, set_workspace_typing
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -102,6 +103,10 @@ class TeamChatMessageRequest(BaseModel):
 
 class TeamChatMarkReadRequest(BaseModel):
     up_to_message_id: str | None = None
+
+
+class TeamChatTypingRequest(BaseModel):
+    active: bool = True
 
 
 @router.get("/messages/inbox")
@@ -540,6 +545,36 @@ async def mark_workspace_messages_read_route(
         workspace_id,
         user,
         up_to_message_id=body.up_to_message_id,
+    )
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.get("/{workspace_id}/typing")
+@with_observability("list_workspace_typing")
+async def list_workspace_typing_route(
+    workspace_id: str,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await list_workspace_typing(get_supabase_client(), workspace_id, user)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    return {**result, "correlation_id": correlation_id}
+
+
+@router.post("/{workspace_id}/typing")
+@with_observability("set_workspace_typing")
+async def set_workspace_typing_route(
+    workspace_id: str,
+    body: TeamChatTypingRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    result = await set_workspace_typing(
+        get_supabase_client(),
+        workspace_id,
+        user,
+        active=body.active,
     )
     correlation_id = getattr(request.state, "correlation_id", None)
     return {**result, "correlation_id": correlation_id}

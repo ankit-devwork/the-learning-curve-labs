@@ -9,7 +9,7 @@ Minimal production setup: **FastAPI on EC2** (nginx + uvicorn + systemd), **Next
 
 ## Before you deploy
 
-1. **Run Supabase migrations** `001` through `022` on your project (SQL Editor or CLI). See [supabase/README.md](../supabase/README.md) for the ordered list. Migration **007** is required for multi-doc search and concept graphs; **008–011** for study features and sharing; **014–015** for public quiz and security hardening; **016–017** for tracked study sessions, learning paths, and team chat; **018** for workspace member Storage read policies; **019** for team chat Realtime; **020–022** for chat history, SRS, read receipts, and inbox.
+1. **Run Supabase migrations** `001` through `023` on your project (SQL Editor or CLI). See [supabase/README.md](../supabase/README.md) for the ordered list. Migration **007** is required for multi-doc search and concept graphs; **008–011** for study features and sharing; **014–015** for public quiz and security hardening; **016–017** for tracked study sessions, learning paths, and team chat; **018** for workspace member Storage read policies; **019** for team chat Realtime; **020–023** for chat history, SRS, read receipts, inbox, and member-scoped typing.
 2. Choose domains, for example:
    - Frontend: `https://app.yourdomain.com` (Vercel)
    - API: `https://api.yourdomain.com` (EC2 + nginx)

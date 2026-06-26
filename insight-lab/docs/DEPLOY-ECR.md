@@ -43,14 +43,14 @@ Supabase (hosted) ◄── Auth + DB + Storage
 
 | Task | Where |
 |------|-------|
-| Run Supabase migrations **001–022** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
+| Run Supabase migrations **001–023** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
 | Create Supabase project keys | Settings → API |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 | AWS CLI configured | `aws configure` on Windows |
 | Docker Desktop | Windows (build/push image) |
 | EC2 Ubuntu instance | t3.medium recommended, 20–30 GB disk |
 
-### Supabase migrations (001–022)
+### Supabase migrations (001–023)
 
 Run in order in the Supabase SQL Editor (or `supabase db push`):
 
@@ -78,6 +78,7 @@ Run in order in the Supabase SQL Editor (or `supabase db push`):
 | 020 | `020_phase14_study_enhancements.sql` | Chat history, SRS, audio, slides, homework |
 | 021 | `021_document_storage_security.sql` | Storage encryption flag; editor document delete RLS |
 | 022 | `022_team_chat_read_state.sql` | Read receipts, unread badges, inbox support |
+| 023 | `023_workspace_typing_presence.sql` | Member-scoped typing presence (RLS + Realtime) |
 
 See [SECURITY.md](SECURITY.md) for production security settings.
 

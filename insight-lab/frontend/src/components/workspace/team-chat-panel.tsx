@@ -64,7 +64,6 @@ export function TeamChatPanel({
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserName, setCurrentUserName] = useState("You");
   const [accessDenied, setAccessDenied] = useState(false);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
@@ -185,13 +184,6 @@ export function TeamChatPanel({
         data: { session },
       } = await supabase.auth.getSession();
       setCurrentUserId(session?.user?.id ?? null);
-      const metadata = session?.user?.user_metadata as { full_name?: string; name?: string } | undefined;
-      const email = session?.user?.email ?? "";
-      const name =
-        metadata?.full_name?.trim() ||
-        metadata?.name?.trim() ||
-        (email.includes("@") ? email.split("@")[0] : "You");
-      setCurrentUserName(name);
     }
     void loadUser();
   }, []);
@@ -270,7 +262,6 @@ export function TeamChatPanel({
     workspaceId: setId,
     accessToken,
     currentUserId,
-    currentUserName,
     draft,
     enabled: !accessDenied && !migrationNotice,
   });

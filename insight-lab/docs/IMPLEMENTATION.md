@@ -532,9 +532,11 @@ Migration: `020_phase14_study_enhancements.sql` (chat history, SRS, audio, slide
 | Team chat inbox | `GET /workspaces/messages/inbox` (member-scoped, rate-limited) | Global corner dock with conversation list + unread badges |
 | Read receipts | `POST /workspaces/{id}/messages/read`, `workspace_message_reads` RLS | Seen / Seen by N on sent bubbles |
 | Message pagination | Existing `before` cursor on `GET .../messages` | Load older messages in thread |
-| Typing indicators | — (Supabase Realtime broadcast) | Ephemeral “is typing” above composer |
+| Typing indicators | `POST/GET /workspaces/{id}/typing`, `workspace_typing_presence` RLS | Ephemeral “is typing” above composer (member-only) |
 
 Migration: `022_team_chat_read_state.sql` (read cursors, read receipts, Realtime publication).
+
+Migration: `023_workspace_typing_presence.sql` (typing presence RLS + Realtime).
 
 Still planned:
 
@@ -546,7 +548,7 @@ See [SECURITY.md](SECURITY.md) for the full production security guide.
 
 | Control | Status |
 |---------|--------|
-| Supabase RLS + Storage policies (migrations 005–022) | Required in prod |
+| Supabase RLS + Storage policies (migrations 005–023) | Required in prod |
 | JWT auth on all document/quiz/excel/workspace routes | Done |
 | Team chat: member-scoped RLS + plain-text validation (migration 017) | Done |
 | Storage member read policies (migration 018) | Done |
@@ -557,7 +559,8 @@ See [SECURITY.md](SECURITY.md) for the full production security guide.
 | Invite tokens not in list API (link endpoint) | Done |
 | Export routes require editor (Markdown, LMS, QTI) | Done |
 | User-scoped cache keys (summary, chat, quiz, excel) | Done |
-| Rate limits (upload, process, chat, quiz, excel, sharing, public quiz, team chat incl. inbox/mark-read, explain, homework) | Done |
+| Team chat typing presence RLS (migration 023) | Done |
+| Rate limits (upload, process, chat, quiz, excel, sharing, public quiz, team chat incl. inbox/mark-read/typing, explain, homework) | Done |
 | Grounded LLM prompts + excerpt marker stripping | Done |
 | Retry + circuit breaker on LLM/Storage | Done |
 | Phase 2 migration guard (graceful degradation) | Done |
