@@ -32,6 +32,14 @@ PHASE3_020_MIGRATION_HINT = (
 
 PHASE3_020_MIGRATION_NOTICE = PHASE3_020_MIGRATION_HINT
 
+PHASE3_022_MIGRATION_HINT = (
+    "Team chat read-state migration required. "
+    "Run supabase/migrations/022_team_chat_read_state.sql in the Supabase SQL Editor, "
+    "then reload the API schema (Project Settings → API → Reload)."
+)
+
+PHASE3_022_MIGRATION_NOTICE = PHASE3_022_MIGRATION_HINT
+
 
 def _message_has_markers(message: str, markers: tuple[str, ...]) -> bool:
     return any(marker in message for marker in markers)
@@ -69,6 +77,18 @@ def is_missing_team_chat_schema(exc: BaseException) -> bool:
     message = str(exc).lower()
     markers = (
         "workspace_messages",
+        "pgrst205",
+        "could not find the table",
+        "schema cache",
+    )
+    return _message_has_markers(message, markers)
+
+
+def is_missing_team_chat_read_schema(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    markers = (
+        "workspace_chat_read_state",
+        "workspace_message_reads",
         "pgrst205",
         "could not find the table",
         "schema cache",

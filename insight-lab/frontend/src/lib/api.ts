@@ -284,6 +284,12 @@ export type GraphSyncResponse = {
   correlation_id?: string;
 };
 
+export type TeamChatReadReceipt = {
+  user_id: string;
+  name: string;
+  read_at: string;
+};
+
 export type TeamChatMessage = {
   id: string;
   workspace_id: string;
@@ -294,6 +300,8 @@ export type TeamChatMessage = {
   body: string;
   created_at: string;
   is_own: boolean;
+  read_by_count?: number;
+  read_by?: TeamChatReadReceipt[];
 };
 
 export type WorkspaceMessagesResponse = {
@@ -301,6 +309,33 @@ export type WorkspaceMessagesResponse = {
   messages: TeamChatMessage[];
   has_more: boolean;
   next_before?: string | null;
+  migration_required?: boolean;
+  notice?: string;
+  correlation_id?: string;
+};
+
+export type TeamChatInboxPreview = {
+  id: string;
+  body: string;
+  created_at: string;
+  author_id: string;
+  author_name: string;
+  is_own: boolean;
+};
+
+export type TeamChatConversation = {
+  workspace_id: string;
+  workspace_name: string;
+  access_role?: string | null;
+  is_owner?: boolean;
+  unread_count: number;
+  last_message: TeamChatInboxPreview | null;
+  last_message_at: string | null;
+};
+
+export type TeamChatInboxResponse = {
+  conversations: TeamChatConversation[];
+  total_unread: number;
   migration_required?: boolean;
   notice?: string;
   correlation_id?: string;

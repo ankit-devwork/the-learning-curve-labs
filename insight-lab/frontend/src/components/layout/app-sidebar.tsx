@@ -12,6 +12,7 @@ import {
 import { BrandMark } from "@/components/layout/brand-mark";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { InsightLabTourHost } from "@/components/onboarding/insight-lab-tour";
+import { TeamChatDockShell } from "@/components/workspace/team-chat-dock-shell";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { requestTourRestart } from "@/lib/onboarding";
@@ -127,6 +128,7 @@ export function AppSidebarLayout({ userEmail, children, wide }: AppSidebarProps)
         </div>
       </div>
       <InsightLabTourHost />
+      <TeamChatDockShell />
     </div>
   );
 }
