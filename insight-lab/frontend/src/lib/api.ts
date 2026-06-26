@@ -457,6 +457,10 @@ export type CoursePackDocumentResult = {
     study_guide_id?: string;
     audio_title?: string;
     audio_script?: string;
+    infographic_id?: string;
+    slide_deck_id?: string;
+    homework_solution_id?: string;
+    homework_question?: string;
     chart_count?: number;
   };
   errors: string[];

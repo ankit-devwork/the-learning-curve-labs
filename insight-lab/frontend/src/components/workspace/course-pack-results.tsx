@@ -5,7 +5,10 @@ import {
   BookOpen,
   Brain,
   FileText,
+  GraduationCap,
+  Image,
   Layers,
+  Presentation,
   Volume2,
 } from "lucide-react";
 import type { CoursePackDocumentResult } from "@/lib/api";
@@ -23,7 +26,20 @@ const DOCUMENT_ARTIFACTS = [
   { key: "flashcard_set_id", label: "Flashcards", icon: Layers, hash: "flashcards" },
   { key: "study_guide_id", label: "Study guide", icon: BookOpen, hash: "guide" },
   { key: "audio_script", label: "Audio", icon: Volume2, hash: "audio" },
+  { key: "infographic_id", label: "Infographic", icon: Image, hash: "infographic" },
+  { key: "slide_deck_id", label: "Slides", icon: Presentation, hash: "slides" },
+  { key: "homework_solution_id", label: "Homework sample", icon: GraduationCap, hash: "homework" },
 ] as const;
+
+function artifactReady(
+  item: CoursePackDocumentResult,
+  key: (typeof DOCUMENT_ARTIFACTS)[number]["key"],
+): boolean {
+  if (key === "summary") {
+    return Boolean(item.artifacts.summary);
+  }
+  return Boolean(item.artifacts[key as keyof typeof item.artifacts]);
+}
 
 export function CoursePackResults({ setId, documents }: CoursePackResultsProps) {
   return (
@@ -82,10 +98,7 @@ export function CoursePackResults({ setId, documents }: CoursePackResultsProps) 
             ) : (
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {DOCUMENT_ARTIFACTS.map(({ key, label, icon: Icon, hash }) => {
-                  const ready =
-                    key === "summary"
-                      ? Boolean(item.artifacts.summary)
-                      : Boolean(item.artifacts[key as keyof typeof item.artifacts]);
+                  const ready = artifactReady(item, key);
                   const href = `${basePath}#${hash}`;
 
                   return (
@@ -112,6 +125,11 @@ export function CoursePackResults({ setId, documents }: CoursePackResultsProps) 
                 })}
               </div>
             )}
+            {item.artifacts.homework_question ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Homework sample: {item.artifacts.homework_question}
+              </p>
+            ) : null}
             {item.errors.length > 0 ? (
               <p className="mt-2 text-xs text-destructive">{item.errors.join("; ")}</p>
             ) : null}

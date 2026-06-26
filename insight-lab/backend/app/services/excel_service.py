@@ -27,6 +27,9 @@ from app.services.llm_client import (
     generate_excel_summary,
     semantic_excel_chat_index_key,
 )
+from app.core.migration_guard import run_or_none_phase14
+from app.services.chat_history_format import format_excel_chat_sources
+from app.services.chat_history_service import save_document_chat_message
 from app.services.semantic_cache import (
     get_semantic_cached_answer_by_index,
     store_semantic_cached_answer_by_index,
@@ -310,6 +313,19 @@ async def ask_excel(
         index_key=semantic_index_key,
         question=question,
         payload=payload,
+    )
+    run_or_none_phase14(
+        lambda: save_document_chat_message(
+            client,
+            document_id=document_id,
+            workspace_id=doc["workspace_id"],
+            user=user,
+            question=question,
+            answer=payload["answer"],
+            sources=format_excel_chat_sources(llm_result["sources"], linked_citations),
+            retrieval_method="excel",
+            cached=False,
+        )
     )
     log.info("Excel chat answered", document_id=document_id, user_id=user.id)
     return payload

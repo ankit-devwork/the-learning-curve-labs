@@ -12,9 +12,15 @@ from app.core.auth import AuthUser
 from app.core.cache import check_rate_limit
 from app.core.exceptions import RateLimitException
 from app.core.yaml_config import get_yaml_config
-from app.services.artifact_service import generate_document_flashcards, generate_document_study_guide
+from app.services.artifact_service import (
+    generate_document_flashcards,
+    generate_document_infographic,
+    generate_document_slide_deck,
+    generate_document_study_guide,
+)
 from app.services.audio_overview_service import generate_audio_overview
 from app.services.document_service import get_document_summary
+from app.services.course_pack_utils import sample_homework_question
 from app.services.quiz_service import generate_document_quiz, generate_excel_quiz
 from app.services.workspace_access import require_workspace_role
 
@@ -40,6 +46,8 @@ async def _build_document_pack_item(
     except Exception as exc:
         item["errors"].append(f"summary: {exc}")
 
+    study_guide_payload: dict[str, Any] | None = None
+
     for name, factory in (
         ("quiz", lambda: generate_document_quiz(
             client, document_id, user,
@@ -50,6 +58,8 @@ async def _build_document_pack_item(
         )),
         ("study_guide", lambda: generate_document_study_guide(client, document_id, user)),
         ("audio_overview", lambda: generate_audio_overview(client, document_id, user)),
+        ("infographic", lambda: generate_document_infographic(client, document_id, user)),
+        ("slide_deck", lambda: generate_document_slide_deck(client, document_id, user)),
     ):
         try:
             payload = await factory()
@@ -58,12 +68,33 @@ async def _build_document_pack_item(
             elif name == "flashcards":
                 item["artifacts"]["flashcard_set_id"] = payload.get("set_id")
             elif name == "study_guide":
+                study_guide_payload = payload
                 item["artifacts"]["study_guide_id"] = payload.get("guide_id")
             elif name == "audio_overview":
                 item["artifacts"]["audio_title"] = payload.get("title")
                 item["artifacts"]["audio_script"] = payload.get("script")
+            elif name == "infographic":
+                item["artifacts"]["infographic_id"] = payload.get("infographic_id")
+            elif name == "slide_deck":
+                item["artifacts"]["slide_deck_id"] = payload.get("slide_deck_id")
         except Exception as exc:
             item["errors"].append(f"{name}: {exc}")
+
+    homework_question = sample_homework_question(study_guide_payload)
+    if homework_question:
+        try:
+            from app.services.homework_service import solve_document_homework
+
+            homework = await solve_document_homework(
+                client,
+                document_id,
+                user,
+                question=homework_question,
+            )
+            item["artifacts"]["homework_solution_id"] = homework.get("solution_id")
+            item["artifacts"]["homework_question"] = homework.get("question")
+        except Exception as exc:
+            item["errors"].append(f"homework: {exc}")
 
     return item
 
