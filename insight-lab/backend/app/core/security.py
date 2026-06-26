@@ -39,4 +39,8 @@ def validate_cors_origins_at_startup() -> None:
         if origin == "*":
             raise RuntimeError("CORS_ALLOW_ORIGINS must not use wildcard with credentials")
         if not origin.startswith("https://"):
-            raise RuntimeError(f"Production CORS origin must use HTTPS: {origin}")
+            raise RuntimeError(
+                f"Production CORS origin must use HTTPS (remove localhost): {origin}. "
+                "Set CORS_ALLOW_ORIGINS=https://your-app.vercel.app in backend/.env, "
+                "then restart the API container."
+            )
