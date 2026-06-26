@@ -43,14 +43,14 @@ Supabase (hosted) ◄── Auth + DB + Storage
 
 | Task | Where |
 |------|-------|
-| Run Supabase migrations **001–019** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
+| Run Supabase migrations **001–022** | Supabase SQL Editor — see [supabase/README.md](../supabase/README.md) |
 | Create Supabase project keys | Settings → API |
 | Groq API key | [console.groq.com](https://console.groq.com) |
 | AWS CLI configured | `aws configure` on Windows |
 | Docker Desktop | Windows (build/push image) |
 | EC2 Ubuntu instance | t3.medium recommended, 20–30 GB disk |
 
-### Supabase migrations (001–019)
+### Supabase migrations (001–022)
 
 Run in order in the Supabase SQL Editor (or `supabase db push`):
 
@@ -75,6 +75,9 @@ Run in order in the Supabase SQL Editor (or `supabase db push`):
 | 017 | `017_workspace_team_chat.sql` | Member-only team chat |
 | 018 | `018_storage_member_read.sql` | Workspace member Storage read on shared documents |
 | 019 | `019_workspace_messages_realtime.sql` | Team chat Realtime (member RLS unchanged) |
+| 020 | `020_phase14_study_enhancements.sql` | Chat history, SRS, audio, slides, homework |
+| 021 | `021_document_storage_security.sql` | Storage encryption flag; editor document delete RLS |
+| 022 | `022_team_chat_read_state.sql` | Read receipts, unread badges, inbox support |
 
 See [SECURITY.md](SECURITY.md) for production security settings.
 

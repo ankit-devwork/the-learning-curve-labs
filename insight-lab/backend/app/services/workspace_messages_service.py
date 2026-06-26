@@ -65,6 +65,34 @@ async def _check_delete_rate(user_id: str) -> None:
         )
 
 
+async def _check_inbox_rate(user_id: str) -> None:
+    cfg = get_yaml_config().team_chat
+    allowed, retry_after = await check_rate_limit(
+        key=f"team_chat:inbox:{user_id}",
+        limit=cfg.inbox_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            "Too many inbox refresh requests; try again shortly",
+            retry_after=retry_after,
+        )
+
+
+async def _check_mark_read_rate(user_id: str, workspace_id: str) -> None:
+    cfg = get_yaml_config().team_chat
+    allowed, retry_after = await check_rate_limit(
+        key=f"team_chat:mark_read:{user_id}:{workspace_id}",
+        limit=cfg.mark_read_rate_limit_per_min,
+        window_seconds=60,
+    )
+    if not allowed:
+        raise RateLimitException(
+            "Too many read-receipt updates; try again shortly",
+            retry_after=retry_after,
+        )
+
+
 def _author_label(profile: dict | None) -> str:
     if not profile:
         return "Member"
@@ -341,6 +369,7 @@ async def delete_workspace_message(
 
 async def list_chat_inbox(client: Client, user: AuthUser) -> dict:
     """All study-sheet conversations for the current user with preview and unread counts."""
+    await _check_inbox_rate(user.id)
 
     def _load() -> dict:
         workspaces = list_workspaces(client, user)
@@ -451,6 +480,7 @@ async def mark_workspace_messages_read(
     up_to_message_id: str | None = None,
 ) -> dict:
     require_workspace_role(client, workspace_id, user, min_role="viewer")
+    await _check_mark_read_rate(user.id, workspace_id)
 
     def _mark() -> dict:
         if up_to_message_id:

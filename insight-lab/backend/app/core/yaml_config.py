@@ -101,6 +101,8 @@ class TeamChatSection(BaseModel):
     post_rate_limit_per_min: int = 30
     list_rate_limit_per_min: int = 120
     delete_rate_limit_per_min: int = 30
+    inbox_rate_limit_per_min: int = 60
+    mark_read_rate_limit_per_min: int = 120
 
 
 class EmailSection(BaseModel):
