@@ -16,6 +16,7 @@ type TeamChatPanelProps = {
   setId: string;
   accessToken: string | null;
   isOwner: boolean;
+  embedded?: boolean;
 };
 
 function formatMessageTime(iso: string): string {
@@ -44,7 +45,7 @@ function validateClientMessage(body: string): string | null {
   return null;
 }
 
-export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProps) {
+export function TeamChatPanel({ setId, accessToken, isOwner, embedded = false }: TeamChatPanelProps) {
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -223,86 +224,97 @@ export function TeamChatPanel({ setId, accessToken, isOwner }: TeamChatPanelProp
 
   const emptyState = !loading && messages.length === 0;
 
+  const content = (
+    <div className="space-y-3" data-tour={embedded ? "team-chat" : undefined}>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {migrationNotice ? (
+        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+          {migrationNotice}
+        </p>
+      ) : null}
+
+      <div
+        ref={scrollRef}
+        className={cn(
+          "space-y-3 overflow-y-auto rounded-lg border bg-muted/20 p-3",
+          embedded ? "max-h-64" : "max-h-80",
+        )}
+        aria-live="polite"
+      >
+        {loading ? <ProcessingContentSkeleton lines={3} /> : null}
+        {emptyState ? (
+          <p className="text-sm text-muted-foreground">
+            No messages yet. Invite teammates from Share, then coordinate here.
+          </p>
+        ) : null}
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={cn(
+              "flex flex-col gap-1 rounded-lg px-3 py-2 text-sm",
+              message.is_own || message.author_id === currentUserId
+                ? "ml-8 bg-primary/10"
+                : "mr-8 bg-card ring-1 ring-border/60",
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-foreground">
+                {message.is_own || message.author_id === currentUserId ? "You" : message.author_name}
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">{formatMessageTime(message.created_at)}</span>
+                {canDeleteMessage(message) ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px] text-muted-foreground"
+                    onClick={() => void handleDelete(message.id)}
+                  >
+                    Delete
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={(event) => void handleSend(event)} className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="Type a plain English message for your team..."
+          disabled={!accessToken || sending || accessDenied}
+          maxLength={2000}
+          aria-label="Team chat message"
+        />
+        <Button type="submit" disabled={!accessToken || sending || accessDenied || !draft.trim()}>
+          {sending ? "Sending..." : "Send"}
+        </Button>
+      </form>
+      <p className="text-[11px] text-muted-foreground">
+        {realtimeConnected
+          ? "Live updates via Supabase Realtime. Only members of this study sheet can read or post."
+          : "Live updates unavailable — refreshing every 30 seconds. Only members of this study sheet can read or post."}
+      </p>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
   return (
     <Card className="shadow-sm" data-tour="team-chat">
-      <CardHeader>
-        <CardTitle>Team chat</CardTitle>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Team chat</CardTitle>
         <CardDescription>
           Plain-text discussion for study sheet members only. No AI, links, files, or emoji.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        {migrationNotice ? (
-          <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
-            {migrationNotice}
-          </p>
-        ) : null}
-
-        <div
-          ref={scrollRef}
-          className="max-h-80 space-y-3 overflow-y-auto rounded-lg border bg-muted/20 p-3"
-          aria-live="polite"
-        >
-          {loading ? <ProcessingContentSkeleton lines={3} /> : null}
-          {emptyState ? (
-            <p className="text-sm text-muted-foreground">
-              No messages yet. Invite teammates from Share, then coordinate here.
-            </p>
-          ) : null}
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                "flex flex-col gap-1 rounded-lg px-3 py-2 text-sm",
-                message.is_own || message.author_id === currentUserId
-                  ? "ml-8 bg-primary/10"
-                  : "mr-8 bg-card ring-1 ring-border/60",
-              )}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-foreground">
-                  {message.is_own || message.author_id === currentUserId ? "You" : message.author_name}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">{formatMessageTime(message.created_at)}</span>
-                  {canDeleteMessage(message) ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[10px] text-muted-foreground"
-                      onClick={() => void handleDelete(message.id)}
-                    >
-                      Delete
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
-            </div>
-          ))}
-        </div>
-
-        <form onSubmit={(event) => void handleSend(event)} className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Type a plain English message for your team..."
-            disabled={!accessToken || sending || accessDenied}
-            maxLength={2000}
-            aria-label="Team chat message"
-          />
-          <Button type="submit" disabled={!accessToken || sending || accessDenied || !draft.trim()}>
-            {sending ? "Sending..." : "Send"}
-          </Button>
-        </form>
-        <p className="text-[11px] text-muted-foreground">
-          {realtimeConnected
-            ? "Live updates via Supabase Realtime. Only members of this study sheet can read or post."
-            : "Live updates unavailable — refreshing every 30 seconds. Only members of this study sheet can read or post."}
-        </p>
-      </CardContent>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }

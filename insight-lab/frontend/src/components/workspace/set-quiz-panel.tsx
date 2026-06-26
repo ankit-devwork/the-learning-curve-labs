@@ -32,6 +32,7 @@ type SetQuizPanelProps = {
   accessToken: string | null;
   hasReadyDocuments: boolean;
   canEdit?: boolean;
+  embedded?: boolean;
 };
 
 export function SetQuizPanel({
@@ -39,6 +40,7 @@ export function SetQuizPanel({
   accessToken,
   hasReadyDocuments,
   canEdit = true,
+  embedded = false,
 }: SetQuizPanelProps) {
   const [quiz, setQuiz] = useState<QuizResponse | null>(null);
   const [questionType, setQuestionType] = useState<GenerateQuizRequest["question_type"]>("scq");
@@ -246,15 +248,9 @@ export function SetQuizPanel({
 
   const weakAvailable = hasWeakConcepts(mastery);
 
-  return (
-    <Card className="shadow-sm" id="set-quiz" data-tour="set-quiz">
-      <CardHeader>
-        <CardTitle>Practice quiz (whole sheet)</CardTitle>
-        <CardDescription>
-          Test yourself on weak topics from every file in this sheet. Take at least one file quiz first.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const content = (
+    <div className="space-y-4" data-tour={embedded ? "set-quiz" : undefined}>
+      {!embedded ? (
         <FeatureGuide
           title="How it works"
           steps={[
@@ -263,16 +259,17 @@ export function SetQuizPanel({
             "Editors can generate, review, and publish a whole-sheet quiz from weak topics.",
           ]}
         />
+      ) : null}
 
-        {mastery.length > 0 ? (
-          <QuizMasteryProgress
-            concepts={mastery}
-            title="Topic progress across this set"
-            collapsible
-            defaultExpanded
-            maxVisibleRows={5}
-          />
-        ) : null}
+      {mastery.length > 0 ? (
+        <QuizMasteryProgress
+          concepts={mastery}
+          title="Topic progress across this set"
+          collapsible
+          defaultExpanded={!embedded}
+          maxVisibleRows={5}
+        />
+      ) : null}
 
         {canEdit ? (
           <>
@@ -536,7 +533,22 @@ export function SetQuizPanel({
             </Button>
           </div>
         ) : null}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Card className="shadow-sm" id="set-quiz" data-tour="set-quiz">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Practice quiz (whole sheet)</CardTitle>
+        <CardDescription>
+          Test yourself on weak topics from every file in this sheet. Take at least one file quiz first.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }

@@ -37,14 +37,14 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 type SheetDrawerPanel = "share" | "upload" | "course-pack" | "links";
 
-const MATERIAL_ROW_HEIGHT_PX = 64;
-const MATERIAL_MAX_VISIBLE_ROWS = 5;
+const MATERIAL_ROW_HEIGHT_PX = 52;
+const MATERIAL_MAX_VISIBLE_ROWS = 4;
 
 function FileTypeIcon({ fileType }: { fileType: string }) {
   const Icon = fileType === "excel" ? FileSpreadsheet : FileText;
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-      <Icon className="h-4 w-4" aria-hidden />
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <Icon className="h-3.5 w-3.5" aria-hidden />
     </span>
   );
 }
@@ -326,7 +326,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-4 pb-6">
       <ContextBreadcrumb
         items={[
           { label: "Study sheets", href: "/dashboard/sets" },
@@ -334,9 +334,9 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         ]}
       />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-semibold tracking-tight">{workspace.name}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{workspace.name}</h1>
           {workspace.access_role ? (
             <p className="mt-1 text-sm text-muted-foreground">
               Your role: {workspaceRoleLabel(workspace.access_role)}
@@ -411,15 +411,15 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       </div>
 
       <Card className="shadow-sm" data-tour="sources-strip">
-        <CardHeader>
-          <CardTitle>Materials</CardTitle>
-          <CardDescription>
+        <CardHeader className="space-y-1 pb-2 pt-4">
+          <CardTitle className="text-base">Materials</CardTitle>
+          <CardDescription className="text-xs">
             {documents.length === 0
               ? "Upload PDFs, Word docs, or spreadsheets to start studying."
               : `${readyCount} of ${documents.length} ready — open a file for chat, quiz, and study tools.`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 pt-0">
           {canEdit && uploadConfig?.guidance ? (
             documents.length === 0 ? (
               <UploadGuidance
@@ -468,7 +468,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
                 data-tour="file-list"
               >
                 {documents.map((doc) => (
-                  <li key={doc.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <li key={doc.id} className="flex items-center justify-between gap-2 px-3 py-2">
                     <div className="flex min-w-0 items-center gap-3">
                       <FileTypeIcon fileType={doc.file_type} />
                       <div className="min-w-0">
@@ -518,11 +518,12 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
       {progress ? <ProgressDashboardPanel progress={progress} compact /> : null}
 
       {hasReadyDocuments ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <CollapsibleSection
             title="Guided study plan"
             description="Optional step-by-step checklist with saved progress"
             tourId="study-session"
+            compact
           >
             <WorkspaceStudySessionPanel
               setId={setId}
@@ -537,6 +538,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
             title="Learning path"
             description="Concepts ordered by prerequisites and quiz mastery"
             tourId="learning-path"
+            compact
           >
             <LearningPathPanel
               setId={setId}
@@ -551,6 +553,7 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
             title="Concept graph"
             description="Topics across all documents in this sheet"
             tourId="concept-graph"
+            compact
           >
             <WorkspaceConceptGraphPanel
               setId={setId}
@@ -562,20 +565,57 @@ export function StudySetDetailClient({ setId }: { setId: string }) {
         </div>
       ) : null}
 
-      <TeamChatPanel setId={setId} accessToken={accessToken} isOwner={isOwner} />
+      <div className="space-y-2">
+        <CollapsibleSection
+          title="Team chat"
+          description="Plain-text discussion for study sheet members"
+          tourId="team-chat"
+          compact
+        >
+          <TeamChatPanel setId={setId} accessToken={accessToken} isOwner={isOwner} embedded />
+        </CollapsibleSection>
 
-      {canEdit ? (
-        <ClassroomAnalyticsPanel setId={setId} accessToken={accessToken} canManage={canEdit} />
-      ) : null}
+        {canEdit ? (
+          <CollapsibleSection
+            title="Classroom analytics"
+            description="Per-member quiz scores, flashcards, and weak topics"
+            tourId="classroom-analytics"
+            compact
+          >
+            <ClassroomAnalyticsPanel
+              setId={setId}
+              accessToken={accessToken}
+              canManage={canEdit}
+              embedded
+            />
+          </CollapsibleSection>
+        ) : null}
 
-      <SetQuizPanel
-        setId={setId}
-        accessToken={accessToken}
-        canEdit={canEdit}
-        hasReadyDocuments={hasReadyDocuments}
-      />
+        <CollapsibleSection
+          id="set-quiz"
+          title="Practice quiz (whole sheet)"
+          description="Adaptive quiz from weak topics across all files"
+          tourId="set-quiz"
+          compact
+        >
+          <SetQuizPanel
+            setId={setId}
+            accessToken={accessToken}
+            canEdit={canEdit}
+            hasReadyDocuments={hasReadyDocuments}
+            embedded
+          />
+        </CollapsibleSection>
 
-      <MultiDocChatPanel documents={documents} workspaceId={setId} />
+        <CollapsibleSection
+          title="Compare documents"
+          description="Ask one question across multiple files"
+          tourId="compare-docs"
+          compact
+        >
+          <MultiDocChatPanel documents={documents} workspaceId={setId} embedded />
+        </CollapsibleSection>
+      </div>
 
       <SlideOverDrawer
         open={drawerPanel !== null}
