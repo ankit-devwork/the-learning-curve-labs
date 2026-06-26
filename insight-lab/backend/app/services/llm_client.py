@@ -11,7 +11,7 @@ from app.core.exceptions import ServiceUnavailableException
 from app.core.llm_prompts import grounded_system_prompt, tag_block
 from app.core.resilience import llm_circuit, with_retry
 from app.core.yaml_config import get_yaml_config
-from app.services.citations import strip_excerpt_markers
+from app.services.llm_json import parse_llm_json
 
 
 def _llm_model() -> str:
@@ -627,12 +627,7 @@ async def generate_suggested_questions(*, summary: str, filename: str) -> list[s
         ],
         max_tokens=cfg.suggested_questions_max_tokens,
     )
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-    payload = json.loads(text.strip())
+    payload = parse_llm_json(raw)
     questions = payload.get("questions") if isinstance(payload, dict) else payload
     if not isinstance(questions, list):
         raise ValueError("Invalid suggested questions payload")
@@ -747,8 +742,7 @@ async def explain_with_citations(
         ],
         max_tokens=cfg.max_tokens,
     )
-    text = _strip_json_fence(raw)
-    payload = json.loads(text)
+    payload = parse_llm_json(raw)
     if not isinstance(payload, dict):
         raise ValueError("Invalid explain payload")
     explanation = str(payload.get("explanation", "")).strip()
@@ -785,8 +779,7 @@ async def solve_homework_step_by_step(
         ],
         max_tokens=cfg.max_tokens,
     )
-    text = _strip_json_fence(raw)
-    payload = json.loads(text)
+    payload = parse_llm_json(raw)
     if not isinstance(payload, dict):
         raise ValueError("Invalid homework payload")
     steps = payload.get("steps") or []
@@ -806,18 +799,6 @@ async def solve_homework_step_by_step(
         "steps": cleaned_steps,
         "summary": str(payload.get("summary", "")).strip(),
     }
-
-
-def _strip_json_fence(raw: str) -> str:
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-    return text.strip()
-
-
-def _join_chunks(chunks: list[str]) -> str:
     return "\n\n---\n\n".join(chunk[:2000] for chunk in chunks[:8])
 
 

@@ -1,4 +1,4 @@
-import json
+from app.services.llm_json import parse_llm_json
 from typing import Any
 from uuid import uuid4
 
@@ -71,17 +71,8 @@ class InfographicDraft(BaseModel):
     blocks: list[dict[str, Any]] = Field(default_factory=list)
 
 
-def _strip_json_fence(raw: str) -> str:
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-    return text.strip()
-
-
 def parse_flashcard_draft(raw: str, *, max_cards: int) -> FlashcardSetDraft:
-    payload = json.loads(_strip_json_fence(raw))
+    payload = parse_llm_json(raw)
     draft = FlashcardSetDraft.model_validate(payload)
     draft.cards = draft.cards[:max_cards]
     if not draft.cards:
@@ -90,12 +81,12 @@ def parse_flashcard_draft(raw: str, *, max_cards: int) -> FlashcardSetDraft:
 
 
 def parse_study_guide_draft(raw: str) -> StudyGuideDraft:
-    payload = json.loads(_strip_json_fence(raw))
+    payload = parse_llm_json(raw)
     return StudyGuideDraft.model_validate(payload)
 
 
 def parse_infographic_draft(raw: str) -> InfographicDraft:
-    payload = json.loads(_strip_json_fence(raw))
+    payload = parse_llm_json(raw)
     draft = InfographicDraft.model_validate(payload)
     if not draft.blocks:
         raise ValueError("Infographic must contain at least one block")
@@ -225,7 +216,7 @@ class SlideDeckDraft(BaseModel):
 
 
 def parse_slide_deck_draft(raw: str, *, max_slides: int) -> SlideDeckDraft:
-    payload = json.loads(_strip_json_fence(raw))
+    payload = parse_llm_json(raw)
     draft = SlideDeckDraft.model_validate(payload)
     draft.slides = draft.slides[:max_slides]
     if not draft.slides:
